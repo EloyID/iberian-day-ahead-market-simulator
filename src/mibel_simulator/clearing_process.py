@@ -7,11 +7,13 @@ import logging
 import pandas as pd
 from mibel_simulator.const import (
     CAT_BUY_SELL,
+    CAT_FRONTIER,
     CAT_PAIS,
     FLOAT_BID_POWER,
     FLOAT_BID_POWER_CUMSUM,
     FLOAT_BID_PRICE,
     FLOAT_MIC,
+    FRONTIER_MAPPING_REVERSE,
     ID_INDIVIDUAL_BID,
     ID_ORDER,
     INT_PERIODO,
@@ -25,7 +27,16 @@ from mibel_simulator.const import (
     CLEARING_PRICES_COLUMN,
     SPAIN_PORTUGAL_TRANSMISSION_COLUMN,
 )
-from mibel_simulator.run_model import run_market_model
+from mibel_simulator.data_preprocessor import (
+    get_all_scos_with_mic,
+    get_det_cab_date_for_DAM_simulator,
+    get_exclusive_block_orders_grouped,
+    get_france_det_cab_date_from_price,
+    get_parent_child_bloques,
+    get_parent_child_scos,
+    get_sco_bids_tramo_grouped,
+)
+from mibel_simulator.run_model import run_model
 from mibel_simulator.model_info_extraction import (
     get_cleared_energy_series,
     get_clearing_prices_df,
@@ -444,7 +455,7 @@ def run_iterative_loop(
         )
 
         # Run market model
-        model, model_binary, results = run_market_model(
+        model, model_binary, results = run_model(
             det_cab_date_scos_filtered,
             capacidad_inter_PT_date,
             parent_child_scos,
@@ -511,3 +522,67 @@ def run_iterative_loop(
             break
 
     return trials_df, best_model, best_model_binary
+
+
+def clear_OMIE_market(
+    det_date: pd.DataFrame,
+    cab_date: pd.DataFrame,
+    uof_zones: pd.DataFrame,
+    capacidad_inter_date: pd.DataFrame,
+    price_france_date: pd.DataFrame,
+    trials_count: int = 100,
+    starting_trials_df: pd.DataFrame = None,
+) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
+    """
+    Runs the full OMIE market clearing process for a given day, including data
+    preprocessing, structure building, and iterative DAM optimization.
+
+    This function prepares all necessary data structures from the provided DET,
+    CAB, UOF zones, interconnection capacity, and France price data. It then
+    runs the iterative DAM clearing process, optimizing combinations of SCOs
+    with MIC, and returns the results and best models.
+
+    Args:
+        det_date (pd.DataFrame): DET DataFrame for the studied day.
+        cab_date (pd.DataFrame): CAB DataFrame for the studied day.
+        uof_zones (pd.DataFrame): DataFrame mapping units to zones.
+        capacidad_inter_date (pd.DataFrame): DataFrame of interconnection capacities for the studied day.
+        price_france_date (pd.DataFrame): DataFrame of France prices for the studied day.
+        trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
+        starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
+
+    Returns:
+        tuple: (trials_df, best_model, best_model_binary)
+            trials_df (pd.DataFrame): DataFrame of all trial results.
+            best_model (pyo.ConcreteModel): Pyomo model object for the best trial.
+            best_model_binary (pyo.ConcreteModel): Pyomo model object for the best trial (binary version).
+    """
+
+    capacidad_inter_pt_date = capacidad_inter_date.query(
+        f"{CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
+    )
+    det_cab_fr_date = get_france_det_cab_date_from_price(
+        price_france_date, capacidad_inter_date
+    )
+    det_cab_date = get_det_cab_date_for_DAM_simulator(
+        det_date, cab_date, det_cab_fr_date, uof_zones, zones_default_to_spain=True
+    )
+    parent_child_bloques = get_parent_child_bloques(det_cab_date)
+    exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
+    parent_child_scos = get_parent_child_scos(det_cab_date)
+    sco_bids_tramo_grouped = get_sco_bids_tramo_grouped(det_cab_date)
+    all_scos_with_mic = get_all_scos_with_mic(det_cab_date)
+
+    trials_df, model, model_binary = run_iterative_loop(
+        det_cab_date=det_cab_date,
+        capacidad_inter_date=capacidad_inter_pt_date,
+        parent_child_scos=parent_child_scos,
+        parent_child_bloques=parent_child_bloques,
+        exclusive_block_orders_grouped=exclusive_block_orders_grouped,
+        sco_bids_tramo_grouped=sco_bids_tramo_grouped,
+        trials_count=trials_count,
+        all_scos_with_mic=all_scos_with_mic,
+        trials_df=starting_trials_df,
+    )
+
+    return trials_df, model, model_binary

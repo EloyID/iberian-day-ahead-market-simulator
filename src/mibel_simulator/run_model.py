@@ -41,10 +41,10 @@ from pyomo.environ import (
 )
 from pyomo.opt import SolverFactory
 
-from mibel_simulator.model import make_model
+from mibel_simulator.make_model import make_model
 
 
-def run_market_model(
+def run_model(
     det_cab_date,
     capacidad_inter_PT_date,
     parent_child_scos,
