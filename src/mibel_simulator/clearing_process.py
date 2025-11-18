@@ -25,7 +25,7 @@ from mibel_simulator.const import (
     CLEARING_PRICES_COLUMN,
     SPAIN_PORTUGAL_TRANSMISSION_COLUMN,
 )
-from mibel_simulator.model import run_market_model
+from mibel_simulator.run_model import run_market_model
 from mibel_simulator.model_info_extraction import (
     get_cleared_energy_series,
     get_clearing_prices_df,

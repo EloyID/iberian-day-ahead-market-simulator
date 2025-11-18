@@ -1,47 +1,41 @@
 from mibel_simulator.const import (
+    CAT_BUY_SELL,
+    CAT_PAIS,
+    FLOAT_BID_POWER,
+    FLOAT_BID_PRICE,
     FLOAT_EXPORT_CAPACITY,
     FLOAT_IMPORT_CAPACITY,
+    FLOAT_MAR,
+    FLOAT_MAV,
     ID_BLOCK_ORDER,
     ID_BLOCK_ORDER_CHILD,
     ID_BLOCK_ORDER_PARENT,
+    ID_INDIVIDUAL_BID,
     ID_ORDER,
     ID_SCO,
     ID_SCO_CHILD,
     ID_SCO_PARENT,
     INT_PERIODO,
-    CAT_PAIS,
-    ID_INDIVIDUAL_BID,
-    CAT_BUY_SELL,
-    INT_NUM_TRAMO,
-    INT_NUM_BLOQ,
-    FLOAT_BID_PRICE,
-    FLOAT_BID_POWER,
-    FLOAT_MAX_POWER,
-    FLOAT_MAR,
-    FLOAT_MAV,
-    SPAIN_ZONE,
     PORTUGAL_ZONE,
+    SPAIN_ZONE,
 )
 from pyomo.environ import Binary
-import pyomo.environ as pyo
 from pyomo.environ import (
     ConcreteModel,
     Set,
     Param,
     Var,
     NonNegativeReals,
+    NonPositiveReals,
     Constraint,
     Objective,
-    minimize,
     maximize,
     UnitInterval,
-    Suffix,
     Any,
 )
-from pyomo.opt import SolverFactory
 
 
-def run_market_model(
+def make_model(
     det_cab_date,
     capacidad_inter_PT_date,
     parent_child_scos,
@@ -50,285 +44,125 @@ def run_market_model(
     sco_bids_tramo_grouped,
 ):
 
-    det_cab_date_V = det_cab_date.query(f'{CAT_BUY_SELL} == "V"').copy()
+    # fmt: off
+
+    det_cab_date_C =        det_cab_date.query(f'{CAT_BUY_SELL} == "C"').copy()
+    det_cab_date_V =        det_cab_date.query(f'{CAT_BUY_SELL} == "V"').copy()
+
     det_cab_date_V_bloque = det_cab_date_V.query(f"{ID_BLOCK_ORDER}.notna()").copy()
-    det_cab_date_V_simple = det_cab_date_V.query(
-        f"{ID_BLOCK_ORDER}.isna() and {ID_SCO}.isna()"
-    ).copy()
-    det_cab_date_V_sco = det_cab_date_V.query(f"{ID_SCO}.notna()").copy()
+    det_cab_date_V_simple = det_cab_date_V.query(f"{ID_BLOCK_ORDER}.isna() and {ID_SCO}.isna()").copy()
+    det_cab_date_V_sco =    det_cab_date_V.query(f"{ID_SCO}.notna()").copy()
+
+    # TODO: move this check to data validation step
     assert len(det_cab_date_V) == len(det_cab_date_V_bloque) + len(
         det_cab_date_V_simple
     ) + len(det_cab_date_V_sco), "Some offer is not classified as block, simple or sco"
-    det_cab_date_C = det_cab_date.query(f'{CAT_BUY_SELL} == "C"').copy()
 
     parent_child_scos_filtered = parent_child_scos.query(
         f'{ID_ORDER} in @det_cab_date_V_sco["{ID_ORDER}"].unique()'
     )
 
-    model = ConcreteModel("Day-Ahead Market")
+    model = ConcreteModel("MIBEL Market")
 
-    ######################### Sets #########################
     periods = det_cab_date[INT_PERIODO].sort_values().unique().tolist()
-    model.PERIODS = Set(initialize=periods)
     countries = [SPAIN_ZONE, PORTUGAL_ZONE]
-    model.COUNTRIES = Set(initialize=countries)
 
-    # model.ALL_SELLER_BIDS = Set(initialize=det_cab_date_V[ID_INDIVIDUAL_BID].tolist())
-    buyer_bids = det_cab_date_C[ID_INDIVIDUAL_BID].tolist()
-    model.BUYER_BIDS = Set(initialize=buyer_bids)
-    block_order_bids = det_cab_date_V_bloque[ID_INDIVIDUAL_BID].tolist()
-    model.BLOCK_ORDER_BIDS = Set(initialize=block_order_bids)
-    simple_seller_bids = det_cab_date_V_simple[ID_INDIVIDUAL_BID].tolist()
-    model.SIMPLE_SELLER_BIDS = Set(initialize=simple_seller_bids)
-    sco_seller_bids = det_cab_date_V_sco[ID_INDIVIDUAL_BID].tolist()
-    model.SCO_SELLER_BIDS = Set(initialize=sco_seller_bids)
+    ##### Sets #####
 
-    # mav_simple_seller_bids = det_cab_date_V_simple.query("MAV > 0")[
-    #     ID_INDIVIDUAL_BID
-    # ].tolist()
-    # model.MAV_SIMPLE_SELLER_BIDS = Set(initialize=mav_simple_seller_bids)
+    model.PERIODS =             Set(initialize=periods,     doc="Market sessions along the day")
+    model.COUNTRIES =           Set(initialize=countries,   doc="Countries/regions participating in the market")
 
-    block_orders = det_cab_date_V_bloque[ID_BLOCK_ORDER].unique().tolist()
-    model.BLOCK_ORDERS = Set(initialize=block_orders)
-    sco_tramos = det_cab_date_V_sco[ID_SCO].unique().tolist()
-    model.SCO_TRAMOS = Set(initialize=sco_tramos)
+    buyer_bids =            det_cab_date_C          [ID_INDIVIDUAL_BID].tolist()
+    block_order_bids =      det_cab_date_V_bloque   [ID_INDIVIDUAL_BID].tolist()
+    simple_seller_bids =    det_cab_date_V_simple   [ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids =       det_cab_date_V_sco      [ID_INDIVIDUAL_BID].tolist()
+    block_orders =          det_cab_date_V_bloque   [ID_BLOCK_ORDER].unique().tolist()
+    sco_tramos =            det_cab_date_V_sco      [ID_SCO].unique().tolist()
 
-    ## Bids subsets
-    BUYER_BIDS_PER_PERIOD_AND_COUNTRY = {
-        (period, country): det_cab_date_C.query(
-            f"{INT_PERIODO} == @period and {CAT_PAIS} == @country"
-        )[ID_INDIVIDUAL_BID].tolist()
-        for period in periods
-        for country in countries
-    }
-    model.BUYER_BIDS_PER_PERIOD_AND_COUNTRY = Set(
-        model.PERIODS,
-        model.COUNTRIES,
-        initialize=BUYER_BIDS_PER_PERIOD_AND_COUNTRY,
-    )
+    model.BUYER_BIDS =          Set(initialize=buyer_bids,          doc="Buyer individual bid ids")
+    model.SIMPLE_SELLER_BIDS =  Set(initialize=simple_seller_bids,  doc="Seller simple individual bid ids")
+    model.BLOCK_ORDER_BIDS =    Set(initialize=block_order_bids,    doc="Seller block order individual bid ids")
+    model.SCO_SELLER_BIDS =     Set(initialize=sco_seller_bids,     doc="Seller SCO individual bid ids")
+    model.BLOCK_ORDERS =        Set(initialize=block_orders,        doc="Seller block order ids")
+    model.SCO_TRAMOS =          Set(initialize=sco_tramos,          doc="Seller SCO tramo ids")
 
-    BLOCK_ORDER_BIDS_BY_BLOCK_AND_PERIOD = {
-        (bloque_id, period): det_cab_date_V_bloque.query(
-            f"{ID_BLOCK_ORDER} == @bloque_id and {INT_PERIODO} == @period"
-        )[ID_INDIVIDUAL_BID].tolist()
-        for bloque_id in block_orders
-        for period in periods
-    }
-    model.BLOCK_ORDER_BIDS_BY_BLOCK_AND_PERIOD = Set(
-        model.BLOCK_ORDERS,
-        model.PERIODS,
-        initialize=BLOCK_ORDER_BIDS_BY_BLOCK_AND_PERIOD,
-    )
+    buyer_bids_per_period_and_country_fnc =          lambda period, country:   det_cab_date_C         .query(f"{INT_PERIODO} == @period         and {CAT_PAIS} == @country"   )[ID_INDIVIDUAL_BID].tolist()
+    block_order_bids_by_block_and_period_fnc =       lambda bloque_id, period: det_cab_date_V_bloque  .query(f"{ID_BLOCK_ORDER} == @bloque_id   and {INT_PERIODO} == @period" )[ID_INDIVIDUAL_BID].tolist()
+    simple_seller_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_V_simple  .query(f"{INT_PERIODO} == @period         and {CAT_PAIS} == @country"   )[ID_INDIVIDUAL_BID].tolist()
+    block_order_bids_by_block_fnc =                  lambda bloque_id:         det_cab_date_V_bloque  .query(f"{ID_BLOCK_ORDER} == @bloque_id"                                )[ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_date_V_sco     .query(f"{INT_PERIODO} == @period         and {CAT_PAIS} == @country"   )[ID_INDIVIDUAL_BID].tolist()
+    block_orders_by_country_fnc =                    lambda country:           det_cab_date_V_bloque  .query(f"{CAT_PAIS} == @country"                                        )[ID_BLOCK_ORDER].unique().tolist()
 
-    SIMPLE_SELLER_BIDS_PER_PERIOD_AND_COUNTRY = {
-        (period, country): det_cab_date_V_simple.query(
-            f"{INT_PERIODO} == @period and {CAT_PAIS} == @country"
-        )[ID_INDIVIDUAL_BID].tolist()
-        for period in periods
-        for country in countries
-    }
-    model.SIMPLE_SELLER_BIDS_PER_PERIOD_AND_COUNTRY = Set(
-        model.PERIODS,
-        model.COUNTRIES,
-        initialize=SIMPLE_SELLER_BIDS_PER_PERIOD_AND_COUNTRY,
-    )
 
-    BLOCK_ORDER_BIDS_BY_BLOCK = {
-        bloque_id: det_cab_date_V_bloque.query(f"{ID_BLOCK_ORDER} == @bloque_id")[
-            ID_INDIVIDUAL_BID
-        ].tolist()
-        for bloque_id in block_orders
-    }
-    model.BLOCK_ORDER_BIDS_BY_BLOCK = Set(
-        model.BLOCK_ORDERS, initialize=BLOCK_ORDER_BIDS_BY_BLOCK
-    )
-    SCO_SELLER_BIDS_PER_PERIOD_AND_COUNTRY = {
-        (period, country): det_cab_date_V_sco.query(
-            f"{INT_PERIODO} == @period and {CAT_PAIS} == @country"
-        )[ID_INDIVIDUAL_BID].tolist()
-        for period in periods
-        for country in countries
-    }
-    model.SCO_SELLER_BIDS_PER_PERIOD_AND_COUNTRY = Set(
-        model.PERIODS,
-        model.COUNTRIES,
-        initialize=SCO_SELLER_BIDS_PER_PERIOD_AND_COUNTRY,
-    )
+    buyer_bids_per_period_and_country =         {(period, country):   buyer_bids_per_period_and_country_fnc(period, country)          for period in periods           for country in countries}
+    block_order_bids_by_block_and_period =      {(bloque_id, period): block_order_bids_by_block_and_period_fnc(bloque_id, period)     for bloque_id in block_orders   for period in periods}
+    simple_seller_bids_per_period_and_country = {(period, country):   simple_seller_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
+    block_order_bids_by_block =                 {bloque_id:           block_order_bids_by_block_fnc(bloque_id)                        for bloque_id in block_orders}
+    sco_seller_bids_per_period_and_country =    {(period, country):   sco_seller_bids_per_period_and_country_fnc(period, country)     for period in periods           for country in countries}
+    block_orders_by_country =                   {country:             block_orders_by_country_fnc(country)                            for country in countries}
 
-    ## Block orders subsets
-    BLOCK_ORDERS_BY_COUNTRY = {
-        country: det_cab_date_V_bloque.query(f"{CAT_PAIS} == @country")[ID_BLOCK_ORDER]
-        .unique()
-        .tolist()
-        for country in countries
-    }
-    model.BLOCK_ORDERS_BY_COUNTRY = Set(
-        model.COUNTRIES,
-        initialize=BLOCK_ORDERS_BY_COUNTRY,
-    )
+    model.BUYER_BIDS_PER_PERIOD_AND_COUNTRY =           Set(model.PERIODS,      model.COUNTRIES, initialize=buyer_bids_per_period_and_country,          doc="Buyer individual bid ids per peri        od and country")
+    model.SIMPLE_SELLER_BIDS_PER_PERIOD_AND_COUNTRY =   Set(model.PERIODS,      model.COUNTRIES, initialize=simple_seller_bids_per_period_and_country,  doc="Simple seller individual bids per period and country")
+    model.SCO_SELLER_BIDS_PER_PERIOD_AND_COUNTRY =      Set(model.PERIODS,      model.COUNTRIES, initialize=sco_seller_bids_per_period_and_country,     doc="SCO seller individual bids per period and country")
+    model.BLOCK_ORDER_BIDS_BY_BLOCK_AND_PERIOD =        Set(model.BLOCK_ORDERS, model.PERIODS,   initialize=block_order_bids_by_block_and_period,       doc="Block order individual bids per block order and period")
+    model.BLOCK_ORDER_BIDS_BY_BLOCK =                   Set(model.BLOCK_ORDERS,                  initialize=block_order_bids_by_block,                  doc="Block order individual bids per block order")
+    model.BLOCK_ORDERS_BY_COUNTRY =                     Set(model.COUNTRIES,                     initialize=block_orders_by_country,                    doc="Block orders per country")
 
-    # The lower the BlockNumber, the parent
-    model.BLOQUE_PARENT_CHILDREN = Set(
-        initialize=parent_child_bloques[[ID_BLOCK_ORDER_PARENT, ID_BLOCK_ORDER_CHILD]]
-        .astype(str)
-        .agg("$".join, axis=1),
-    )
+    bloque_parent_children_joined =          parent_child_bloques[[ID_BLOCK_ORDER_PARENT, ID_BLOCK_ORDER_CHILD]].astype(str).agg("$".join, axis=1)
+    exclusive_block_orders_grouped_joined =  exclusive_block_orders_grouped.apply(lambda x: "$".join(x))
 
-    model.EXCLUSIVE_BLOCK_ORDERS_GROUPED = Set(
-        initialize=exclusive_block_orders_grouped.apply(lambda x: "$".join(x))
-    )
+    sco_parent_children_joined =             parent_child_scos_filtered[[ID_SCO_PARENT, ID_SCO_CHILD]].astype(str).agg("$".join, axis=1)
+    sco_bids_tramo_grouped_joined =          sco_bids_tramo_grouped.apply(lambda x: "$".join(x))
 
-    # The lower the NumTramo, the parent
-    model.SCO_PARENT_CHILDREN = Set(
-        initialize=parent_child_scos_filtered[[ID_SCO_PARENT, ID_SCO_CHILD]]
-        .astype(str)
-        .agg("$".join, axis=1),
-    )
+    model.BLOQUE_PARENT_CHILDREN =          Set(initialize=bloque_parent_children_joined,          doc="Parent-child relationships for block orders, the lower the NumBloq, the parent")
+    model.EXCLUSIVE_BLOCK_ORDERS_GROUPED =  Set(initialize=exclusive_block_orders_grouped_joined,  doc="Groups of exclusive block orders, a list of block_ids joined by $")
 
-    model.SCO_BIDS_TRAMO_GROUPED = Set(
-        initialize=sco_bids_tramo_grouped.apply(lambda x: "$".join(x))
-    )
+    model.SCO_PARENT_CHILDREN =             Set(initialize=sco_parent_children_joined,             doc="Parent-child relationships for SCO tramos, the lower the NumTramo, the parent")
+    model.SCO_BIDS_TRAMO_GROUPED =          Set(initialize=sco_bids_tramo_grouped_joined,          doc="Groups of SCO bids by tramo, a list of sco_ids joined by $")
 
-    ######################### Parameters #########################
+    ##### Parameters #####
+    
+    p_price_min_SIMPLE_SELLERS_BIDS =           det_cab_date_V_simple    .set_index(ID_INDIVIDUAL_BID)      [FLOAT_BID_PRICE].to_dict()
+    p_price_min_BLOCK_ORDERS =                  det_cab_date_V_bloque    .drop_duplicates(ID_BLOCK_ORDER).set_index(ID_BLOCK_ORDER)[FLOAT_BID_PRICE].to_dict()
+    p_price_min_SCO_SELLER_BIDS =               det_cab_date_V_sco       .set_index(ID_INDIVIDUAL_BID)      [FLOAT_BID_PRICE].to_dict()
+    p_price_max_BUYERS_BIDS =                   det_cab_date_C           .set_index(ID_INDIVIDUAL_BID)      [FLOAT_BID_PRICE].to_dict()
+    p_quantity_SIMPLE_SELLER_BIDS =             det_cab_date_V_simple    .set_index(ID_INDIVIDUAL_BID)      [FLOAT_BID_POWER].to_dict()
+    p_quantity_SCO_SELLER_BIDS =                det_cab_date_V_sco       .set_index(ID_INDIVIDUAL_BID)      [FLOAT_BID_POWER].to_dict()
+    p_quantity_BLOCK_ORDER_BIDS =               det_cab_date_V_bloque    .set_index(ID_INDIVIDUAL_BID)      [FLOAT_BID_POWER].to_dict()
+    p_quantity_BUYER_BIDS =                     det_cab_date_C           .set_index(ID_INDIVIDUAL_BID)      [FLOAT_BID_POWER].to_dict()
+    p_congestion_spain_portugal_exportacion =   capacidad_inter_PT_date  .set_index(INT_PERIODO)            [FLOAT_EXPORT_CAPACITY].to_dict()
+    p_congestion_spain_portugal_importacion =   capacidad_inter_PT_date  .set_index(INT_PERIODO)            [FLOAT_IMPORT_CAPACITY].to_dict()
+    p_MAR =                                     det_cab_date_V_bloque    .drop_duplicates(ID_BLOCK_ORDER).set_index(ID_BLOCK_ORDER)[FLOAT_MAR].to_dict()
+    p_MAV =                                     det_cab_date_V_sco       .set_index(ID_INDIVIDUAL_BID)      [FLOAT_MAV].to_dict()
+    p_SCO_TRAMO_PER_BID =                       det_cab_date_V_sco       .set_index(ID_INDIVIDUAL_BID)      [ID_SCO].to_dict()
 
-    model.p_price_min_SIMPLE_SELLERS_BIDS = Param(
-        model.SIMPLE_SELLER_BIDS,
-        initialize=det_cab_date_V_simple.set_index(ID_INDIVIDUAL_BID)[FLOAT_BID_PRICE],
-        doc="Minimum price of each generator - simple bids",
-    )
+    model.p_price_min_SIMPLE_SELLERS_BIDS =          Param(model.SIMPLE_SELLER_BIDS,  initialize=p_price_min_SIMPLE_SELLERS_BIDS,                                   doc="Minimum price of each generator - simple bids")
+    model.p_price_min_BLOCK_ORDERS =                 Param(model.BLOCK_ORDERS,        initialize=p_price_min_BLOCK_ORDERS,                                          doc="Minimum price of each generator - block orders")
+    model.p_price_min_SCO_SELLER_BIDS =              Param(model.SCO_SELLER_BIDS,     initialize=p_price_min_SCO_SELLER_BIDS,                                       doc="Minimum price of each generator - SCO bids")
+    model.p_price_max_BUYERS_BIDS =                  Param(model.BUYER_BIDS,          initialize=p_price_max_BUYERS_BIDS,                                           doc="Maximum price of each consumer")
+    model.p_quantity_SIMPLE_SELLER_BIDS =            Param(model.SIMPLE_SELLER_BIDS,  initialize=p_quantity_SIMPLE_SELLER_BIDS,            within=NonNegativeReals, doc="Quantity offered by each generator")
+    model.p_quantity_SCO_SELLER_BIDS =               Param(model.SCO_SELLER_BIDS,     initialize=p_quantity_SCO_SELLER_BIDS,               within=NonNegativeReals, doc="Quantity offered by each generator - SCO bids")
+    model.p_quantity_BLOCK_ORDER_BIDS =              Param(model.BLOCK_ORDER_BIDS,    initialize=p_quantity_BLOCK_ORDER_BIDS,              within=NonNegativeReals, doc="Quantity offered by each generator - block orders")
+    model.p_quantity_BUYER_BIDS =                    Param(model.BUYER_BIDS,          initialize=p_quantity_BUYER_BIDS,                    within=NonNegativeReals, doc="Quantity demanded by each consumer")
+    model.p_congestion_spain_portugal_exportacion =  Param(model.PERIODS,             initialize=p_congestion_spain_portugal_exportacion,  within=NonNegativeReals, doc="Maximum capacity Spain export to Portugal")
+    model.p_congestion_spain_portugal_importacion =  Param(model.PERIODS,             initialize=p_congestion_spain_portugal_importacion,  within=NonPositiveReals, doc="Maximum capacity Spain import from Portugal (negative value)")
+    model.p_MAR =                                    Param(model.BLOCK_ORDERS,        initialize=p_MAR,                                    within=NonNegativeReals, doc="Minimum acceptance ratio (MAR) of each block order")
+    model.p_MAV =                                    Param(model.SCO_SELLER_BIDS,     initialize=p_MAV,                                    within=NonNegativeReals, doc="Minimum acceptance volume (MAV) of each SCO seller bid")
+    model.p_SCO_TRAMO_PER_BID =                      Param(model.SCO_SELLER_BIDS,     initialize=p_SCO_TRAMO_PER_BID,                      within=Any,              doc="Tramo identifier for each SCO bid")
 
-    model.p_price_min_BLOCK_ORDERS = Param(
-        model.BLOCK_ORDERS,
-        initialize=det_cab_date_V_bloque.drop_duplicates(ID_BLOCK_ORDER).set_index(
-            ID_BLOCK_ORDER
-        )[FLOAT_BID_PRICE],
-        doc="Minimum price of each generator - block orders",
-    )
+    ##### Variables #####
 
-    model.p_price_min_SCO_SELLER_BIDS = Param(
-        model.SCO_SELLER_BIDS,
-        initialize=det_cab_date_V_sco.set_index(ID_INDIVIDUAL_BID)[FLOAT_BID_PRICE],
-        doc="Minimum price of each generator - SCO bids",
-    )
+    model.v_x_SIMPLE_SELLER_BIDS =        Var(model.SIMPLE_SELLER_BIDS, within=UnitInterval, doc="Quantity ratio sold by each generator")
+    model.v_x_BUYER_BIDS =                Var(model.BUYER_BIDS,         within=UnitInterval, doc="Quantity ratio bought by each consumer")
+    model.v_x_BLOCK_ORDERS =              Var(model.BLOCK_ORDERS,       within=UnitInterval, doc="Quantity ratio sold by each block order")
+    model.v_x_SCO_SELLER_BIDS =           Var(model.SCO_SELLER_BIDS,    within=UnitInterval, doc="Quantity ratio sold by each SCO bid")
+    model.v_u_activated_SCO_TRAMOS =      Var(model.SCO_TRAMOS,         within=Binary,       doc="Whether a SCO tramo is activated or not")
+    model.v_u_activated_BLOCK_ORDERS =    Var(model.BLOCK_ORDERS,       within=Binary,       doc="Whether a block order is activated or not")
+    model.v_transmission_spain_portugal = Var(model.PERIODS,                                 doc="Quantity transmitted between Spain and Portugal")
 
-    model.p_price_max_BUYERS_BIDS = Param(
-        model.BUYER_BIDS,
-        initialize=det_cab_date_C.set_index(ID_INDIVIDUAL_BID)[FLOAT_BID_PRICE],
-        doc="Maximum price of each consumer",
-    )
+    ##### Objective #####
 
-    model.p_quantity_SIMPLE_SELLER_BIDS = Param(
-        model.SIMPLE_SELLER_BIDS,
-        initialize=det_cab_date_V_simple.set_index(ID_INDIVIDUAL_BID)[FLOAT_BID_POWER],
-        within=NonNegativeReals,
-        doc="Quantity offered by each generator",
-    )
-
-    model.p_quantity_SCO_SELLER_BIDS = Param(
-        model.SCO_SELLER_BIDS,
-        initialize=det_cab_date_V_sco.set_index(ID_INDIVIDUAL_BID)[FLOAT_BID_POWER],
-        within=NonNegativeReals,
-        doc="Quantity offered by each generator - SCO bids",
-    )
-
-    model.p_quantity_BLOCK_ORDER_BIDS = Param(
-        model.BLOCK_ORDER_BIDS,
-        initialize=det_cab_date_V_bloque.set_index(ID_INDIVIDUAL_BID)[FLOAT_BID_POWER],
-        within=NonNegativeReals,
-        doc="Quantity offered by each generator - block orders",
-    )
-
-    model.p_quantity_BUYER_BIDS = Param(
-        model.BUYER_BIDS,
-        initialize=det_cab_date_C.set_index(ID_INDIVIDUAL_BID)[FLOAT_BID_POWER],
-        within=NonNegativeReals,
-        doc="Quantity demanded by each consumer",
-    )
-
-    model.p_congestion_spain_portugal_exportacion = Param(
-        model.PERIODS,
-        initialize=capacidad_inter_PT_date.set_index(INT_PERIODO)[
-            FLOAT_EXPORT_CAPACITY
-        ],
-        within=NonNegativeReals,
-        doc="Maximum capacity Spain export to Portugal",
-    )
-
-    model.p_congestion_spain_portugal_importacion = Param(
-        model.PERIODS,
-        initialize=capacidad_inter_PT_date.set_index(INT_PERIODO)[
-            FLOAT_IMPORT_CAPACITY
-        ],
-        doc="Maximum capacity Spain import from Portugal (negative value)",
-    )
-
-    model.p_MAR = Param(
-        model.BLOCK_ORDERS,
-        initialize=det_cab_date_V_bloque.drop_duplicates(ID_BLOCK_ORDER).set_index(
-            ID_BLOCK_ORDER
-        )[FLOAT_MAR],
-        within=NonNegativeReals,
-        doc="Minimum acceptance ratio (MAR) of each block order",
-    )
-
-    model.p_MAV = Param(
-        model.SCO_SELLER_BIDS,
-        initialize=det_cab_date_V_sco.set_index(ID_INDIVIDUAL_BID)[FLOAT_MAV],
-        within=NonNegativeReals,
-        doc="Minimum acceptance volume (MAV) of each SCO seller bid",
-    )
-
-    model.p_SCO_TRAMO_PER_BID = Param(
-        model.SCO_SELLER_BIDS,
-        initialize=det_cab_date_V_sco.set_index(ID_INDIVIDUAL_BID)[ID_SCO].to_dict(),
-        doc="Tramo identifier for each SCO bid",
-        within=Any,
-    )
-
-    ######################### Variables #########################
-
-    model.v_x_SIMPLE_SELLER_BIDS = Var(
-        model.SIMPLE_SELLER_BIDS,
-        within=UnitInterval,
-        doc="Quantity ratio sold by each generator",
-    )
-
-    model.v_x_BLOCK_ORDERS = Var(
-        model.BLOCK_ORDERS,
-        within=UnitInterval,
-        doc="Quantity ratio sold by each block order",
-    )
-
-    model.v_x_BUYER_BIDS = Var(
-        model.BUYER_BIDS,
-        within=UnitInterval,
-        doc="Quantity ratio bought by each consumer",
-    )
-
-    model.v_transmission_spain_portugal = Var(
-        model.PERIODS,
-        doc="Quantity transmitted between Spain and Portugal",
-    )
-
-    model.v_x_SCO_SELLER_BIDS = Var(
-        model.SCO_SELLER_BIDS,
-        within=UnitInterval,
-        doc="Quantity ratio sold by each SCO bid",
-    )
-
-    model.v_u_activated_SCO_TRAMOS = Var(
-        model.SCO_TRAMOS,
-        within=Binary,
-        doc="Whether a SCO tramo is activated or not",
-    )
-
-    model.v_u_activated_BLOCK_ORDERS = Var(
-        model.BLOCK_ORDERS,
-        within=Binary,
-        doc="Whether a block order is activated or not",
-    )
-
-    ########################## Objective #########################
+    # fmt: on
 
     def social_welfare(m):
         return (
@@ -361,7 +195,7 @@ def run_market_model(
 
     model.OBJ = Objective(rule=social_welfare, sense=maximize)
 
-    ######################## Constraints ########################
+    ##### Constraints #####
 
     model.c_Congestion_Spain_Portugal = Constraint(
         model.PERIODS,
@@ -469,20 +303,4 @@ def run_market_model(
         doc="At most one block order in an exclusive group can be accepted",
     )
 
-    ########################### Solve ########################
-
-    model.dual = Suffix(direction=Suffix.IMPORT)
-    opt = SolverFactory("gurobi")
-    results = opt.solve(model, tee=False)  # True)
-    # results.write()
-
-    model_binaries = model.clone()
-
-    model.v_u_activated_BLOCK_ORDERS.fix()
-    model.v_u_activated_SCO_TRAMOS.fix()
-
-    opt = SolverFactory("gurobi")
-    results = opt.solve(model, tee=False)  # True)
-    # results.write()
-
-    return model, model_binaries, results
+    return model
