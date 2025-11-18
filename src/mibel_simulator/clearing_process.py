@@ -532,6 +532,7 @@ def clear_OMIE_market(
     price_france_date: pd.DataFrame,
     trials_count: int = 100,
     starting_trials_df: pd.DataFrame = None,
+    zones_default_to_spain= bool = False,
 ) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
     """
     Runs the full OMIE market clearing process for a given day, including data
@@ -550,6 +551,7 @@ def clear_OMIE_market(
         price_france_date (pd.DataFrame): DataFrame of France prices for the studied day.
         trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
         starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
+        zones_default_to_spain (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
 
     Returns:
         tuple: (trials_df, best_model, best_model_binary)
@@ -565,7 +567,11 @@ def clear_OMIE_market(
         price_france_date, capacidad_inter_date
     )
     det_cab_date = get_det_cab_date_for_DAM_simulator(
-        det_date, cab_date, det_cab_fr_date, uof_zones, zones_default_to_spain=True
+        det_date,
+        cab_date,
+        det_cab_fr_date,
+        uof_zones,
+        zones_default_to_spain=zones_default_to_spain,
     )
     parent_child_bloques = get_parent_child_bloques(det_cab_date)
     exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
