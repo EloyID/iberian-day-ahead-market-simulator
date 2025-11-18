@@ -82,27 +82,33 @@ def get_float_bid_power_cumsum(
 
 def is_simple_bid(
     df: pd.DataFrame,
+    id_order_column: str = ID_ORDER,
     num_bloq_column: str = INT_NUM_BLOQ,
     num_grupo_excl_column: str = INT_NUM_GRUPO_EXCL,
     mav_column: str = FLOAT_MAV,
     mar_column: str = FLOAT_MAR,
     fijoeuro_column: str = FLOAT_MIC,
 ) -> pd.Series:
+    is_SCO_ = is_SCO(df, id_order_column, mav_column, fijoeuro_column)
     return (
         (df[num_bloq_column] == 0)
         & (df[num_grupo_excl_column] == 0)
-        & (df[mav_column] == 0)
         & (df[mar_column] == 0)
-        & (df[fijoeuro_column] == 0)
+        & (~is_SCO_)
     )
 
 
 def is_SCO(
     df: pd.DataFrame,
+    id_order_column: str = ID_ORDER,
     mav_column: str = FLOAT_MAV,
     fijoeuro_column: str = FLOAT_MIC,
 ) -> pd.Series:
-    return (df[mav_column] > 0) | (df[fijoeuro_column] > 0)
+    has_sco_attributes = (df[mav_column] > 0) | (df[fijoeuro_column] > 0)
+    id_orders_with_sco_attributes = (
+        df.loc[has_sco_attributes, id_order_column].unique().tolist()
+    )
+    return df[id_order_column].isin(id_orders_with_sco_attributes)
 
 
 def is_not_exclusive_block(
@@ -122,6 +128,7 @@ def is_exclusive_block_group(
 
 def get_cat_order_type_column(
     df: pd.DataFrame,
+    id_order_column: str = ID_ORDER,
     num_bloq_column: str = INT_NUM_BLOQ,
     num_grupo_excl_column: str = INT_NUM_GRUPO_EXCL,
     mav_column: str = FLOAT_MAV,
@@ -150,13 +157,14 @@ def get_cat_order_type_column(
 
     df["is_simple_bid"] = is_simple_bid(
         df,
+        id_order_column,
         num_bloq_column,
         num_grupo_excl_column,
         mav_column,
         mar_column,
         fijoeuro_column,
     )
-    df["is_SCO"] = is_SCO(df, mav_column, fijoeuro_column)
+    df["is_SCO"] = is_SCO(df, id_order_column, mav_column, fijoeuro_column)
     df["is_not_exclusive_block"] = is_not_exclusive_block(
         df, num_bloq_column, num_grupo_excl_column
     )
