@@ -366,19 +366,17 @@ def get_new_mic_scos_by_adding_left_out_scos(
                     ratio_net_income_bid_power > min_ratio
                     or len(new_mic_scos_df) < mic_scos_combinations_count
                 ):
-                    new_mic_scos_entry = (
-                        pd.DataFrame(
-                            {
-                                MIC_SCOS_COLUMN: [new_trial_mic_scos],
-                                FLOAT_RATIO_NET_INCOME_BID_POWER: [
-                                    ratio_net_income_bid_power
-                                ],
-                                BOOL_ARE_MIC_SCOS_TESTED: [False],
-                                INT_MIC_SCOS_COUNT: [
-                                    combinations_count + starting_mic_scos_count
-                                ],
-                            }
-                        ),
+                    new_mic_scos_entry = pd.DataFrame(
+                        {
+                            MIC_SCOS_COLUMN: [new_trial_mic_scos],
+                            FLOAT_RATIO_NET_INCOME_BID_POWER: [
+                                ratio_net_income_bid_power
+                            ],
+                            BOOL_ARE_MIC_SCOS_TESTED: [False],
+                            INT_MIC_SCOS_COUNT: [
+                                combinations_count + starting_mic_scos_count
+                            ],
+                        }
                     )
 
                     new_mic_scos_df = (
