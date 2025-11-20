@@ -52,6 +52,10 @@ ID_BLOCK_ORDER_CHILD = "id_block_order_child"
 ID_SCO_PARENT = "id_sco_parent"
 ID_SCO_CHILD = "id_sco_child"
 
+BOOL_IS_SIMPLE_BID = "bool_is_simple_bid"
+BOOL_IS_SCO = "bool_is_sco"
+BOOL_IS_NOT_EXCLUSIVE_GROUP = "bool_is_not_exclusive_group"
+BOOL_IS_EXCLUSIVE_GROUP = "bool_is_exclusive_group"
 
 DATE_SESION = "date_sesion"
 DATETIME_SESION = "datetime_sesion"
@@ -86,10 +90,21 @@ CAT_TIPO_OFERTA_IMPORT_PORTUGAL = "Imp PT"
 CAT_TIPO_OFERTA_IMPORT_SPAIN = "Imp ES"
 CAT_TIPO_OFERTA_EXPORT_SPAIN = "Exp ES"
 
-SCOS_WITH_MIC_COLUMN = "scos_with_mic"
-SCOS_WITH_MIC_COUNT_COLUMN = "scos_with_mic_count"
-OBJECTIVE_VALUE_COLUMN = "objective_value"
-IS_MIC_RESPECTED_COLUMN = "is_mic_respected"
+
+MIC_SCOS_COLUMN = "mic_scos"
+INT_MIC_SCOS_COUNT = "int_mic_scos_count"
+BOOL_ARE_MIC_SCOS_TESTED = "bool_are_mic_scos_tested"
+BOOL_IS_MIC_RESPECTED = "bool_is_mic_respected"
+FLOAT_VARIABLE_COST = "float_variable_cost"
+FLOAT_CLEARED_POWER = "float_cleared_power"
+FLOAT_CLEARED_POWER_CUMSUM = "float_cleared_power_cumsum"
+FLOAT_CLEARED_POWER_CUMSUM_BY_COUNTRY = "float_cleared_power_cumsum_by_country"
+FLOAT_CLEARED_PRICE = "float_cleared_price"
+FLOAT_COLLECTION_RIGHTS = "float_collection_rights"
+FLOAT_OBJECTIVE_VALUE = "float_objective_value"
+FLOAT_RATIO_NET_INCOME_CLEARED_POWER = "float_ratio_net_income_cleared_power"
+FLOAT_RATIO_NET_INCOME_BID_POWER = "float_ratio_net_income_bid_power"
+FLOAT_NET_INCOME = "float_net_income"
 SOLVER_RESULTS_COLUMN = "solver_results"
 CLEARED_ENERGY_COLUMN = "cleared_energy"
 CLEARING_PRICES_COLUMN = "clearing_prices"
@@ -108,9 +123,9 @@ DET_CAB_DATE_UNIQUE_IDENTIFIERS = [
 ]
 
 TRIALS_DF_COLUMNS = [
-    SCOS_WITH_MIC_COLUMN,
-    OBJECTIVE_VALUE_COLUMN,
-    IS_MIC_RESPECTED_COLUMN,
+    MIC_SCOS_COLUMN,
+    FLOAT_OBJECTIVE_VALUE,
+    BOOL_IS_MIC_RESPECTED,
     SOLVER_RESULTS_COLUMN,
-    SCOS_WITH_MIC_COUNT_COLUMN,
+    INT_MIC_SCOS_COUNT,
 ]

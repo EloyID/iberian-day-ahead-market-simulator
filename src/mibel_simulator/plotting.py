@@ -1,6 +1,11 @@
 from matplotlib import pyplot as plt
 
-from mibel_simulator.const import CAT_BUY_SELL, FLOAT_BID_POWER_CUMSUM, FLOAT_BID_PRICE
+from mibel_simulator.const import (
+    CAT_BUY_SELL,
+    FLOAT_BID_POWER_CUMSUM,
+    FLOAT_BID_PRICE,
+    FLOAT_CLEARED_POWER,
+)
 
 
 def plot_period_curves(
@@ -20,10 +25,10 @@ def plot_period_curves(
         f'{CAT_BUY_SELL} == "V"'
     ).sort_values(potencia_cumsum_column)
     det_cab_period_results_C_casada = det_cab_period_results_C.query(
-        "`Potencia_casada` > 0"
+        f"{FLOAT_CLEARED_POWER} > 0"
     ).sort_values(potencia_casada_cumsum_column)
     det_cab_period_results_V_casada = det_cab_period_results_V.query(
-        "`Potencia_casada` > 0"
+        f"{FLOAT_CLEARED_POWER} > 0"
     ).sort_values(potencia_casada_cumsum_column)
 
     cleared_energy = det_cab_period_results_C_casada[

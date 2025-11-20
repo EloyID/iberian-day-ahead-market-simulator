@@ -14,23 +14,31 @@ from mibel_simulator.const import (
     FLOAT_BID_POWER,
     FLOAT_BID_POWER_CUMSUM,
     FLOAT_BID_PRICE,
+    FLOAT_CLEARED_POWER,
+    FLOAT_CLEARED_PRICE,
+    FLOAT_COLLECTION_RIGHTS,
     FLOAT_MIC,
+    FLOAT_NET_INCOME,
+    FLOAT_RATIO_NET_INCOME_BID_POWER,
+    FLOAT_RATIO_NET_INCOME_CLEARED_POWER,
+    FLOAT_VARIABLE_COST,
     FRONTIER_MAPPING_REVERSE,
     ID_INDIVIDUAL_BID,
     ID_ORDER,
     INT_PERIODO,
-    SCOS_WITH_MIC_COLUMN,
-    SCOS_WITH_MIC_COUNT_COLUMN,
+    BOOL_ARE_MIC_SCOS_TESTED,
+    MIC_SCOS_COLUMN,
+    INT_MIC_SCOS_COUNT,
     TRIALS_DF_COLUMNS,
-    OBJECTIVE_VALUE_COLUMN,
-    IS_MIC_RESPECTED_COLUMN,
+    FLOAT_OBJECTIVE_VALUE,
+    BOOL_IS_MIC_RESPECTED,
     SOLVER_RESULTS_COLUMN,
     CLEARED_ENERGY_COLUMN,
     CLEARING_PRICES_COLUMN,
     SPAIN_PORTUGAL_TRANSMISSION_COLUMN,
 )
 from mibel_simulator.data_preprocessor import (
-    get_all_scos_with_mic,
+    get_all_mic_scos,
     get_det_cab_date_for_DAM_simulator,
     get_exclusive_block_orders_grouped,
     get_france_det_cab_date_from_price,
@@ -44,53 +52,55 @@ from mibel_simulator.model_info_extraction import (
     get_clearing_prices_df,
     get_spain_portugal_transmissions,
 )
-from mibel_simulator.tools import filter_scos_with_mic_from_det_cab
+from mibel_simulator.tools import filter_mic_scos_from_det_cab
 import pyomo.environ as pyo
 
 logger = logging.getLogger(__name__)
 
 
-def check_if_sco_combination_tried(
-    trials_df: pd.DataFrame, scos_combination: list
-) -> bool:
-    """_summary_
+def check_are_mic_scos_tested(trials_df: pd.DataFrame, scos_combination: list) -> bool:
+    """
+    Checks if a given combination of SCOs with MIC has already been tested in previous trials.
+
+    Compares the provided combination against all combinations stored in the trials DataFrame,
+    returning True if an identical combination has already been tried, and False otherwise.
 
     Args:
-        trials_df (pd.DataFrame): _description_
-        scos_combination (list): _description_
+        trials_df (pd.DataFrame): DataFrame containing results of previous trials, including tested SCO combinations.
+        scos_combination (list): List of SCO order IDs with MIC representing the combination to check.
 
     Returns:
-        bool: _description_
+        bool: True if the combination has already been tested, False otherwise.
     """
 
-    for scos_tried in trials_df[SCOS_WITH_MIC_COLUMN]:
+    for scos_tried in trials_df[MIC_SCOS_COLUMN]:
         if set(scos_tried) == set(scos_combination):
             return True
     return False
 
 
-def get_trial_results_sco_casadas_grouped(
-    det_cab_date_scos_filtered: pd.DataFrame,
-    cleared_energy: pd.DataFrame,
+def get_trial_cleared_mic_scos_summary(
+    det_cab_date: pd.DataFrame,
+    cleared_energy_df: pd.DataFrame,
     clearing_price_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Aggregates results for SCO orders that were matched in the trial.
 
-    Merges filtered DET/CAB data with cleared energy and clearing prices, computes financial metrics, and groups by order ID.
+    Merges DET/CAB data with cleared energy and clearing prices, computes financial metrics, and groups by order ID.
 
     Args:
-        det_cab_date_scos_filtered (pd.DataFrame): Filtered DET/CAB DataFrame for SCOs in the trial.
-        cleared_energy (pd.DataFrame): DataFrame of cleared energy per bid.
+        det_cab_date (pd.DataFrame): DET/CAB DataFrame for SCOs in the trial.
+        cleared_energy_df (pd.DataFrame): DataFrame of cleared energy per bid.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
     Returns:
         pd.DataFrame: DataFrame grouped by order ID with financial results for matched SCOs.
     """
 
-    trial_results = (
-        det_cab_date_scos_filtered.merge(
-            cleared_energy,
+    cleared_det_cab_date = (
+        det_cab_date.merge(
+            cleared_energy_df,
             left_on=ID_INDIVIDUAL_BID,
             right_index=True,
             how="outer",
@@ -100,11 +110,11 @@ def get_trial_results_sco_casadas_grouped(
         .sort_values(by=[INT_PERIODO, CAT_BUY_SELL, FLOAT_BID_POWER_CUMSUM])
         .copy()
     )
-    assert trial_results._merge.isin(["both", "left_only"]).all()
-    trial_results = trial_results.drop(columns="_merge")
+    assert cleared_det_cab_date._merge.isin(["both", "left_only"]).all()
+    cleared_det_cab_date = cleared_det_cab_date.drop(columns="_merge")
 
-    trial_results_sco_casadas = (
-        trial_results.query(f"{FLOAT_MIC} > 0 and `Potencia_casada` > 0")
+    cleared_mic_scos_df = (
+        cleared_det_cab_date.query(f"{FLOAT_MIC} > 0 and {FLOAT_CLEARED_POWER} > 0")
         .copy()
         .merge(
             clearing_price_df,
@@ -114,40 +124,41 @@ def get_trial_results_sco_casadas_grouped(
             indicator=True,
         )
     )
-    assert trial_results_sco_casadas._merge.isin(["both"]).all()
-    trial_results_sco_casadas = trial_results_sco_casadas.drop(columns="_merge")
-    trial_results_sco_casadas = trial_results_sco_casadas.eval(
+    assert cleared_mic_scos_df._merge.isin(["both"]).all()
+    cleared_mic_scos_df = cleared_mic_scos_df.drop(columns="_merge")
+
+    cleared_mic_scos_df = cleared_mic_scos_df.eval(
         f"""
-        `Derechos_de_cobro` = `Potencia_casada` * `Precio_casación`
-        `Coste_variable` = `Potencia_casada` * {FLOAT_BID_PRICE}
+        {FLOAT_COLLECTION_RIGHTS} = {FLOAT_CLEARED_POWER} * {FLOAT_CLEARED_PRICE}
+        {FLOAT_VARIABLE_COST} = {FLOAT_CLEARED_POWER} * {FLOAT_BID_PRICE}
         """
     )
-    trial_results_sco_casadas_grouped = (
-        trial_results_sco_casadas.groupby([ID_ORDER], observed=True)
+    cleared_mic_scos_df_grouped = (
+        cleared_mic_scos_df.groupby([ID_ORDER], observed=True)
         .agg(
             {
-                "Derechos_de_cobro": "sum",
-                "Coste_variable": "sum",
+                FLOAT_COLLECTION_RIGHTS: "sum",
+                FLOAT_VARIABLE_COST: "sum",
                 FLOAT_MIC: "first",
-                "Potencia_casada": "sum",
+                FLOAT_CLEARED_POWER: "sum",
             }
         )
         .eval(
             f"""
-            `Beneficio_neto` = `Derechos_de_cobro` - ( `Coste_variable` + `{FLOAT_MIC}` )
-            `Ratio_Beneficio_Potencia_casada` = `Beneficio_neto` / `Potencia_casada`            
+            {FLOAT_NET_INCOME} = {FLOAT_COLLECTION_RIGHTS} - ( {FLOAT_VARIABLE_COST} + {FLOAT_MIC} )
+            {FLOAT_RATIO_NET_INCOME_CLEARED_POWER} = {FLOAT_NET_INCOME} / {FLOAT_CLEARED_POWER}            
             """
         )
     )
 
-    return trial_results_sco_casadas_grouped
+    return cleared_mic_scos_df_grouped
 
 
-def get_left_out_scos_grouped(
+def get_leftout_mic_scos_summary(
     det_cab_date: pd.DataFrame,
     all_scos: list,
     trial_scos: list,
-    clearing_prices: pd.DataFrame,
+    clearing_price_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Aggregates financial results for SCOs not included in the current trial.
@@ -158,7 +169,7 @@ def get_left_out_scos_grouped(
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
         all_scos (list): List of all SCO order IDs.
         trial_scos (list): List of SCO order IDs included in the trial.
-        clearing_prices (pd.DataFrame): DataFrame of clearing prices per period and zone.
+        clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
     Returns:
         pd.DataFrame: DataFrame grouped by order ID with financial results for left-out SCOs.
@@ -168,30 +179,30 @@ def get_left_out_scos_grouped(
     return (
         det_cab_date.query(f"{ID_ORDER} in @left_out_scos")
         .merge(
-            clearing_prices,
+            clearing_price_df,
             on=[INT_PERIODO, CAT_PAIS],
             how="left",
             validate="many_to_one",
         )
         .eval(
             f"""
-            `Derechos_de_cobro` = {FLOAT_BID_POWER} * `Precio_casación`
-            `Coste_variable` = {FLOAT_BID_POWER} * {FLOAT_BID_PRICE}
+            {FLOAT_COLLECTION_RIGHTS} = {FLOAT_BID_POWER} * {FLOAT_CLEARED_PRICE}
+            {FLOAT_VARIABLE_COST} = {FLOAT_BID_POWER} * {FLOAT_BID_PRICE}
             """
         )
         .groupby([ID_ORDER], observed=True)
         .agg(
             {
-                "Derechos_de_cobro": "sum",
-                "Coste_variable": "sum",
+                FLOAT_COLLECTION_RIGHTS: "sum",
+                FLOAT_VARIABLE_COST: "sum",
                 FLOAT_MIC: "first",
                 FLOAT_BID_POWER: "sum",
             }
         )
         .eval(
             f"""
-            `Beneficio_neto` = `Derechos_de_cobro` - ( `Coste_variable` + `{FLOAT_MIC}` )
-            `Ratio_Beneficio_Potencia_ofertada` = `Beneficio_neto` / `{FLOAT_BID_POWER}`
+            {FLOAT_NET_INCOME} = {FLOAT_COLLECTION_RIGHTS} - ( {FLOAT_VARIABLE_COST} + {FLOAT_MIC} )
+            {FLOAT_RATIO_NET_INCOME_BID_POWER} = {FLOAT_NET_INCOME} / {FLOAT_BID_POWER}
             """
         )
     )
@@ -213,16 +224,16 @@ def sort_trials_df_by_most_promising(trials_df):
         pd.DataFrame: Sorted DataFrame of trials.
     """
 
-    trials_df_status_false = trials_df.query(f"{IS_MIC_RESPECTED_COLUMN} == False")
-    trials_df_status_true = trials_df.query(f"{IS_MIC_RESPECTED_COLUMN} == True")
+    trials_df_status_false = trials_df.query(f"{BOOL_IS_MIC_RESPECTED} == False")
+    trials_df_status_true = trials_df.query(f"{BOOL_IS_MIC_RESPECTED} == True")
     sorted_promising_trials_df = pd.concat(
         [
             trials_df_status_true.sort_values(
-                by=[OBJECTIVE_VALUE_COLUMN, SCOS_WITH_MIC_COUNT_COLUMN],
+                by=[FLOAT_OBJECTIVE_VALUE, INT_MIC_SCOS_COUNT],
                 ascending=[False, True],
             ),
             trials_df_status_false.sort_values(
-                by=[SCOS_WITH_MIC_COUNT_COLUMN, OBJECTIVE_VALUE_COLUMN],
+                by=[INT_MIC_SCOS_COUNT, FLOAT_OBJECTIVE_VALUE],
                 ascending=[True, False],
             ),
         ],
@@ -234,37 +245,36 @@ def sort_trials_df_by_most_promising(trials_df):
 def get_best_trial(
     trials_df: pd.DataFrame, mic_respected_only: bool = True
 ) -> pd.Series:
-    """_summary_
+    """
+    Selects and returns the best trial from the trials DataFrame.
+
+    If mic_respected_only is True, only considers trials where the MIC constraint is respected.
+    The best trial is determined by sorting for the highest objective value and, in case of ties,
+    the lowest number of SCOs with MIC. If mic_respected_only is False, considers all trials.
 
     Args:
-        trials_df (pd.DataFrame): _description_
-        mic_respected_only (bool, optional): _description_. Defaults to True.
+        trials_df (pd.DataFrame): DataFrame containing results of all trials.
+        mic_respected_only (bool, optional): If True, only consider trials where MIC is respected. Defaults to True.
 
     Returns:
-        pd.Series: _description_
+        pd.Series: The row of the best trial in the DataFrame.
     """
     if mic_respected_only:
-        best_trial = (
-            trials_df.query(f"{IS_MIC_RESPECTED_COLUMN} == True")
-            .sort_values(by=OBJECTIVE_VALUE_COLUMN, ascending=False)
-            .iloc[0]
-        )
-    else:
-        sorted_promising_trials_df = sort_trials_df_by_most_promising(trials_df)
-        best_trial = sorted_promising_trials_df.iloc[0]
-    return best_trial
+        trials_df = trials_df.query(f"{BOOL_IS_MIC_RESPECTED} == True")
+    sorted_trials_df = sort_trials_df_by_most_promising(trials_df)
+    return sorted_trials_df.iloc[0]
 
 
 def get_combinations_generator(
-    left_out_scos_grouped_combinations, combinations_count, reverse=True
+    leftout_mic_scos_summary_combinations, combinations_count, reverse=True
 ):
-    scos_combinations = left_out_scos_grouped_combinations.index.tolist()
+    scos_combinations = leftout_mic_scos_summary_combinations.index.tolist()
     index_combinations = combinations(scos_combinations, combinations_count)
     index_cobinations_sorted = sorted(
         index_combinations,
         key=lambda t: sum(
-            left_out_scos_grouped_combinations.loc[list(t)][
-                "Ratio_Beneficio_Potencia_ofertada"
+            leftout_mic_scos_summary_combinations.loc[list(t)][
+                FLOAT_RATIO_NET_INCOME_BID_POWER
             ]
         ),
         reverse=reverse,
@@ -272,199 +282,186 @@ def get_combinations_generator(
     return index_cobinations_sorted
 
 
-def get_new_sco_combinations_by_adding_left_out_scos(
-    left_out_scos_grouped: pd.DataFrame,
+def get_new_mic_scos_by_adding_left_out_scos(
+    leftout_mic_scos_summary: pd.DataFrame,
     trials_df: pd.DataFrame,
-    scos_combination: list,
-    sco_combinations_count: int = 1,
-):
-    left_out_scos_grouped_sorted = left_out_scos_grouped.sort_values(
-        by="Ratio_Beneficio_Potencia_ofertada", ascending=False
+    starting_mic_scos: list,
+    mic_scos_combinations_count: int = 1,
+) -> pd.Series:
+    """
+    Proposes new SCO-with-MIC combinations by adding left-out SCOs to the current combination.
+
+    This function sorts left-out SCOs by their net income per bid power, then proposes new combinations
+    by adding the most promising left-out SCOs to the current set. It avoids combinations that have already
+    been tested and can propose combinations with more than one left-out SCO if beneficial. Returns up to
+    mic_scos_combinations_count new combinations.
+
+    Args:
+        leftout_mic_scos_summary (pd.DataFrame): Summary DataFrame of left-out SCOs with financial metrics.
+        trials_df (pd.DataFrame): DataFrame of all previous trial results.
+        starting_mic_scos (list): List of SCO order IDs with MIC in the current trial.
+        mic_scos_combinations_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
+
+    Returns:
+        pd.Series: Series of new SCO-with-MIC combinations (as lists) to try in the next trials.
+    """
+    starting_mic_scos_count = len(starting_mic_scos)
+
+    # Sort left-out SCOs by ratio net income / bid power
+    leftout_mic_scos_summary_sorted = leftout_mic_scos_summary.sort_values(
+        by=FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False
     )
 
-    left_out_scos_grouped_combinations = (
-        left_out_scos_grouped[["Ratio_Beneficio_Potencia_ofertada"]]
-        .reset_index()
-        .copy()
+    # Create initial new combinations by adding single left-out SCOs
+    new_mic_scos_df = pd.DataFrame(
+        {
+            ID_ORDER: leftout_mic_scos_summary_sorted.index,
+            FLOAT_RATIO_NET_INCOME_BID_POWER: leftout_mic_scos_summary[
+                FLOAT_RATIO_NET_INCOME_BID_POWER
+            ].values,
+            INT_MIC_SCOS_COUNT: 1 + starting_mic_scos_count,
+        }
     )
-    left_out_scos_grouped_combinations["combinations_count"] = 1
-    left_out_scos_grouped_combinations["sco_combination"] = (
-        left_out_scos_grouped_combinations[ID_ORDER].apply(
-            lambda sco: scos_combination + [sco]
-        )
+    new_mic_scos_df[MIC_SCOS_COLUMN] = new_mic_scos_df[ID_ORDER].apply(
+        lambda sco: starting_mic_scos + [sco]
     )
-    left_out_scos_grouped_combinations[
-        "has_combination_been_tested"
-    ] = left_out_scos_grouped_combinations["sco_combination"].apply(
-        lambda sco: check_if_sco_combination_tried(trials_df, sco + scos_combination)
+    new_mic_scos_df[BOOL_ARE_MIC_SCOS_TESTED] = new_mic_scos_df[MIC_SCOS_COLUMN].apply(
+        lambda sco: check_are_mic_scos_tested(trials_df, sco + starting_mic_scos)
     )
-    left_out_scos_grouped_combinations = left_out_scos_grouped_combinations.query(
-        "has_combination_been_tested == False"
+
+    # Filter out already tested combinations
+    new_mic_scos_df = new_mic_scos_df.query(
+        f"{BOOL_ARE_MIC_SCOS_TESTED} == False"
     ).drop(columns=[ID_ORDER])
 
-    if len(left_out_scos_grouped_combinations) > sco_combinations_count:
-        left_out_scos_grouped_combinations = left_out_scos_grouped_combinations.head(
-            sco_combinations_count
-        )
+    # If the number of new combinations is greater than the desired, keep only the top ones
+    if len(new_mic_scos_df) > mic_scos_combinations_count:
+        new_mic_scos_df = new_mic_scos_df.head(mic_scos_combinations_count)
 
-    min_ratio = left_out_scos_grouped_combinations[
-        "Ratio_Beneficio_Potencia_ofertada"
-    ].min()
-
+    min_ratio = new_mic_scos_df[FLOAT_RATIO_NET_INCOME_BID_POWER].min()
     create_combinations = True
     combinations_count = 2
 
     while create_combinations and combinations_count <= 4:
-        index_combinations_sorted = get_combinations_generator(
-            left_out_scos_grouped_sorted, combinations_count
+        # Generate combinations of left-out SCOs, sorted by their combined ratio net income / bid power
+        leftout_mic_scos_sorted = get_combinations_generator(
+            leftout_mic_scos_summary_sorted, combinations_count
         )
-        has_combination_been_added = False
-        for indexes in index_combinations_sorted:
-            new_trial_scos_with_mic = scos_combination + list(indexes)
-            has_combination_been_tested = check_if_sco_combination_tried(
-                trials_df, new_trial_scos_with_mic
+        new_mic_scos_added_in_iteration = False
+        for leftout_mic_scos in leftout_mic_scos_sorted:
+            new_trial_mic_scos = starting_mic_scos + list(leftout_mic_scos)
+            are_mic_scos_tested = check_are_mic_scos_tested(
+                trials_df, new_trial_mic_scos
             )
-            if not has_combination_been_tested:
-                Ratio_Beneficio_Potencia_ofertada = sum(
-                    left_out_scos_grouped.loc[list(indexes)][
-                        "Ratio_Beneficio_Potencia_ofertada"
+            if not are_mic_scos_tested:
+                ratio_net_income_bid_power = sum(
+                    leftout_mic_scos_summary.loc[list(leftout_mic_scos)][
+                        FLOAT_RATIO_NET_INCOME_BID_POWER
                     ]
                 )
-                if Ratio_Beneficio_Potencia_ofertada > min_ratio:
-                    left_out_scos_grouped_combinations = pd.concat(
-                        [
-                            left_out_scos_grouped_combinations,
-                            pd.DataFrame(
-                                {
-                                    "sco_combination": [
-                                        list(indexes) + scos_combination
-                                    ],
-                                    "Ratio_Beneficio_Potencia_ofertada": [
-                                        Ratio_Beneficio_Potencia_ofertada
-                                    ],
-                                    "has_combination_been_tested": [False],
-                                    "combinations_count": [combinations_count],
-                                }
-                            ),
-                        ],
-                        ignore_index=True,
-                    ).sort_values(
-                        by="Ratio_Beneficio_Potencia_ofertada", ascending=False
+
+                # Add only if the ratio is better than the minimum of the current new combinations or
+                # if we still need more combinations
+                if (
+                    ratio_net_income_bid_power > min_ratio
+                    or len(new_mic_scos_df) < mic_scos_combinations_count
+                ):
+                    new_mic_scos_entry = (
+                        pd.DataFrame(
+                            {
+                                MIC_SCOS_COLUMN: [new_trial_mic_scos],
+                                FLOAT_RATIO_NET_INCOME_BID_POWER: [
+                                    ratio_net_income_bid_power
+                                ],
+                                BOOL_ARE_MIC_SCOS_TESTED: [False],
+                                INT_MIC_SCOS_COUNT: [
+                                    combinations_count + starting_mic_scos_count
+                                ],
+                            }
+                        ),
                     )
 
-                    has_combination_been_added = True
-
-                    if (
-                        len(left_out_scos_grouped_combinations)
-                        >= sco_combinations_count
-                    ):
-                        left_out_scos_grouped_combinations = (
-                            left_out_scos_grouped_combinations.head(
-                                sco_combinations_count
-                            )
+                    new_mic_scos_df = (
+                        pd.concat(
+                            [new_mic_scos_df, new_mic_scos_entry], ignore_index=True
                         )
+                        .sort_values(
+                            by=FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False
+                        )
+                        .head(mic_scos_combinations_count)
+                    )
+
+                    new_mic_scos_added_in_iteration = True
+
                 else:
                     break
 
         if (
-            not has_combination_been_added
-            and len(left_out_scos_grouped_combinations) >= sco_combinations_count
+            not new_mic_scos_added_in_iteration
+            and len(new_mic_scos_df) >= mic_scos_combinations_count
         ):
             create_combinations = False
 
         else:
             combinations_count += 1
 
-    return left_out_scos_grouped_combinations.head(sco_combinations_count)[
-        "sco_combination"
-    ]
+    return new_mic_scos_df.head(mic_scos_combinations_count)[MIC_SCOS_COLUMN]
 
 
-def get_new_sco_combinations_by_removing_underperforming_scos(
-    trial_results_sco_casadas_grouped_sorted: pd.DataFrame,
+def get_new_mic_scos_by_removing_underperforming_scos(
+    trial_cleared_mic_scos_summary: pd.DataFrame,
     trials_df: pd.DataFrame,
     scos_combination: list,
-    sco_combinations_count: int = 1,
-):
-    # first create combinations deleting 1, then 2 until all deleted
-    trial_results_sco_casadas_grouped_sorted = (
-        trial_results_sco_casadas_grouped_sorted.query(
-            "Ratio_Beneficio_Potencia_casada < 0"
-        ).sort_values(by="Ratio_Beneficio_Potencia_casada", ascending=True)
-    )
+    int_mic_scos_count: int = 1,
+) -> pd.Series:
+    """
+    Proposes new SCO-with-MIC combinations by removing underperforming SCOs from the current combination.
 
-    new_sco_combinations = trial_results_sco_casadas_grouped_sorted.copy()
-    sco_combinations_left = scos_combination.copy()
-    new_sco_combinations[["sco_combination", "has_combination_been_tested"]] = np.nan
-    new_sco_combinations = new_sco_combinations.astype(
-        {"sco_combination": object, "has_combination_been_tested": bool}
-    )
-    for index, row in new_sco_combinations.iterrows():
-        new_trial_scos_with_mic = list(set(sco_combinations_left) - set([index]))
+    This function identifies SCOs with negative net income per cleared power, removes them one by one from the current combination,
+    and checks if the resulting combinations have already been tested. Returns up to int_mic_scos_count new combinations that have not been tested yet.
 
-        has_combination_been_tested = check_if_sco_combination_tried(
-            trials_df, new_trial_scos_with_mic
-        )
-        new_sco_combinations.at[index, "has_combination_been_tested"] = (
-            has_combination_been_tested
-        )
-        new_sco_combinations.at[index, "sco_combination"] = new_trial_scos_with_mic
+    Args:
+        trial_cleared_mic_scos_summary (pd.DataFrame): Summary DataFrame of cleared SCOs with MIC for the current trial.
+        trials_df (pd.DataFrame): DataFrame of all previous trial results.
+        scos_combination (list): List of SCO order IDs with MIC in the current trial.
+        int_mic_scos_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
 
-        sco_combinations_left = new_trial_scos_with_mic
+    Returns:
+        pd.Series: Series of new SCO-with-MIC combinations (as lists) to try in the next trials.
+    """
+    trial_cleared_mic_scos_summary = trial_cleared_mic_scos_summary.query(
+        f"{FLOAT_RATIO_NET_INCOME_CLEARED_POWER} < 0"
+    ).sort_values(by=FLOAT_RATIO_NET_INCOME_CLEARED_POWER, ascending=True)
+    new_mic_scos_df = pd.DataFrame(
+        {MIC_SCOS_COLUMN: np.nan, BOOL_ARE_MIC_SCOS_TESTED: np.nan},
+        index=trial_cleared_mic_scos_summary.index,
+    ).astype({MIC_SCOS_COLUMN: object, BOOL_ARE_MIC_SCOS_TESTED: bool})
 
-    new_sco_combinations = new_sco_combinations.query(
-        "has_combination_been_tested == False"
-    ).reset_index(drop=True)
+    mic_scos_left = scos_combination.copy()
 
-    return new_sco_combinations.head(sco_combinations_count)["sco_combination"]
+    for index, row in new_mic_scos_df.iterrows():
 
-    # create_combinations = True
-    # combinations_count = len(trial_results_sco_casadas_grouped_sorted) - 1
-    # while create_combinations:
-    #     index_combinations_sorted = get_combinations_generator(
-    #         trial_results_sco_casadas_grouped_sorted, combinations_count
-    #     )
-    #     for indexes in index_combinations_sorted:
-    #         new_trial_scos_with_mic = list(set(scos_combination) - set(list(indexes)))
-    #         has_combination_been_tested = check_if_sco_combination_tried(
-    #             trials_df, new_trial_scos_with_mic
-    #         )
-    #         if not has_combination_been_tested:
-    #             Ratio_Beneficio_Potencia_casada = sum(
-    #                 trial_results_sco_casadas_grouped_sorted.loc[list(indexes)][
-    #                     "Ratio_Beneficio_Potencia_casada"
-    #                 ]
-    #             )
-    #             new_sco_combinations = pd.concat(
-    #                 [
-    #                     new_sco_combinations,
-    #                     pd.DataFrame(
-    #                         {
-    #                             "sco_combination": [new_trial_scos_with_mic],
-    #                             "Ratio_Beneficio_Potencia_casada": [
-    #                                 Ratio_Beneficio_Potencia_casada
-    #                             ],
-    #                         }
-    #                     ),
-    #                 ],
-    #                 ignore_index=True,
-    #             ).sort_values(by="Ratio_Beneficio_Potencia_casada", ascending=False)
+        new_trial_mic_scos = list(set(mic_scos_left) - set([index]))
+        are_mic_scos_tested = check_are_mic_scos_tested(trials_df, new_trial_mic_scos)
 
-    #         if len(new_sco_combinations) >= sco_combinations_count:
-    #             create_combinations = False
-    #             break
+        new_mic_scos_df.at[index, MIC_SCOS_COLUMN] = new_trial_mic_scos
+        new_mic_scos_df.at[index, BOOL_ARE_MIC_SCOS_TESTED] = are_mic_scos_tested
 
-    #     combinations_count -= 1
+        mic_scos_left = new_trial_mic_scos
 
-    # return new_sco_combinations.head(sco_combinations_count)
+    new_mic_scos_df = new_mic_scos_df.query(
+        f"{BOOL_ARE_MIC_SCOS_TESTED} == False"
+    ).head(int_mic_scos_count)
+
+    return new_mic_scos_df[MIC_SCOS_COLUMN]
 
 
-def define_new_trial_sco_combinations(
+def define_new_trial_mic_scos(
     trials_df: pd.DataFrame,
     det_cab_date: pd.DataFrame,
-    all_scos_with_mic: list,
-    sco_combinations_count: int = 1,
-) -> list | bool:
+    all_mic_scos: list,
+    int_mic_scos_count: int = 1,
+) -> list:
     """
     Defines a new combination of SCOs with MIC to try in the next trial.
 
@@ -473,122 +470,83 @@ def define_new_trial_sco_combinations(
     Args:
         trials_df (pd.DataFrame): DataFrame of previous trial results.
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
-        all_scos_with_mic (list): List of all SCO order IDs with MIC.
-        trials_count (int, optional): Maximum number of trials to propose. Defaults to 1.
+        all_mic_scos (list): List of all SCO order IDs with MIC.
+        int_mic_scos_count (int, optional): Maximum number of MIC SCO combinations to propose. Defaults to 1.
 
     Returns:
-        list | bool: List of SCO order IDs for the next trial, or False if all combinations have been tried.
+        list: List of SCO order IDs for the next trial.
     """
 
     # Get the most promising trial
     sorted_promising_trials_df = sort_trials_df_by_most_promising(trials_df)
-    most_promising_trial = sorted_promising_trials_df.iloc[0]
 
-    cleared_energy = most_promising_trial[CLEARED_ENERGY_COLUMN]
-    clearing_prices = most_promising_trial[CLEARING_PRICES_COLUMN]
-    most_promising_trial_scos_with_mic = most_promising_trial[SCOS_WITH_MIC_COLUMN]
-
-    det_cab_date_scos_with_mic_filtered = filter_scos_with_mic_from_det_cab(
-        det_cab_date, most_promising_trial_scos_with_mic
-    )
-    trial_results_sco_with_mic_casadas_grouped = get_trial_results_sco_casadas_grouped(
-        det_cab_date_scos_with_mic_filtered, cleared_energy, clearing_prices
-    )
-
-    # logger.info("--ALGORITHM--: Iteration: ", len(trials_df))
     for index, row in sorted_promising_trials_df.iterrows():
 
         logger.info(
-            f"--ALGORITHM--: Most promising combination: {row[SCOS_WITH_MIC_COLUMN]}"
+            f"--ALGORITHM--: Most promising combination: {row[MIC_SCOS_COLUMN]}"
         )
-        scos_combination = row[SCOS_WITH_MIC_COLUMN]
-        is_mic_respected = row[IS_MIC_RESPECTED_COLUMN]
-        if is_mic_respected:
+
+        cleared_energy = row[CLEARED_ENERGY_COLUMN]
+        clearing_prices = row[CLEARING_PRICES_COLUMN]
+        trial_mic_scos = row[MIC_SCOS_COLUMN]
+        mic_scos = row[MIC_SCOS_COLUMN]
+        bool_is_mic_respected = row[BOOL_IS_MIC_RESPECTED]
+
+        if bool_is_mic_respected:
             logger.info("--ALGORITHM--: MIC is respected")
-
-            has_combination_been_tested = True
-            left_out_scos_grouped = get_left_out_scos_grouped(
-                det_cab_date,
-                all_scos_with_mic,
-                scos_combination,
-                clearing_prices,
-            ).sort_values(by="Ratio_Beneficio_Potencia_ofertada", ascending=False)
-
-            return get_new_sco_combinations_by_adding_left_out_scos(
-                left_out_scos_grouped,
-                trials_df,
-                scos_combination,
-                sco_combinations_count,
+            leftout_mic_scos_summary = get_leftout_mic_scos_summary(
+                det_cab_date, all_mic_scos, mic_scos, clearing_prices
+            ).sort_values(by=FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
+            return get_new_mic_scos_by_adding_left_out_scos(
+                leftout_mic_scos_summary, trials_df, mic_scos, int_mic_scos_count
             )
-
-            # for entries_to_combine in range(1, len(left_out_scos_grouped) + 1):
-            #     logger.info(f"--ALGORITHM--: entries_to_combine: {entries_to_combine}")
-            #     index_combinations = combinations(
-            #         left_out_scos_grouped.index.tolist(), entries_to_combine
-            #     )
-
-            #     for indexes in index_combinations:
-            #         new_trial_scos_with_mic = scos_combination + list(indexes)
-            #         has_combination_been_tested = check_if_sco_combination_tried(
-            #             trials_df, new_trial_scos_with_mic
-            #         )
-            #         if not has_combination_been_tested:
-            #             trial_scos_with_mic = new_trial_scos_with_mic
-            #             logger.info(
-            #                 f"--ALGORITHM--: Trying new combination: {trial_scos_with_mic}"
-            #             )
-            #             break
-            #     if not has_combination_been_tested:
-            #         break
 
         else:
-
-            trial_results_sco_casadas_grouped_sorted = (
-                trial_results_sco_with_mic_casadas_grouped.sort_values(
-                    by="Beneficio_neto"
-                )
+            det_cab_date_mic_scos_filtered = filter_mic_scos_from_det_cab(
+                det_cab_date, trial_mic_scos
             )
-
-            return get_new_sco_combinations_by_removing_underperforming_scos(
-                trial_results_sco_casadas_grouped_sorted,
+            trial_cleared_mic_scos_summary = get_trial_cleared_mic_scos_summary(
+                det_cab_date_mic_scos_filtered, cleared_energy, clearing_prices
+            )
+            return get_new_mic_scos_by_removing_underperforming_scos(
+                trial_cleared_mic_scos_summary,
                 trials_df,
-                scos_combination,
-                sco_combinations_count,
+                mic_scos,
+                int_mic_scos_count,
             )
 
-            # for entries_to_delete in range(
-            #     1, len(trial_results_sco_casadas_grouped_sorted) + 1
-            # ):
-            #     index_combinations = combinations(
-            #         trial_results_sco_casadas_grouped_sorted.index.tolist(),
-            #         entries_to_delete,
-            #     )
-            #     has_combination_been_tested = True
-            #     for indexes in index_combinations:
-            #         new_trial_scos_with_mic = list(set(scos_combination) - set(indexes))
-            #         has_combination_been_tested = check_if_sco_combination_tried(
-            #             trials_df, new_trial_scos_with_mic
-            #         )
-            #         if not has_combination_been_tested:
-            #             logger.info(
-            #                 f"--ALGORITHM--: Trying new combination removing {indexes} from {scos_combination}"
-            #             )
-            #             return trial_scos_with_mic
 
+def iterative_function(
+    args: tuple[
+        pd.DataFrame,
+        pd.DataFrame,
+        pd.DataFrame,
+        pd.DataFrame,
+        pd.DataFrame,
+        pd.DataFrame,
+        list,
+    ],
+) -> pd.DataFrame:
+    """
+    Runs a single DAM market clearing trial for a given combination of SCOs with MIC.
 
-# trial (SCOs included)
-# 1. optimize
-# 2. get precios de casación and welfare
-# 3. todas las casaciones sco son correctas?
-# 3.No. Eliminar las no correctas e ir a 1.
-# 3.Si. Es la primera vez?
-#      Sí. Fin
-#      No.
-#           Calcular derechos_de_cobro de las SCO descartadas
-#           Añadir la más prometedora, si la combinación no ha sido probada, si no, la segunda
+    This function filters the DET/CAB data for the current SCOs with MIC, runs the market model,
+    extracts relevant results, and returns a DataFrame summarizing the trial.
 
+    Args:
+        args (tuple): Tuple containing:
+            - det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
+            - capacidad_inter_PT_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
+            - parent_child_scos (pd.DataFrame): DataFrame of parent-child SCO relationships.
+            - parent_child_bloques (pd.DataFrame): DataFrame of parent-child block order relationships.
+            - exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
+            - sco_bids_tramo_grouped (pd.DataFrame): DataFrame of grouped SCO bids by tramo.
+            - current_trial_mic_scos (list): List of SCO order IDs with MIC for this trial.
 
-def iterative_function(args):
+    Returns:
+        pd.DataFrame: DataFrame with the results of the trial (one row).
+    """
+
     (
         det_cab_date,
         capacidad_inter_PT_date,
@@ -596,16 +554,16 @@ def iterative_function(args):
         parent_child_bloques,
         exclusive_block_orders_grouped,
         sco_bids_tramo_grouped,
-        current_trial_scos_with_mic,
+        current_trial_mic_scos,
     ) = args
 
     # Keep only SCOs in the current trial
-    det_cab_date_scos_filtered = filter_scos_with_mic_from_det_cab(
-        det_cab_date, current_trial_scos_with_mic
+    det_cab_date_scos_filtered = filter_mic_scos_from_det_cab(
+        det_cab_date, current_trial_mic_scos
     )
 
     # Run market model
-    model, model_binary, results = run_model(
+    model, _, results = run_model(
         det_cab_date_scos_filtered,
         capacidad_inter_PT_date,
         parent_child_scos,
@@ -617,19 +575,21 @@ def iterative_function(args):
     # Extract information from the model
     cleared_energy = get_cleared_energy_series(model)
     clearing_prices = get_clearing_prices_df(model)
-    trial_results_sco_casadas_grouped = get_trial_results_sco_casadas_grouped(
+    trial_results_sco_casadas_grouped = get_trial_cleared_mic_scos_summary(
         det_cab_date_scos_filtered, cleared_energy, clearing_prices
     )
     welfare = pyo.value(model.OBJ)
-    is_mic_respected = (trial_results_sco_casadas_grouped["Beneficio_neto"] >= 0).all()
+    bool_is_mic_respected = (
+        trial_results_sco_casadas_grouped[FLOAT_NET_INCOME] >= 0
+    ).all()
 
     # Update trials_df with current trial results
     trial_df_entry = {
-        SCOS_WITH_MIC_COLUMN: [current_trial_scos_with_mic],
-        OBJECTIVE_VALUE_COLUMN: [welfare],
-        IS_MIC_RESPECTED_COLUMN: [is_mic_respected],
+        MIC_SCOS_COLUMN: [current_trial_mic_scos],
+        FLOAT_OBJECTIVE_VALUE: [welfare],
+        BOOL_IS_MIC_RESPECTED: [bool_is_mic_respected],
         SOLVER_RESULTS_COLUMN: [results],
-        SCOS_WITH_MIC_COUNT_COLUMN: [len(current_trial_scos_with_mic)],
+        INT_MIC_SCOS_COUNT: [len(current_trial_mic_scos)],
         CLEARED_ENERGY_COLUMN: [cleared_energy],
         CLEARING_PRICES_COLUMN: [clearing_prices],
         SPAIN_PORTUGAL_TRANSMISSION_COLUMN: [get_spain_portugal_transmissions(model)],
@@ -638,16 +598,44 @@ def iterative_function(args):
     return pd.DataFrame(trial_df_entry)
 
 
+def check_if_success_at_first_trial(
+    first_trial_df: list,
+    is_trials_df_provided: bool,
+    is_trial_mic_scos_provided: bool,
+) -> bool:
+    """
+    Checks if the first trial was successful, i.e., all SCOs with MIC were correctly cleared on the first attempt.
+
+    Args:
+        results (list): List of DataFrames with trial results, where each DataFrame contains the results of a single trial.
+        is_trials_df_provided (bool): Indicates if a previous trials DataFrame was provided (i.e., not the first run).
+        is_trial_mic_scos_provided (bool): Indicates if an initial SCOs-with-MIC combination was provided.
+
+    Returns:
+        bool: True if the first trial was successful and it was the initial run (no previous trials or initial combination provided), False otherwise.
+    """
+    success_at_first_trial = (
+        not is_trials_df_provided
+        and not is_trial_mic_scos_provided
+        and first_trial_df[BOOL_IS_MIC_RESPECTED].iloc[0]
+    )
+    if success_at_first_trial:
+        logger.info(
+            "--ALGORITHM--: First trial with all SCOs correctly cleared, finishing"
+        )
+    return success_at_first_trial
+
+
 def run_iterative_loop(
     det_cab_date: pd.DataFrame,
-    capacidad_inter_date: pd.DataFrame,
+    capacidad_inter_pt_date: pd.DataFrame,
     parent_child_scos: pd.DataFrame,
     parent_child_bloques: pd.DataFrame,
     exclusive_block_orders_grouped: pd.DataFrame,
     sco_bids_tramo_grouped: pd.DataFrame,
-    all_scos_with_mic: list,
+    all_mic_scos: list,
     trials_count: int = 100,
-    trial_scos_with_mic: list | None = None,
+    trial_mic_scos: list | None = None,
     trials_df: pd.DataFrame | None = None,
     n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
@@ -658,14 +646,14 @@ def run_iterative_loop(
 
     Args:
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
-        capacidad_inter_date (pd.DataFrame): DataFrame of interconnection capacities.
+        capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
         parent_child_scos (pd.DataFrame): DataFrame of parent-child SCO relationships.
         parent_child_bloques (pd.DataFrame): DataFrame of parent-child block order relationships.
         exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
         sco_bids_tramo_grouped (pd.DataFrame): DataFrame of grouped SCO bids by tramo.
-        all_scos_with_mic (list): List of all SCO order IDs with MIC.
+        all_mic_scos (list): List of all SCO order IDs with MIC.
         trials_count (int, optional): Maximum number of trials to run. Defaults to 100.
-        trial_scos_with_mic (list, optional): Initial SCOs with MIC for the first trial.
+        trial_mic_scos (list, optional): Initial SCOs with MIC for the first trial.
         trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from.
 
     Returns:
@@ -675,103 +663,78 @@ def run_iterative_loop(
             best_model_binary: Pyomo model object for the best trial (binary version).
     """
 
+    is_trials_df_provided = trials_df is not None
+    is_trial_mic_scos_provided = trial_mic_scos is not None
+
+    if trials_count // n_jobs < 5:
+        logger.warning(
+            "--ALGORITHM--: It is recommended trials_count to be at least 5 times n_jobs."
+        )
+
     #### INITIALIZATION ####
-
-    # Filter capacity for Portugal only
-    if CAT_PAIS in capacidad_inter_date.columns:
-        capacidad_inter_PT_date = capacidad_inter_date.query(
-            f"`{CAT_PAIS}` == '2'"
-        ).copy()
-    else:
-        capacidad_inter_PT_date = capacidad_inter_date.copy()
-
     # Initialize trials_df if not provided
     if trials_df is None:
         trials_df = pd.DataFrame(columns=TRIALS_DF_COLUMNS)
 
-    # Define initial trial SCOs with MIC if not provided
-    if trial_scos_with_mic is not None:
-        next_trials_scos_with_mic = [trial_scos_with_mic.copy()]
-    # Start with all SCOs with MIC if trials_df is empty
-    elif trial_scos_with_mic is None and trials_df.empty:
-        next_trials_scos_with_mic = [all_scos_with_mic.copy()]
-    # Otherwise, define a new combination based on previous trials
-    elif trial_scos_with_mic is None and not trials_df.empty:
-        next_trials_scos_with_mic = define_new_trial_sco_combinations(
-            trials_df, det_cab_date, all_scos_with_mic
+    # If trial_mic_scos is provided, start with that combination
+    if trial_mic_scos is not None:
+        next_trials_mic_sco = [trial_mic_scos.copy()]
+    # If trials_df is defined, define a new combination based on previous trials
+    elif not trials_df.empty:
+        next_trials_mic_sco = define_new_trial_mic_scos(
+            trials_df, det_cab_date, all_mic_scos
         )
-        if next_trials_scos_with_mic is False:
+        if next_trials_mic_sco is False:
             logger.info("--ALGORITHM--: All combinations tried, finishing")
             return trials_df
+    # Otherwise start with all SCOs with MIC
+    else:
+        next_trials_mic_sco = [all_mic_scos.copy()]
 
     #### ITERATIVE LOOP ####
 
-    best_model = None
-    best_model_binary = None
+    completed_trials = 0
 
-    trials_done = 0
-
-    while trials_done < trials_count:
+    while completed_trials < trials_count:
 
         args_list = [
             (
                 det_cab_date,
-                capacidad_inter_PT_date,
+                capacidad_inter_pt_date,
                 parent_child_scos,
                 parent_child_bloques,
                 exclusive_block_orders_grouped,
                 sco_bids_tramo_grouped,
-                trial_scos_with_mic,
+                trial_mic_scos,
             )
-            for trial_scos_with_mic in next_trials_scos_with_mic
+            for trial_mic_scos in next_trials_mic_sco
         ]
         with multiprocessing.Pool(processes=n_jobs) as pool:
             results = pool.map(iterative_function, args_list)
-
-            trials_done += len(results)
-
+            completed_trials += len(results)
             trials_df = pd.concat(results + [trials_df], ignore_index=True)
 
-            # Update best model if current trial is the best so far
-            # best_trial = get_best_trial(trials_df, mic_respected_only=False)
-            # new_best_trial = [
-            #     result
-            #     for result in results
-            #     if set(best_trial[SCOS_WITH_MIC_COLUMN])
-            #     == set(result[0][SCOS_WITH_MIC_COLUMN].iloc[0])
-            # ]
-            # if len(new_best_trial) > 0:
-            #     best_model = new_best_trial[0][1]
-            #     best_model_binary = new_best_trial[0][2]
-
-            if (
-                trials_done == 1
-                and results[0][IS_MIC_RESPECTED_COLUMN].iloc[0]
-                and len(trials_df) == 1
-                and trial_scos_with_mic is None
+            if check_if_success_at_first_trial(
+                results[0], is_trials_df_provided, is_trial_mic_scos_provided
             ):
-
-                logger.info(
-                    "--ALGORITHM--: First trial with all SCOs correctly cleared, finishing"
-                )
                 break
 
             ### hasta aqui
-        new_combinations_count = min(n_jobs, trials_count - trials_done)
-        next_trials_scos_with_mic = define_new_trial_sco_combinations(
-            trials_df, det_cab_date, all_scos_with_mic, new_combinations_count
+        new_trial_int_mic_scos_count = min(n_jobs, trials_count - completed_trials)
+        next_trials_mic_sco = define_new_trial_mic_scos(
+            trials_df, det_cab_date, all_mic_scos, new_trial_int_mic_scos_count
         )
 
     best_trial = get_best_trial(trials_df, mic_respected_only=False)
 
-    det_cab_date_scos_filtered = filter_scos_with_mic_from_det_cab(
-        det_cab_date, best_trial[SCOS_WITH_MIC_COLUMN]
+    det_cab_date_scos_filtered = filter_mic_scos_from_det_cab(
+        det_cab_date, best_trial[MIC_SCOS_COLUMN]
     )
 
     # Run market model
     best_model, best_model_binary, results = run_model(
         det_cab_date_scos_filtered,
-        capacidad_inter_PT_date,
+        capacidad_inter_pt_date,
         parent_child_scos,
         parent_child_bloques,
         exclusive_block_orders_grouped,
@@ -835,17 +798,17 @@ def clear_OMIE_market(
     exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
     parent_child_scos = get_parent_child_scos(det_cab_date)
     sco_bids_tramo_grouped = get_sco_bids_tramo_grouped(det_cab_date)
-    all_scos_with_mic = get_all_scos_with_mic(det_cab_date)
+    all_mic_scos = get_all_mic_scos(det_cab_date)
 
     trials_df, model, model_binary = run_iterative_loop(
         det_cab_date=det_cab_date,
-        capacidad_inter_date=capacidad_inter_pt_date,
+        capacidad_inter_pt_date=capacidad_inter_pt_date,
         parent_child_scos=parent_child_scos,
         parent_child_bloques=parent_child_bloques,
         exclusive_block_orders_grouped=exclusive_block_orders_grouped,
         sco_bids_tramo_grouped=sco_bids_tramo_grouped,
         trials_count=trials_count,
-        all_scos_with_mic=all_scos_with_mic,
+        all_mic_scos=all_mic_scos,
         trials_df=starting_trials_df,
         n_jobs=n_jobs,
     )

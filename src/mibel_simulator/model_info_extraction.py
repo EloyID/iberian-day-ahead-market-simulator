@@ -9,10 +9,13 @@ from .const import (
     FLOAT_BID_POWER_CUMSUM,
     FLOAT_BID_POWER_CUMSUM_BY_COUNTRY,
     FLOAT_BID_PRICE,
+    FLOAT_CLEARED_POWER,
+    FLOAT_CLEARED_POWER_CUMSUM,
+    FLOAT_CLEARED_POWER_CUMSUM_BY_COUNTRY,
+    FLOAT_CLEARED_PRICE,
     ID_INDIVIDUAL_BID,
     ID_UNIDAD,
     INT_PERIODO,
-    OBJECTIVE_VALUE_COLUMN,
     PORTUGAL_ZONE,
     SPAIN_ZONE,
 )
@@ -36,14 +39,14 @@ def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:
     spain_clearing_price_df = pd.DataFrame(
         {
             INT_PERIODO: list(range(1, 25)),
-            "Precio_casación": spain_clearing_prices,
+            FLOAT_CLEARED_PRICE: spain_clearing_prices,
             CAT_PAIS: SPAIN_ZONE,
         }
     )
     portugal_clearing_price_df = pd.DataFrame(
         {
             INT_PERIODO: list(range(1, 25)),
-            "Precio_casación": portugal_clearing_prices,
+            FLOAT_CLEARED_PRICE: portugal_clearing_prices,
             CAT_PAIS: PORTUGAL_ZONE,
         }
     )
@@ -71,7 +74,7 @@ def get_simple_sellers_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Ser
         for s in model.SIMPLE_SELLER_BIDS
         if pyo.value(model.v_x_SIMPLE_SELLER_BIDS[s]) > 0
     }
-    return pd.Series(simple_cleared_sellers_energy, name="Potencia_casada")
+    return pd.Series(simple_cleared_sellers_energy, name=FLOAT_CLEARED_POWER)
 
 
 def get_block_orders_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
@@ -89,7 +92,7 @@ def get_block_orders_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Serie
         for s in model.BLOCK_ORDER_BIDS_BY_BLOCK[bo]
         if pyo.value(model.v_x_BLOCK_ORDERS[bo]) > 0
     }
-    return pd.Series(block_cleared_sellers_energy, name="Potencia_casada")
+    return pd.Series(block_cleared_sellers_energy, name=FLOAT_CLEARED_POWER)
 
 
 def get_sco_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
@@ -106,7 +109,7 @@ def get_sco_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
         for s in model.SCO_SELLER_BIDS
         if pyo.value(model.v_x_SCO_SELLER_BIDS[s]) > 0
     }
-    return pd.Series(sco_cleared_sellers_energy, name="Potencia_casada")
+    return pd.Series(sco_cleared_sellers_energy, name=FLOAT_CLEARED_POWER)
 
 
 def get_buyers_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
@@ -123,7 +126,7 @@ def get_buyers_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
         for b in model.BUYER_BIDS
         if pyo.value(model.v_x_BUYER_BIDS[b]) > 0
     }
-    return pd.Series(cleared_buyers_energy, name="Potencia_casada")
+    return pd.Series(cleared_buyers_energy, name=FLOAT_CLEARED_POWER)
 
 
 def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
@@ -233,7 +236,7 @@ def get_spain_portugal_transmissions_det_cab_df(
                 FLOAT_BID_POWER: abs(spain_portugal_flow),
                 ID_INDIVIDUAL_BID: f"International_Spain_Portugal_{period}",
                 CAT_PAIS: "ES",
-                "Potencia_casada": abs(spain_portugal_flow),
+                FLOAT_CLEARED_POWER: abs(spain_portugal_flow),
                 FLOAT_BID_POWER_CUMSUM: np.nan,
                 FLOAT_BID_POWER_CUMSUM_BY_COUNTRY: np.nan,
             }
@@ -247,7 +250,7 @@ def get_spain_portugal_transmissions_det_cab_df(
                 FLOAT_BID_POWER: abs(spain_portugal_flow),
                 ID_INDIVIDUAL_BID: f"International_Portugal_Spain_{period}",
                 CAT_PAIS: "PT",
-                "Potencia_casada": abs(spain_portugal_flow),
+                FLOAT_CLEARED_POWER: abs(spain_portugal_flow),
                 FLOAT_BID_POWER_CUMSUM: np.nan,
                 FLOAT_BID_POWER_CUMSUM_BY_COUNTRY: np.nan,
             }
@@ -297,27 +300,27 @@ def get_det_cab_date_results(
         ignore_index=True,
     )
 
-    det_cab_date_results["Potencia_casada cumsum"] = get_float_bid_power_cumsum(
+    det_cab_date_results[FLOAT_CLEARED_POWER_CUMSUM] = get_float_bid_power_cumsum(
         det_cab_date_results,
         date_column_name="dat_sesion",
         hour_column_name=INT_PERIODO,
         cod_tipo_oferta_column_name=CAT_BUY_SELL,
         cod_ofertada_casada_column_name="cod_ofertada_casada",
-        qua_energia_column_name="Potencia_casada",
+        qua_energia_column_name=FLOAT_CLEARED_POWER,
         qua_precio_column_name=FLOAT_BID_PRICE,
     )
 
     for country in [SPAIN_ZONE, PORTUGAL_ZONE]:
         det_cab_date_results.loc[
             (det_cab_date_results[CAT_PAIS] == country),
-            "Potencia_casada cumsum por pais",
+            FLOAT_CLEARED_POWER_CUMSUM_BY_COUNTRY,
         ] = get_float_bid_power_cumsum(
             det_cab_date_results.loc[(det_cab_date_results[CAT_PAIS] == country)],
             date_column_name="dat_sesion",
             hour_column_name=INT_PERIODO,
             cod_tipo_oferta_column_name=CAT_BUY_SELL,
             cod_ofertada_casada_column_name="cod_ofertada_casada",
-            qua_energia_column_name="Potencia_casada",
+            qua_energia_column_name=FLOAT_CLEARED_POWER,
             qua_precio_column_name=FLOAT_BID_PRICE,
         )
 

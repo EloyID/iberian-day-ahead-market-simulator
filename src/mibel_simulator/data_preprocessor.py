@@ -55,50 +55,6 @@ from mibel_simulator.const import (
 
 logger = logging.getLogger(__name__)
 
-# curva_pbc_uof_to_det_cab_dict = {
-#     "Fecha": DATE_SESION,
-#     "Periodo": INT_PERIODO,
-#     "Unidad": ID_UNIDAD,
-#     "Tipo Oferta": CAT_BUY_SELL,
-#     "Potencia Compra/Venta": FLOAT_BID_POWER,
-#     "Precio Compra/Venta": FLOAT_BID_PRICE,
-#     # 'cod_ofertada_casada': 'OC',
-# }
-
-
-# def transform_curva_pbc_uof_to_det_cab(curva_pbc_uof):
-
-#     det_cab = curva_pbc_uof.rename(columns=curva_pbc_uof_to_det_cab_dict)[
-#         list(curva_pbc_uof_to_det_cab_dict.values())
-#     ]
-
-#     det_cab = det_cab.assign(
-#         CodOferta=12345678901234,
-#         NumBloq=1,
-#         NumTramo=1,
-#         NumGrupoExcl=0,
-#         MAV=0,
-#         MAR=0,
-#         # Descripcion="Intercambio con Francia",
-#         Fijoeuro=0,
-#         MaxPot=100000,  # High value to avoid issues
-#         # **{"cod_ofertada_casada": "O"},
-#         # **{CAT_PAIS: SPAIN_ZONE},
-#     ).astype(
-#         {
-#             ID_ORDER: dtype("str"),
-#             INT_NUM_BLOQ: dtype("int64"),
-#             INT_NUM_TRAMO: dtype("int64"),
-#             INT_NUM_GRUPO_EXCL: dtype("int64"),
-#             FLOAT_MAV: dtype("int64"),
-#             FLOAT_MAR: dtype("int64"),
-#             FLOAT_MIC: dtype("int64"),
-#             FLOAT_MAX_POWER: dtype("int64"),
-#         }
-#     )
-
-#     return det_cab
-
 
 def get_france_det_cab_date_from_price(
     price_france: pd.DataFrame,
@@ -510,7 +466,7 @@ def get_sco_bids_tramo_grouped(det_cab_date: pd.DataFrame) -> pd.Series:
     return sco_bids_tramo_grouped
 
 
-def get_all_scos_with_mic(det_cab_date: pd.DataFrame) -> list:
+def get_all_mic_scos(det_cab_date: pd.DataFrame) -> list:
     """
     Returns a sorted list of order IDs for all SCOs with a positive MIC value in the DET/CAB DataFrame.
 
@@ -520,7 +476,7 @@ def get_all_scos_with_mic(det_cab_date: pd.DataFrame) -> list:
     Returns:
         list: List of order IDs for SCOs with MIC > 0.
     """
-    all_scos_with_mic = (
+    all_mic_scos = (
         det_cab_date.query(f"{FLOAT_MIC} > 0")[ID_ORDER].sort_values().unique().tolist()
     )
-    return all_scos_with_mic
+    return all_mic_scos
