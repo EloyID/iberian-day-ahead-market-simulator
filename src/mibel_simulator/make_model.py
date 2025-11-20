@@ -77,14 +77,14 @@ def make_model(
     simple_seller_bids =    det_cab_date_V_simple   [ID_INDIVIDUAL_BID].tolist()
     sco_seller_bids =       det_cab_date_V_sco      [ID_INDIVIDUAL_BID].tolist()
     block_orders =          det_cab_date_V_bloque   [ID_BLOCK_ORDER].unique().tolist()
-    sco_tramos =            det_cab_date_V_sco      [ID_SCO].unique().tolist()
+    sco_orders =            det_cab_date_V_sco      [ID_SCO].unique().tolist()
 
     model.BUYER_BIDS =          Set(initialize=buyer_bids,          doc="Buyer individual bid ids")
     model.SIMPLE_SELLER_BIDS =  Set(initialize=simple_seller_bids,  doc="Seller simple individual bid ids")
     model.BLOCK_ORDER_BIDS =    Set(initialize=block_order_bids,    doc="Seller block order individual bid ids")
     model.SCO_SELLER_BIDS =     Set(initialize=sco_seller_bids,     doc="Seller SCO individual bid ids")
     model.BLOCK_ORDERS =        Set(initialize=block_orders,        doc="Seller block order ids")
-    model.SCO_TRAMOS =          Set(initialize=sco_tramos,          doc="Seller SCO tramo ids")
+    model.SCO_ORDERS =          Set(initialize=sco_orders,          doc="Seller SCO order ids")
 
     buyer_bids_per_period_and_country_fnc =          lambda period, country:   det_cab_date_C         .query(f"{INT_PERIODO} == @period         and {CAT_PAIS} == @country"   )[ID_INDIVIDUAL_BID].tolist()
     block_order_bids_by_block_and_period_fnc =       lambda bloque_id, period: det_cab_date_V_bloque  .query(f"{ID_BLOCK_ORDER} == @bloque_id   and {INT_PERIODO} == @period" )[ID_INDIVIDUAL_BID].tolist()
@@ -92,7 +92,6 @@ def make_model(
     block_order_bids_by_block_fnc =                  lambda bloque_id:         det_cab_date_V_bloque  .query(f"{ID_BLOCK_ORDER} == @bloque_id"                                )[ID_INDIVIDUAL_BID].tolist()
     sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_date_V_sco     .query(f"{INT_PERIODO} == @period         and {CAT_PAIS} == @country"   )[ID_INDIVIDUAL_BID].tolist()
     block_orders_by_country_fnc =                    lambda country:           det_cab_date_V_bloque  .query(f"{CAT_PAIS} == @country"                                        )[ID_BLOCK_ORDER].unique().tolist()
-
 
     buyer_bids_per_period_and_country =         {(period, country):   buyer_bids_per_period_and_country_fnc(period, country)          for period in periods           for country in countries}
     block_order_bids_by_block_and_period =      {(bloque_id, period): block_order_bids_by_block_and_period_fnc(bloque_id, period)     for bloque_id in block_orders   for period in periods}
@@ -108,17 +107,17 @@ def make_model(
     model.BLOCK_ORDER_BIDS_BY_BLOCK =                   Set(model.BLOCK_ORDERS,                  initialize=block_order_bids_by_block,                  doc="Block order individual bids per block order")
     model.BLOCK_ORDERS_BY_COUNTRY =                     Set(model.COUNTRIES,                     initialize=block_orders_by_country,                    doc="Block orders per country")
 
-    bloque_parent_children_joined =          parent_child_bloques[[ID_BLOCK_ORDER_PARENT, ID_BLOCK_ORDER_CHILD]].astype(str).agg("$".join, axis=1)
+    # bloque_parent_children_joined =          parent_child_bloques[[ID_BLOCK_ORDER_PARENT, ID_BLOCK_ORDER_CHILD]].astype(str).agg("$".join, axis=1)
     exclusive_block_orders_grouped_joined =  exclusive_block_orders_grouped.apply(lambda x: "$".join(x))
 
     sco_parent_children_joined =             parent_child_scos_filtered[[ID_SCO_PARENT, ID_SCO_CHILD]].astype(str).agg("$".join, axis=1)
-    sco_bids_tramo_grouped_joined =          sco_bids_tramo_grouped.apply(lambda x: "$".join(x))
+    # sco_bids_tramo_grouped_joined =          sco_bids_tramo_grouped.apply(lambda x: "$".join(x))
 
-    model.BLOQUE_PARENT_CHILDREN =          Set(initialize=bloque_parent_children_joined,          doc="Parent-child relationships for block orders, the lower the NumBloq, the parent")
+    # model.BLOQUE_PARENT_CHILDREN =          Set(initialize=bloque_parent_children_joined,          doc="Parent-child relationships for block orders, the lower the NumBloq, the parent")
     model.EXCLUSIVE_BLOCK_ORDERS_GROUPED =  Set(initialize=exclusive_block_orders_grouped_joined,  doc="Groups of exclusive block orders, a list of block_ids joined by $")
 
     model.SCO_PARENT_CHILDREN =             Set(initialize=sco_parent_children_joined,             doc="Parent-child relationships for SCO tramos, the lower the NumTramo, the parent")
-    model.SCO_BIDS_TRAMO_GROUPED =          Set(initialize=sco_bids_tramo_grouped_joined,          doc="Groups of SCO bids by tramo, a list of sco_ids joined by $")
+    # model.SCO_BIDS_TRAMO_GROUPED =          Set(initialize=sco_bids_tramo_grouped_joined,          doc="Groups of SCO bids by tramo, a list of sco_ids joined by $")
 
     ##### Parameters #####
     
@@ -134,7 +133,7 @@ def make_model(
     p_congestion_spain_portugal_importacion =   capacidad_inter_PT_date  .set_index(INT_PERIODO)            [FLOAT_IMPORT_CAPACITY].to_dict()
     p_MAR =                                     det_cab_date_V_bloque    .drop_duplicates(ID_BLOCK_ORDER).set_index(ID_BLOCK_ORDER)[FLOAT_MAR].to_dict()
     p_MAV =                                     det_cab_date_V_sco       .set_index(ID_INDIVIDUAL_BID)      [FLOAT_MAV].to_dict()
-    p_SCO_TRAMO_PER_BID =                       det_cab_date_V_sco       .set_index(ID_INDIVIDUAL_BID)      [ID_SCO].to_dict()
+    p_SCO_ORDER_PER_BID =                       det_cab_date_V_sco       .set_index(ID_INDIVIDUAL_BID)      [ID_SCO].to_dict()
 
     model.p_price_min_SIMPLE_SELLERS_BIDS =          Param(model.SIMPLE_SELLER_BIDS,  initialize=p_price_min_SIMPLE_SELLERS_BIDS,                                   doc="Minimum price of each generator - simple bids")
     model.p_price_min_BLOCK_ORDERS =                 Param(model.BLOCK_ORDERS,        initialize=p_price_min_BLOCK_ORDERS,                                          doc="Minimum price of each generator - block orders")
@@ -148,7 +147,7 @@ def make_model(
     model.p_congestion_spain_portugal_importacion =  Param(model.PERIODS,             initialize=p_congestion_spain_portugal_importacion,  within=NonPositiveReals, doc="Maximum capacity Spain import from Portugal (negative value)")
     model.p_MAR =                                    Param(model.BLOCK_ORDERS,        initialize=p_MAR,                                    within=NonNegativeReals, doc="Minimum acceptance ratio (MAR) of each block order")
     model.p_MAV =                                    Param(model.SCO_SELLER_BIDS,     initialize=p_MAV,                                    within=NonNegativeReals, doc="Minimum acceptance volume (MAV) of each SCO seller bid")
-    model.p_SCO_TRAMO_PER_BID =                      Param(model.SCO_SELLER_BIDS,     initialize=p_SCO_TRAMO_PER_BID,                      within=Any,              doc="Tramo identifier for each SCO bid")
+    model.p_SCO_ORDER_PER_BID =                      Param(model.SCO_SELLER_BIDS,     initialize=p_SCO_ORDER_PER_BID,                      within=Any,              doc="SCO order identifier for each SCO bid")
 
     ##### Variables #####
 
@@ -156,7 +155,7 @@ def make_model(
     model.v_x_BUYER_BIDS =                Var(model.BUYER_BIDS,         within=UnitInterval, doc="Quantity ratio bought by each consumer")
     model.v_x_BLOCK_ORDERS =              Var(model.BLOCK_ORDERS,       within=UnitInterval, doc="Quantity ratio sold by each block order")
     model.v_x_SCO_SELLER_BIDS =           Var(model.SCO_SELLER_BIDS,    within=UnitInterval, doc="Quantity ratio sold by each SCO bid")
-    model.v_u_activated_SCO_TRAMOS =      Var(model.SCO_TRAMOS,         within=Binary,       doc="Whether a SCO tramo is activated or not")
+    model.v_u_activated_SCOS =            Var(model.SCO_ORDERS,         within=Binary,       doc="Whether a SCO is activated or not")
     model.v_u_activated_BLOCK_ORDERS =    Var(model.BLOCK_ORDERS,       within=Binary,       doc="Whether a block order is activated or not")
     model.v_transmission_spain_portugal = Var(model.PERIODS,                                 doc="Quantity transmitted between Spain and Portugal")
 
@@ -251,19 +250,19 @@ def make_model(
         doc="If a block order is activated, the minimum acceptance ratio (MAR) must be met",
     )
 
-    model.c_SCO_Tramo_Activation = Constraint(
+    model.c_SCOActivation = Constraint(
         model.SCO_SELLER_BIDS,
-        rule=lambda m, s: m.v_u_activated_SCO_TRAMOS[m.p_SCO_TRAMO_PER_BID[s]]
+        rule=lambda m, s: m.v_u_activated_SCOS[m.p_SCO_ORDER_PER_BID[s]]
         >= m.v_x_SCO_SELLER_BIDS[s],
-        doc="If any bid in the SCO tramo is accepted, the whole tramo must be accepted",
+        doc="If any bid in the SCO is accepted, the whole SCO must be accepted",
     )
 
     model.c_MAV_SCO_Quantity = Constraint(
         model.SCO_SELLER_BIDS,
         rule=lambda m, s: m.v_x_SCO_SELLER_BIDS[s]
         >= (m.p_MAV[s] / m.p_quantity_SCO_SELLER_BIDS[s])
-        * m.v_u_activated_SCO_TRAMOS[m.p_SCO_TRAMO_PER_BID[s]],
-        doc="If a SCO tramo is activated, the minimum acceptance volume (MAV) must be met",
+        * m.v_u_activated_SCOS[m.p_SCO_ORDER_PER_BID[s]],
+        doc="If a SCO is activated, the minimum acceptance volume (MAV) must be met",
     )
 
     # model.c_Simple_Seller_Bids_Activation = Constraint(
@@ -289,12 +288,12 @@ def make_model(
     #     doc="If a child block order is accepted, the parent block order must be accepted",
     # )
 
-    model.c_Parent_Child_SCO = Constraint(
-        model.SCO_PARENT_CHILDREN,
-        rule=lambda m, sc: m.v_u_activated_SCO_TRAMOS[sc.split("$")[0]]
-        >= m.v_u_activated_SCO_TRAMOS[sc.split("$")[1]],
-        doc="If a child SCO tramo is accepted, the parent SCO tramo must be accepted",
-    )
+    # model.c_Parent_Child_SCO = Constraint(
+    #     model.SCO_PARENT_CHILDREN,
+    #     rule=lambda m, sc: m.v_u_activated_SCOS[sc.split("$")[0]]
+    #     >= m.v_u_activated_SCOS[sc.split("$")[1]],
+    #     doc="If a child SCO tramo is accepted, the parent SCO tramo must be accepted",
+    # )
 
     model.c_Exclusive_Block_Orders = Constraint(
         model.EXCLUSIVE_BLOCK_ORDERS_GROUPED,

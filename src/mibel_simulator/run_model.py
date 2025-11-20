@@ -72,7 +72,7 @@ def run_model(
     model_binaries = model.clone()
 
     model.v_u_activated_BLOCK_ORDERS.fix()
-    model.v_u_activated_SCO_TRAMOS.fix()
+    model.v_u_activated_SCOS.fix()
 
     opt = SolverFactory("gurobi")
     results = opt.solve(model, tee=False)  # True)
