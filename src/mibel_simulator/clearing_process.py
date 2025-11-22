@@ -597,7 +597,7 @@ def iterative_function(
 
 
 def check_if_success_at_first_trial(
-    first_trial_df: list,
+    first_trial_df: pd.Series,
     is_trials_df_provided: bool,
     is_trial_mic_scos_provided: bool,
 ) -> bool:
@@ -615,7 +615,7 @@ def check_if_success_at_first_trial(
     success_at_first_trial = (
         not is_trials_df_provided
         and not is_trial_mic_scos_provided
-        and first_trial_df[BOOL_IS_MIC_RESPECTED].iloc[0]
+        and first_trial_df[BOOL_IS_MIC_RESPECTED]
     )
     if success_at_first_trial:
         logger.info(
@@ -710,15 +710,19 @@ def run_iterative_loop(
         with multiprocessing.Pool(processes=n_jobs) as pool:
             results = pool.map(iterative_function, args_list)
             completed_trials += len(results)
-            trials_df = pd.concat(results + [trials_df], ignore_index=True)
+            trials_df = pd.concat([trials_df] + results, ignore_index=True)
 
             if check_if_success_at_first_trial(
-                results[0], is_trials_df_provided, is_trial_mic_scos_provided
+                trials_df.iloc[0], is_trials_df_provided, is_trial_mic_scos_provided
             ):
+                logger.info("--ALGORITHM--: Success at first trial, finishing")
                 break
 
             ### hasta aqui
         new_trial_int_mic_scos_count = min(n_jobs, trials_count - completed_trials)
+        logger.info(
+            f"--ALGORITHM--: Completed trials: {completed_trials}/{trials_count}"
+        )
         next_trials_mic_sco = define_new_trial_mic_scos(
             trials_df, det_cab_date, all_mic_scos, new_trial_int_mic_scos_count
         )
@@ -751,6 +755,7 @@ def clear_OMIE_market(
     trials_count: int = 100,
     starting_trials_df: pd.DataFrame = None,
     zones_default_to_spain: bool = False,
+    trial_mic_scos: list | None = None,
     n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
     """
@@ -771,7 +776,8 @@ def clear_OMIE_market(
         trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
         starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
         zones_default_to_spain (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
-
+        trial_mic_scos (list | None, optional): List of MIC SCOs for trial. Defaults to None.
+        n_jobs (int, optional): Number of parallel jobs to run. Defaults to 1.
     Returns:
         tuple: (trials_df, best_model, best_model_binary)
             trials_df (pd.DataFrame): DataFrame of all trial results.
@@ -808,6 +814,7 @@ def clear_OMIE_market(
         trials_count=trials_count,
         all_mic_scos=all_mic_scos,
         trials_df=starting_trials_df,
+        trial_mic_scos=trial_mic_scos,
         n_jobs=n_jobs,
     )
 
