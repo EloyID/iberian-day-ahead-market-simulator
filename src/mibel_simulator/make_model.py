@@ -110,13 +110,13 @@ def make_model(
     # bloque_parent_children_joined =          parent_child_bloques[[ID_BLOCK_ORDER_PARENT, ID_BLOCK_ORDER_CHILD]].astype(str).agg("$".join, axis=1)
     exclusive_block_orders_grouped_joined =  exclusive_block_orders_grouped.apply(lambda x: "$".join(x))
 
-    sco_parent_children_joined =             parent_child_scos_filtered[[ID_SCO_PARENT, ID_SCO_CHILD]].astype(str).agg("$".join, axis=1)
+    # sco_parent_children_joined =             parent_child_scos_filtered[[ID_SCO_PARENT, ID_SCO_CHILD]].astype(str).agg("$".join, axis=1)
     # sco_bids_tramo_grouped_joined =          sco_bids_tramo_grouped.apply(lambda x: "$".join(x))
 
     # model.BLOQUE_PARENT_CHILDREN =          Set(initialize=bloque_parent_children_joined,          doc="Parent-child relationships for block orders, the lower the NumBloq, the parent")
     model.EXCLUSIVE_BLOCK_ORDERS_GROUPED =  Set(initialize=exclusive_block_orders_grouped_joined,  doc="Groups of exclusive block orders, a list of block_ids joined by $")
 
-    model.SCO_PARENT_CHILDREN =             Set(initialize=sco_parent_children_joined,             doc="Parent-child relationships for SCO tramos, the lower the NumTramo, the parent")
+    # model.SCO_PARENT_CHILDREN =             Set(initialize=sco_parent_children_joined,             doc="Parent-child relationships for SCO tramos, the lower the NumTramo, the parent")
     # model.SCO_BIDS_TRAMO_GROUPED =          Set(initialize=sco_bids_tramo_grouped_joined,          doc="Groups of SCO bids by tramo, a list of sco_ids joined by $")
 
     ##### Parameters #####
