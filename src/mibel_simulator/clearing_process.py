@@ -755,6 +755,7 @@ def clear_OMIE_market(
     trials_count: int = 100,
     starting_trials_df: pd.DataFrame = None,
     zones_default_to_spain: bool = False,
+    trial_mic_scos: list | None = None,
     n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
     """
@@ -775,7 +776,8 @@ def clear_OMIE_market(
         trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
         starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
         zones_default_to_spain (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
-
+        trial_mic_scos (list | None, optional): List of MIC SCOs for trial. Defaults to None.
+        n_jobs (int, optional): Number of parallel jobs to run. Defaults to 1.
     Returns:
         tuple: (trials_df, best_model, best_model_binary)
             trials_df (pd.DataFrame): DataFrame of all trial results.
@@ -812,6 +814,7 @@ def clear_OMIE_market(
         trials_count=trials_count,
         all_mic_scos=all_mic_scos,
         trials_df=starting_trials_df,
+        trial_mic_scos=trial_mic_scos,
         n_jobs=n_jobs,
     )
 
