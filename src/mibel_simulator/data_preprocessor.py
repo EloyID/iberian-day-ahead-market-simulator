@@ -133,7 +133,7 @@ def get_france_det_cab_date_from_price(
                 ID_UNIDAD: FRANCE_ID_UNIDAD,
                 FLOAT_MIC: 0,
                 FLOAT_MAX_POWER: 99999999,  # High value to avoid issues
-                INT_NUM_BLOQ: 1,
+                INT_NUM_BLOQ: 0,
                 INT_NUM_TRAMO: 1,
                 INT_NUM_GRUPO_EXCL: 0,
                 FLOAT_MAV: 0,
