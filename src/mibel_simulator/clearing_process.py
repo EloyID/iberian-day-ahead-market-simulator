@@ -818,4 +818,25 @@ def clear_OMIE_market(
         n_jobs=n_jobs,
     )
 
-    return trials_df, model, model_binary
+    best_trial = get_best_trial(trials_df, mic_respected_only=False)
+    cleared_energy = best_trial.cleared_energy
+    cleared_det_cab_date = det_cab_date.merge(
+        cleared_energy,
+        left_on=ID_INDIVIDUAL_BID,
+        right_index=True,
+        how="outer",
+        validate="one_to_one",
+        indicator=True,
+    )
+
+    results_dict = {
+        "model_binary_fixed": model,
+        "model_binary_not_fixed": model_binary,
+        "model_trial_info": best_trial,
+        "cleared_det_cab_date": cleared_det_cab_date,
+        "clearing_prices": best_trial.clearing_prices,
+        "spain_portugal_transmissions": best_trial.spain_portugal_transmissions,
+        "trials_df": trials_df,
+    }
+
+    return results_dict
