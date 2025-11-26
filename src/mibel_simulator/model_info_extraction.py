@@ -143,13 +143,15 @@ def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
     sco_energy = get_sco_cleared_energy_series(model)
     cleared_buyers_energy = get_buyers_cleared_energy_series(model)
 
+    series_list = [
+        simple_sellers_energy,
+        block_orders_energy,
+        sco_energy,
+        cleared_buyers_energy,
+    ]
+    non_empty_series = [s for s in series_list if not s.empty]
     return pd.concat(
-        [
-            simple_sellers_energy,
-            block_orders_energy,
-            sco_energy,
-            cleared_buyers_energy,
-        ],
+        non_empty_series,
         axis=0,
     )
 
