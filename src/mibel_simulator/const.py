@@ -108,7 +108,7 @@ FLOAT_NET_INCOME = "float_net_income"
 SOLVER_RESULTS_COLUMN = "solver_results"
 CLEARED_ENERGY_COLUMN = "cleared_energy"
 CLEARING_PRICES_COLUMN = "clearing_prices"
-SPAIN_PORTUGAL_TRANSMISSION_COLUMN = "spain_portugal_transmission"
+SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN = "spain_portugal_transmissions"
 
 
 ##### OTHER CONSTANTS #####

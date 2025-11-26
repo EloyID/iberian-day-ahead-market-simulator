@@ -35,7 +35,7 @@ from mibel_simulator.const import (
     SOLVER_RESULTS_COLUMN,
     CLEARED_ENERGY_COLUMN,
     CLEARING_PRICES_COLUMN,
-    SPAIN_PORTUGAL_TRANSMISSION_COLUMN,
+    SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN,
 )
 from mibel_simulator.data_preprocessor import (
     get_all_mic_scos,
@@ -590,7 +590,7 @@ def iterative_function(
         INT_MIC_SCOS_COUNT: [len(current_trial_mic_scos)],
         CLEARED_ENERGY_COLUMN: [cleared_energy],
         CLEARING_PRICES_COLUMN: [clearing_prices],
-        SPAIN_PORTUGAL_TRANSMISSION_COLUMN: [get_spain_portugal_transmissions(model)],
+        SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [get_spain_portugal_transmissions(model)],
     }
 
     return pd.DataFrame(trial_df_entry)
