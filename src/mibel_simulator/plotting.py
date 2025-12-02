@@ -1,17 +1,11 @@
 from matplotlib import pyplot as plt
-
-from mibel_simulator.const import (
-    CAT_BUY_SELL,
-    FLOAT_BID_POWER_CUMSUM,
-    FLOAT_BID_PRICE,
-    FLOAT_CLEARED_POWER,
-)
+import mibel_simulator.columns as cols
 
 
 def plot_period_curves(
     det_cab_period_results,
     clearing_price,
-    potencia_cumsum_column=FLOAT_BID_POWER_CUMSUM,
+    potencia_cumsum_column=cols.FLOAT_BID_POWER_CUMSUM,
     potencia_casada_cumsum_column="Potencia_casada cumsum",
     ax=None,
 ):
@@ -19,16 +13,16 @@ def plot_period_curves(
         fig, ax = plt.subplots(figsize=(10, 6))
 
     det_cab_period_results_C = det_cab_period_results.query(
-        f'{CAT_BUY_SELL} == "C"'
+        f'{cols.CAT_BUY_SELL} == "C"'
     ).sort_values(potencia_cumsum_column)
     det_cab_period_results_V = det_cab_period_results.query(
-        f'{CAT_BUY_SELL} == "V"'
+        f'{cols.CAT_BUY_SELL} == "V"'
     ).sort_values(potencia_cumsum_column)
     det_cab_period_results_C_casada = det_cab_period_results_C.query(
-        f"{FLOAT_CLEARED_POWER} > 0"
+        f"{cols.FLOAT_CLEARED_POWER} > 0"
     ).sort_values(potencia_casada_cumsum_column)
     det_cab_period_results_V_casada = det_cab_period_results_V.query(
-        f"{FLOAT_CLEARED_POWER} > 0"
+        f"{cols.FLOAT_CLEARED_POWER} > 0"
     ).sort_values(potencia_casada_cumsum_column)
 
     cleared_energy = det_cab_period_results_C_casada[
@@ -46,28 +40,28 @@ def plot_period_curves(
 
     det_cab_period_results_V.query(f'Descripcion != "INTERCAMBIO ES-PT"').plot(
         x=potencia_cumsum_column,
-        y=FLOAT_BID_PRICE,
+        y=cols.FLOAT_BID_PRICE,
         label="Demand curve",
         **line_properties,
     )
 
     det_cab_period_results_C.query(f'Descripcion != "INTERCAMBIO ES-PT"').plot(
         x=potencia_cumsum_column,
-        y=FLOAT_BID_PRICE,
+        y=cols.FLOAT_BID_PRICE,
         label="Supply curve",
         **line_properties,
     )
 
     det_cab_period_results_V_casada.plot(
         x=potencia_casada_cumsum_column,
-        y=FLOAT_BID_PRICE,
+        y=cols.FLOAT_BID_PRICE,
         label="Cleared demand curve",
         **line_properties,
     )
 
     det_cab_period_results_C_casada.plot(
         x=potencia_casada_cumsum_column,
-        y=FLOAT_BID_PRICE,
+        y=cols.FLOAT_BID_PRICE,
         label="Cleared supply curve",
         **line_properties,
     )

@@ -1,27 +1,5 @@
-from mibel_simulator.const import (
-    FLOAT_EXPORT_CAPACITY,
-    FLOAT_IMPORT_CAPACITY,
-    ID_BLOCK_ORDER,
-    ID_BLOCK_ORDER_CHILD,
-    ID_BLOCK_ORDER_PARENT,
-    ID_ORDER,
-    ID_SCO,
-    ID_SCO_CHILD,
-    ID_SCO_PARENT,
-    INT_PERIODO,
-    CAT_PAIS,
-    ID_INDIVIDUAL_BID,
-    CAT_BUY_SELL,
-    INT_NUM_TRAMO,
-    INT_NUM_BLOQ,
-    FLOAT_BID_PRICE,
-    FLOAT_BID_POWER,
-    FLOAT_MAX_POWER,
-    FLOAT_MAR,
-    FLOAT_MAV,
-    SPAIN_ZONE,
-    PORTUGAL_ZONE,
-)
+import mibel_simulator.columns as cols
+from mibel_simulator.const import SPAIN_ZONE, PORTUGAL_ZONE
 from pyomo.environ import Binary
 import pyomo.environ as pyo
 from pyomo.environ import (

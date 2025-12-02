@@ -3,57 +3,33 @@ import os
 import pandas as pd
 import logging
 
-from mibel_simulator.const import (
-    CAT_BUY_SELL,
-    CAT_FRONTIER,
-    CAT_OFERTADA_CASADA,
-    CAT_PAIS,
-    CAT_ORDER_TYPE,
-    CAT_TIPO_OFERTA,
-    DATE_SESION,
-    DATETIME_SESION,
-    FLOAT_EXPORT_CAPACITY,
-    FLOAT_IMPORT_CAPACITY,
-    FLOAT_MAR,
-    FLOAT_MAV,
-    FLOAT_MAX_POWER,
-    FLOAT_MIC,
-    FLOAT_BID_POWER,
-    FLOAT_BID_PRICE,
-    FLOAT_PRICE_FR,
-    ID_ORDER,
-    ID_UNIDAD,
-    INT_NUM_BLOQ,
-    INT_NUM_GRUPO_EXCL,
-    INT_NUM_TRAMO,
-    INT_PERIODO,
-    INTERCONEXION_UOFS,
-)
+from mibel_simulator.const import INTERCONEXION_UOFS
+import mibel_simulator.columns as cols
 
 logger = logging.getLogger(__name__)
 
 # fmt: off
 
 CURVA_PBC_UOF_RENAMING = {
-    "Periodo":                  INT_PERIODO,
-    "Pais":                     CAT_PAIS,
-    "Fecha":                    DATE_SESION,
-    "Tipo Oferta":              CAT_TIPO_OFERTA,
-    "Ofertada (O)/Casada (C)":  CAT_OFERTADA_CASADA,
-    "Tipología de Oferta":      CAT_ORDER_TYPE,
-    "Potencia Compra/Venta":    FLOAT_BID_POWER,
-    "Precio Compra/Venta":      FLOAT_BID_PRICE,
-    "Unidad":                   ID_UNIDAD,
+    "Periodo":                  cols.INT_PERIODO,
+    "Pais":                     cols.CAT_PAIS,
+    "Fecha":                    cols.DATE_SESION,
+    "Tipo Oferta":              cols.CAT_TIPO_OFERTA,
+    "Ofertada (O)/Casada (C)":  cols.CAT_OFERTADA_CASADA,
+    "Tipología de Oferta":      cols.CAT_ORDER_TYPE,
+    "Potencia Compra/Venta":    cols.FLOAT_BID_POWER,
+    "Precio Compra/Venta":      cols.FLOAT_BID_PRICE,
+    "Unidad":                   cols.ID_UNIDAD,
 }
 
 CURVA_PBC_UOF_TYPING = {
-    INT_PERIODO:            int,
-    CAT_PAIS:               'category',
-    CAT_TIPO_OFERTA:        'category',
-    CAT_OFERTADA_CASADA:    'category',
-    CAT_ORDER_TYPE:         'category',
-    FLOAT_BID_POWER:        float,
-    FLOAT_BID_PRICE:        float,
+    cols.INT_PERIODO:            int,
+    cols.CAT_PAIS:               'category',
+    cols.CAT_TIPO_OFERTA:        'category',
+    cols.CAT_OFERTADA_CASADA:    'category',
+    cols.CAT_ORDER_TYPE:         'category',
+    cols.FLOAT_BID_POWER:        float,
+    cols.FLOAT_BID_PRICE:        float,
 }
 
 
@@ -77,12 +53,12 @@ CAB_FORMAT = [
 ]
 
 CAB_RENAMING = {
-    DATE_SESION:    DATE_SESION,
-    "CodOferta":    ID_ORDER,
-    "CodigoUnidad": ID_UNIDAD,
-    "CV":           CAT_BUY_SELL,
-    "Fijoeuro":     FLOAT_MIC,
-    "MaxPot":       FLOAT_MAX_POWER,
+    cols.DATE_SESION:    cols.DATE_SESION,
+    "CodOferta":         cols.ID_ORDER,
+    "CodigoUnidad":      cols.ID_UNIDAD,
+    "CV":                cols.CAT_BUY_SELL,
+    "Fijoeuro":          cols.FLOAT_MIC,
+    "MaxPot":            cols.FLOAT_MAX_POWER,
 }
 
 DET_FORMAT = [
@@ -100,48 +76,48 @@ DET_FORMAT = [
 ]
 
 DET_RENAMING = {
-    DATE_SESION:        DATE_SESION,
-    "CodOferta":        ID_ORDER,
-    "Periodo":          INT_PERIODO,
-    "NumBloq":          INT_NUM_BLOQ,
-    "NumTramo":         INT_NUM_TRAMO,
-    "NumGrupoExcl":     INT_NUM_GRUPO_EXCL,
-    "PrecEuro":         FLOAT_BID_PRICE,
-    "Potencia":         FLOAT_BID_POWER,
-    "MAV":              FLOAT_MAV,
-    "MAR":              FLOAT_MAR,
+    cols.DATE_SESION:   cols.DATE_SESION,
+    "CodOferta":        cols.ID_ORDER,
+    "Periodo":          cols.INT_PERIODO,
+    "NumBloq":          cols.INT_NUM_BLOQ,
+    "NumTramo":         cols.INT_NUM_TRAMO,
+    "NumGrupoExcl":     cols.INT_NUM_GRUPO_EXCL,
+    "PrecEuro":         cols.FLOAT_BID_PRICE,
+    "Potencia":         cols.FLOAT_BID_POWER,
+    "MAV":              cols.FLOAT_MAV,
+    "MAR":              cols.FLOAT_MAR,
 }
 
 CAPACIDAD_INTER_RENAMING = {
-    "Periodo":                  INT_PERIODO,
-    "Fecha":                    DATE_SESION,
-    "Frontera":                 CAT_FRONTIER,
-    "Capacidad importación":    FLOAT_IMPORT_CAPACITY,
-    "Capacidad exportación":    FLOAT_EXPORT_CAPACITY,
+    "Periodo":                  cols.INT_PERIODO,
+    "Fecha":                    cols.DATE_SESION,
+    "Frontera":                 cols.CAT_FRONTIER,
+    "Capacidad importación":    cols.FLOAT_IMPORT_CAPACITY,
+    "Capacidad exportación":    cols.FLOAT_EXPORT_CAPACITY,
 }
 
 CAPACIDAD_INTER_TYPING = {
-    INT_PERIODO:              int,
-    CAT_FRONTIER:             'category',
-    FLOAT_IMPORT_CAPACITY:    float,
-    FLOAT_EXPORT_CAPACITY:    float,
+    cols.INT_PERIODO:              int,
+    cols.CAT_FRONTIER:             'category',
+    cols.FLOAT_IMPORT_CAPACITY:    float,
+    cols.FLOAT_EXPORT_CAPACITY:    float,
 }
 
 PRICE_FRANCE_RENAMING = {
-    "Day-ahead Price (EUR/MWh)":    FLOAT_PRICE_FR,
-    "MTU (CET/CEST)":               DATETIME_SESION,
+    "Day-ahead Price (EUR/MWh)":    cols.FLOAT_PRICE_FR,
+    "MTU (CET/CEST)":               cols.DATETIME_SESION,
 }
 PRICE_FRANCE_TYPING = {
-    DATE_SESION:      'datetime64[ns]',
-    INT_PERIODO:      int,
-    FLOAT_PRICE_FR:   float,
+    cols.DATE_SESION:      'datetime64[ns]',
+    cols.INT_PERIODO:      int,
+    cols.FLOAT_PRICE_FR:   float,
 }
 
 # fmt: on
 
 CURVA_PBC_UOF_COLUMNS = list(CURVA_PBC_UOF_RENAMING.values())
 CAPACIDAD_INTER_COLUMNS = list(CAPACIDAD_INTER_RENAMING.values())
-UOF_ZONES_COLUMNS = [CAT_PAIS, ID_UNIDAD]
+UOF_ZONES_COLUMNS = [cols.CAT_PAIS, cols.ID_UNIDAD]
 DET_COLUMNS = list(DET_RENAMING.values())
 CAB_COLUMNS = list(CAB_RENAMING.values())
 PRICE_FRANCE_COLUMNS = list(PRICE_FRANCE_TYPING.keys())
@@ -224,7 +200,7 @@ def parse_cab_file(cab_filepath: str) -> pd.DataFrame:
 
         for line in f:
             record = {
-                DATE_SESION: dat_sesion,
+                cols.DATE_SESION: dat_sesion,
                 **{
                     entry["field"]: entry["type"](
                         line[entry["start"] : entry["end"]].strip()
@@ -292,7 +268,7 @@ def parse_det_file(det_filepath: str) -> pd.DataFrame:
 
         for line in f:
             record = {
-                DATE_SESION: dat_sesion,
+                cols.DATE_SESION: dat_sesion,
                 **{
                     entry["field"]: entry["type"](
                         line[entry["start"] : entry["end"]].strip()
@@ -306,7 +282,7 @@ def parse_det_file(det_filepath: str) -> pd.DataFrame:
         .astype({entry["field"]: entry["type"] for entry in DET_FORMAT})
         .rename(columns=DET_RENAMING, errors="raise")[DET_COLUMNS]
     )
-    det_25_hour = det[det[INT_PERIODO] == 25]
+    det_25_hour = det[det[cols.INT_PERIODO] == 25]
 
     # det files can have 25 periods when they are hourly data, but many times is just
     # false data, so we drop it when it represents less than 1% of the data
@@ -317,7 +293,7 @@ def parse_det_file(det_filepath: str) -> pd.DataFrame:
                 "Period 25 represents less than 1%% of the data, dropping it. File: %s",
                 det_filepath,
             )
-            det = det[det[INT_PERIODO] != 25]
+            det = det[det[cols.INT_PERIODO] != 25]
         else:
             logger.warning(
                 "Detected period 25 in DET file %s",
@@ -414,7 +390,7 @@ def capacidad_inter_files_to_parquet(capacidad_inter_folder: str, output_path: s
     capacidad_inter_data = pd.concat(capacidad_inter_dfs, ignore_index=True)
 
     # TODO: use when working in quarter hourly
-    # is_hourly_data = capacidad_inter_data[INT_PERIODO].max() <= 25
+    # is_hourly_data = capacidad_inter_data[cols.INT_PERIODO].max() <= 25
     # if is_hourly_data:
     #     logger.info(
     #         "Detected hourly data in capacidad_inte,r, converting to quarter-hourly..."
@@ -423,15 +399,15 @@ def capacidad_inter_files_to_parquet(capacidad_inter_folder: str, output_path: s
     #     capacidad_inter_data_quarterly_dfs = []
     #     for i in range(1, 5):
     #         capacidad_inter_data_quarterly = capacidad_inter_data.copy()
-    #         capacidad_inter_data_quarterly[INT_PERIODO] = (
-    #             capacidad_inter_data_quarterly[INT_PERIODO] - 1
+    #         capacidad_inter_data_quarterly[cols.INT_PERIODO] = (
+    #             capacidad_inter_data_quarterly[cols.INT_PERIODO] - 1
     #         ) * 4 + i
     #         capacidad_inter_data_quarterly_dfs.append(capacidad_inter_data_quarterly)
 
     #     capacidad_inter_data = pd.concat(capacidad_inter_data_quarterly_dfs)
 
     capacidad_inter_data = capacidad_inter_data.sort_values(
-        by=[DATE_SESION, INT_PERIODO]
+        by=[cols.DATE_SESION, cols.INT_PERIODO]
     ).reset_index(drop=True)
     logger.info("Saving capacidad_inter to parquet at %s", output_path)
     capacidad_inter_data.to_parquet(output_path, index=False)
@@ -457,35 +433,41 @@ def price_france_from_entsoe_file_to_parquet(
         'Sequence == "Without Sequence"'
     )
 
-    price_france[DATETIME_SESION] = (
-        price_france[DATETIME_SESION].str.split(" - ").str[0].str.split(" \(").str[0]
+    price_france[cols.DATETIME_SESION] = (
+        price_france[cols.DATETIME_SESION]
+        .str.split(" - ")
+        .str[0]
+        .str.split(" \(")
+        .str[0]
     )
-    price_france = price_france.drop_duplicates(subset=[DATETIME_SESION])
-    price_france[DATETIME_SESION] = pd.to_datetime(
-        price_france[DATETIME_SESION], format="%d/%m/%Y %H:%M:%S"
+    price_france = price_france.drop_duplicates(subset=[cols.DATETIME_SESION])
+    price_france[cols.DATETIME_SESION] = pd.to_datetime(
+        price_france[cols.DATETIME_SESION], format="%d/%m/%Y %H:%M:%S"
     )
 
-    price_france[DATE_SESION] = pd.to_datetime(price_france[DATETIME_SESION].dt.date)
+    price_france[cols.DATE_SESION] = pd.to_datetime(
+        price_france[cols.DATETIME_SESION].dt.date
+    )
     if use_qh_frequency:
         logger.info("Detected quarter-hourly data in France prices")
-        price_france[INT_PERIODO] = (
-            price_france[DATETIME_SESION] - price_france[DATE_SESION]
+        price_france[cols.INT_PERIODO] = (
+            price_france[cols.DATETIME_SESION] - price_france[cols.DATE_SESION]
         ).dt.total_seconds() // (15 * 60) + 1
     else:
-        is_QH = price_france[DATETIME_SESION].dt.minute.isin([15, 30, 45]).any()
-        price_france["Hour"] = price_france[DATETIME_SESION].dt.hour
+        is_QH = price_france[cols.DATETIME_SESION].dt.minute.isin([15, 30, 45]).any()
+        price_france["Hour"] = price_france[cols.DATETIME_SESION].dt.hour
         if is_QH:
             logger.warning(
                 "Detected quarter-hourly data in France prices, but use_qh_frequency is False. Processing as hourly data."
             )
             price_france = (
-                price_france.groupby([DATE_SESION, "Hour"], observed=True)[
-                    [FLOAT_PRICE_FR]
+                price_france.groupby([cols.DATE_SESION, "Hour"], observed=True)[
+                    [cols.FLOAT_PRICE_FR]
                 ]
                 .mean()
                 .reset_index()
             )
-        price_france[INT_PERIODO] = price_france["Hour"] + 1
+        price_france[cols.INT_PERIODO] = price_france["Hour"] + 1
     price_france = price_france[PRICE_FRANCE_COLUMNS].astype(PRICE_FRANCE_TYPING)
 
     logger.info("Saving France prices to parquet at %s", output_path)
@@ -514,19 +496,19 @@ def generate_uof_zones_parquet_from_uof_files(
         curva_pbc_uof = curva_pbc_uof_parquet
 
     curva_pbc_uof_split = curva_pbc_uof.query(
-        f"{CAT_PAIS} != 'MI' and {ID_UNIDAD} not in @INTERCONEXION_UOFS"
+        f"{cols.CAT_PAIS} != 'MI' and {cols.ID_UNIDAD} not in @INTERCONEXION_UOFS"
     )
 
     curva_pbc_uof_unidad_pais_count = curva_pbc_uof_split.groupby(
-        ID_UNIDAD, observed=True
-    )[CAT_PAIS].nunique()
+        cols.ID_UNIDAD, observed=True
+    )[cols.CAT_PAIS].nunique()
 
     assert (
         curva_pbc_uof_unidad_pais_count.max() == 1
     ), f"These units are in more than one country: {curva_pbc_uof_unidad_pais_count[curva_pbc_uof_unidad_pais_count > 1]}"
 
     curva_pbc_uof_unidad_pais = curva_pbc_uof_split.drop_duplicates(
-        subset=[ID_UNIDAD], keep="last"
+        subset=[cols.ID_UNIDAD], keep="last"
     )[UOF_ZONES_COLUMNS]
 
     logger.info("Saving UOF zones to parquet at %s", output_path)

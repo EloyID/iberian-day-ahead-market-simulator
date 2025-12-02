@@ -7,36 +7,9 @@ import logging
 import multiprocessing
 import numpy as np
 import pandas as pd
-from mibel_simulator.const import (
-    CAT_BUY_SELL,
-    CAT_FRONTIER,
-    CAT_PAIS,
-    FLOAT_BID_POWER,
-    FLOAT_BID_POWER_CUMSUM,
-    FLOAT_BID_PRICE,
-    FLOAT_CLEARED_POWER,
-    FLOAT_CLEARED_PRICE,
-    FLOAT_COLLECTION_RIGHTS,
-    FLOAT_MIC,
-    FLOAT_NET_INCOME,
-    FLOAT_RATIO_NET_INCOME_BID_POWER,
-    FLOAT_RATIO_NET_INCOME_CLEARED_POWER,
-    FLOAT_VARIABLE_COST,
-    FRONTIER_MAPPING_REVERSE,
-    ID_INDIVIDUAL_BID,
-    ID_ORDER,
-    INT_PERIODO,
-    BOOL_ARE_MIC_SCOS_TESTED,
-    MIC_SCOS_COLUMN,
-    INT_MIC_SCOS_COUNT,
-    TRIALS_DF_COLUMNS,
-    FLOAT_OBJECTIVE_VALUE,
-    BOOL_IS_MIC_RESPECTED,
-    SOLVER_RESULTS_COLUMN,
-    CLEARED_ENERGY_COLUMN,
-    CLEARING_PRICES_COLUMN,
-    SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN,
-)
+import mibel_simulator.columns as cols
+
+from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, TRIALS_DF_COLUMNS
 from mibel_simulator.data_preprocessor import (
     get_all_mic_scos,
     get_det_cab_date_for_DAM_simulator,
@@ -78,7 +51,7 @@ def check_are_mic_scos_tested(trials_df: pd.DataFrame, scos_combination: list) -
         bool: True if the combination has already been tested, False otherwise.
     """
 
-    for scos_tried in trials_df[MIC_SCOS_COLUMN]:
+    for scos_tried in trials_df[cols.MIC_SCOS_COLUMN]:
         if set(scos_tried) == set(scos_combination):
             return True
     return False
@@ -106,24 +79,28 @@ def get_trial_cleared_mic_scos_summary(
     cleared_det_cab_date = (
         det_cab_date.merge(
             cleared_energy_df,
-            left_on=ID_INDIVIDUAL_BID,
+            left_on=cols.ID_INDIVIDUAL_BID,
             right_index=True,
             how="outer",
             validate="one_to_one",
             indicator=True,
         )
-        .sort_values(by=[INT_PERIODO, CAT_BUY_SELL, FLOAT_BID_POWER_CUMSUM])
+        .sort_values(
+            by=[cols.INT_PERIODO, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
+        )
         .copy()
     )
     assert cleared_det_cab_date._merge.isin(["both", "left_only"]).all()
     cleared_det_cab_date = cleared_det_cab_date.drop(columns="_merge")
 
     cleared_mic_scos_df = (
-        cleared_det_cab_date.query(f"{FLOAT_MIC} > 0 and {FLOAT_CLEARED_POWER} > 0")
+        cleared_det_cab_date.query(
+            f"{cols.FLOAT_MIC} > 0 and {cols.FLOAT_CLEARED_POWER} > 0"
+        )
         .copy()
         .merge(
             clearing_price_df,
-            on=[INT_PERIODO, CAT_PAIS],
+            on=[cols.INT_PERIODO, cols.CAT_PAIS],
             how="left",
             validate="many_to_one",
             indicator=True,
@@ -134,24 +111,24 @@ def get_trial_cleared_mic_scos_summary(
 
     cleared_mic_scos_df = cleared_mic_scos_df.eval(
         f"""
-        {FLOAT_COLLECTION_RIGHTS} = {FLOAT_CLEARED_POWER} * {FLOAT_CLEARED_PRICE}
-        {FLOAT_VARIABLE_COST} = {FLOAT_CLEARED_POWER} * {FLOAT_BID_PRICE}
+        {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_CLEARED_PRICE}
+        {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_BID_PRICE}
         """
     )
     cleared_mic_scos_df_grouped = (
-        cleared_mic_scos_df.groupby([ID_ORDER], observed=True)
+        cleared_mic_scos_df.groupby([cols.ID_ORDER], observed=True)
         .agg(
             {
-                FLOAT_COLLECTION_RIGHTS: "sum",
-                FLOAT_VARIABLE_COST: "sum",
-                FLOAT_MIC: "first",
-                FLOAT_CLEARED_POWER: "sum",
+                cols.FLOAT_COLLECTION_RIGHTS: "sum",
+                cols.FLOAT_VARIABLE_COST: "sum",
+                cols.FLOAT_MIC: "first",
+                cols.FLOAT_CLEARED_POWER: "sum",
             }
         )
         .eval(
             f"""
-            {FLOAT_NET_INCOME} = {FLOAT_COLLECTION_RIGHTS} - ( {FLOAT_VARIABLE_COST} + {FLOAT_MIC} )
-            {FLOAT_RATIO_NET_INCOME_CLEARED_POWER} = {FLOAT_NET_INCOME} / {FLOAT_CLEARED_POWER}            
+            {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
+            {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_CLEARED_POWER}            
             """
         )
     )
@@ -182,32 +159,32 @@ def get_leftout_mic_scos_summary(
 
     left_out_scos = set(all_scos) - set(trial_scos)
     return (
-        det_cab_date.query(f"{ID_ORDER} in @left_out_scos")
+        det_cab_date.query(f"{cols.ID_ORDER} in @left_out_scos")
         .merge(
             clearing_price_df,
-            on=[INT_PERIODO, CAT_PAIS],
+            on=[cols.INT_PERIODO, cols.CAT_PAIS],
             how="left",
             validate="many_to_one",
         )
         .eval(
             f"""
-            {FLOAT_COLLECTION_RIGHTS} = {FLOAT_BID_POWER} * {FLOAT_CLEARED_PRICE}
-            {FLOAT_VARIABLE_COST} = {FLOAT_BID_POWER} * {FLOAT_BID_PRICE}
+            {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_BID_POWER} * {cols.FLOAT_CLEARED_PRICE}
+            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_BID_POWER} * {cols.FLOAT_BID_PRICE}
             """
         )
-        .groupby([ID_ORDER], observed=True)
+        .groupby([cols.ID_ORDER], observed=True)
         .agg(
             {
-                FLOAT_COLLECTION_RIGHTS: "sum",
-                FLOAT_VARIABLE_COST: "sum",
-                FLOAT_MIC: "first",
-                FLOAT_BID_POWER: "sum",
+                cols.FLOAT_COLLECTION_RIGHTS: "sum",
+                cols.FLOAT_VARIABLE_COST: "sum",
+                cols.FLOAT_MIC: "first",
+                cols.FLOAT_BID_POWER: "sum",
             }
         )
         .eval(
             f"""
-            {FLOAT_NET_INCOME} = {FLOAT_COLLECTION_RIGHTS} - ( {FLOAT_VARIABLE_COST} + {FLOAT_MIC} )
-            {FLOAT_RATIO_NET_INCOME_BID_POWER} = {FLOAT_NET_INCOME} / {FLOAT_BID_POWER}
+            {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
+            {cols.FLOAT_RATIO_NET_INCOME_BID_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_BID_POWER}
             """
         )
     )
@@ -229,16 +206,16 @@ def sort_trials_df_by_most_promising(trials_df):
         pd.DataFrame: Sorted DataFrame of trials.
     """
 
-    trials_df_status_false = trials_df.query(f"{BOOL_IS_MIC_RESPECTED} == False")
-    trials_df_status_true = trials_df.query(f"{BOOL_IS_MIC_RESPECTED} == True")
+    trials_df_status_false = trials_df.query(f"{cols.BOOL_IS_MIC_RESPECTED} == False")
+    trials_df_status_true = trials_df.query(f"{cols.BOOL_IS_MIC_RESPECTED} == True")
     sorted_promising_trials_df = pd.concat(
         [
             trials_df_status_true.sort_values(
-                by=[FLOAT_OBJECTIVE_VALUE, INT_MIC_SCOS_COUNT],
+                by=[cols.FLOAT_OBJECTIVE_VALUE, cols.INT_MIC_SCOS_COUNT],
                 ascending=[False, True],
             ),
             trials_df_status_false.sort_values(
-                by=[INT_MIC_SCOS_COUNT, FLOAT_OBJECTIVE_VALUE],
+                by=[cols.INT_MIC_SCOS_COUNT, cols.FLOAT_OBJECTIVE_VALUE],
                 ascending=[True, False],
             ),
         ],
@@ -265,7 +242,7 @@ def get_best_trial(
         pd.Series: The row of the best trial in the DataFrame.
     """
     if mic_respected_only:
-        trials_df = trials_df.query(f"{BOOL_IS_MIC_RESPECTED} == True")
+        trials_df = trials_df.query(f"{cols.BOOL_IS_MIC_RESPECTED} == True")
     sorted_trials_df = sort_trials_df_by_most_promising(trials_df)
     return sorted_trials_df.iloc[0]
 
@@ -279,7 +256,7 @@ def get_combinations_generator(
         index_combinations,
         key=lambda t: sum(
             leftout_mic_scos_summary_combinations.loc[list(t)][
-                FLOAT_RATIO_NET_INCOME_BID_POWER
+                cols.FLOAT_RATIO_NET_INCOME_BID_POWER
             ]
         ),
         reverse=reverse,
@@ -314,36 +291,36 @@ def get_new_mic_scos_by_adding_left_out_scos(
 
     # Sort left-out SCOs by ratio net income / bid power
     leftout_mic_scos_summary_sorted = leftout_mic_scos_summary.sort_values(
-        by=FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False
+        by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False
     )
 
     # Create initial new combinations by adding single left-out SCOs
     new_mic_scos_df = pd.DataFrame(
         {
-            ID_ORDER: leftout_mic_scos_summary_sorted.index,
-            FLOAT_RATIO_NET_INCOME_BID_POWER: leftout_mic_scos_summary[
-                FLOAT_RATIO_NET_INCOME_BID_POWER
+            cols.ID_ORDER: leftout_mic_scos_summary_sorted.index,
+            cols.FLOAT_RATIO_NET_INCOME_BID_POWER: leftout_mic_scos_summary[
+                cols.FLOAT_RATIO_NET_INCOME_BID_POWER
             ].values,
-            INT_MIC_SCOS_COUNT: 1 + starting_mic_scos_count,
+            cols.INT_MIC_SCOS_COUNT: 1 + starting_mic_scos_count,
         }
     )
-    new_mic_scos_df[MIC_SCOS_COLUMN] = new_mic_scos_df[ID_ORDER].apply(
+    new_mic_scos_df[cols.MIC_SCOS_COLUMN] = new_mic_scos_df[cols.ID_ORDER].apply(
         lambda sco: starting_mic_scos + [sco]
     )
-    new_mic_scos_df[BOOL_ARE_MIC_SCOS_TESTED] = new_mic_scos_df[MIC_SCOS_COLUMN].apply(
-        lambda sco: check_are_mic_scos_tested(trials_df, sco + starting_mic_scos)
-    )
+    new_mic_scos_df[cols.BOOL_ARE_MIC_SCOS_TESTED] = new_mic_scos_df[
+        cols.MIC_SCOS_COLUMN
+    ].apply(lambda sco: check_are_mic_scos_tested(trials_df, sco + starting_mic_scos))
 
     # Filter out already tested combinations
     new_mic_scos_df = new_mic_scos_df.query(
-        f"{BOOL_ARE_MIC_SCOS_TESTED} == False"
-    ).drop(columns=[ID_ORDER])
+        f"{cols.BOOL_ARE_MIC_SCOS_TESTED} == False"
+    ).drop(columns=[cols.ID_ORDER])
 
     # If the number of new combinations is greater than the desired, keep only the top ones
     if len(new_mic_scos_df) > mic_scos_combinations_count:
         new_mic_scos_df = new_mic_scos_df.head(mic_scos_combinations_count)
 
-    min_ratio = new_mic_scos_df[FLOAT_RATIO_NET_INCOME_BID_POWER].min()
+    min_ratio = new_mic_scos_df[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].min()
     create_combinations = True
     combinations_count = 2
 
@@ -361,7 +338,7 @@ def get_new_mic_scos_by_adding_left_out_scos(
             if not are_mic_scos_tested:
                 ratio_net_income_bid_power = sum(
                     leftout_mic_scos_summary.loc[list(leftout_mic_scos)][
-                        FLOAT_RATIO_NET_INCOME_BID_POWER
+                        cols.FLOAT_RATIO_NET_INCOME_BID_POWER
                     ]
                 )
 
@@ -373,12 +350,12 @@ def get_new_mic_scos_by_adding_left_out_scos(
                 ):
                     new_mic_scos_entry = pd.DataFrame(
                         {
-                            MIC_SCOS_COLUMN: [new_trial_mic_scos],
-                            FLOAT_RATIO_NET_INCOME_BID_POWER: [
+                            cols.MIC_SCOS_COLUMN: [new_trial_mic_scos],
+                            cols.FLOAT_RATIO_NET_INCOME_BID_POWER: [
                                 ratio_net_income_bid_power
                             ],
-                            BOOL_ARE_MIC_SCOS_TESTED: [False],
-                            INT_MIC_SCOS_COUNT: [
+                            cols.BOOL_ARE_MIC_SCOS_TESTED: [False],
+                            cols.INT_MIC_SCOS_COUNT: [
                                 combinations_count + starting_mic_scos_count
                             ],
                         }
@@ -389,7 +366,8 @@ def get_new_mic_scos_by_adding_left_out_scos(
                             [new_mic_scos_df, new_mic_scos_entry], ignore_index=True
                         )
                         .sort_values(
-                            by=FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False
+                            by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER,
+                            ascending=False,
                         )
                         .head(mic_scos_combinations_count)
                     )
@@ -408,7 +386,7 @@ def get_new_mic_scos_by_adding_left_out_scos(
         else:
             combinations_count += 1
 
-    return new_mic_scos_df.head(mic_scos_combinations_count)[MIC_SCOS_COLUMN]
+    return new_mic_scos_df.head(mic_scos_combinations_count)[cols.MIC_SCOS_COLUMN]
 
 
 def get_new_mic_scos_by_removing_underperforming_scos(
@@ -433,12 +411,12 @@ def get_new_mic_scos_by_removing_underperforming_scos(
         pd.Series: Series of new SCO-with-MIC combinations (as lists) to try in the next trials.
     """
     trial_cleared_mic_scos_summary = trial_cleared_mic_scos_summary.query(
-        f"{FLOAT_RATIO_NET_INCOME_CLEARED_POWER} < 0"
-    ).sort_values(by=FLOAT_RATIO_NET_INCOME_CLEARED_POWER, ascending=True)
+        f"{cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} < 0"
+    ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER, ascending=True)
     new_mic_scos_df = pd.DataFrame(
-        {MIC_SCOS_COLUMN: np.nan, BOOL_ARE_MIC_SCOS_TESTED: np.nan},
+        {cols.MIC_SCOS_COLUMN: np.nan, cols.BOOL_ARE_MIC_SCOS_TESTED: np.nan},
         index=trial_cleared_mic_scos_summary.index,
-    ).astype({MIC_SCOS_COLUMN: object, BOOL_ARE_MIC_SCOS_TESTED: bool})
+    ).astype({cols.MIC_SCOS_COLUMN: object, cols.BOOL_ARE_MIC_SCOS_TESTED: bool})
 
     mic_scos_left = scos_combination.copy()
 
@@ -447,16 +425,16 @@ def get_new_mic_scos_by_removing_underperforming_scos(
         new_trial_mic_scos = list(set(mic_scos_left) - set([index]))
         are_mic_scos_tested = check_are_mic_scos_tested(trials_df, new_trial_mic_scos)
 
-        new_mic_scos_df.at[index, MIC_SCOS_COLUMN] = new_trial_mic_scos
-        new_mic_scos_df.at[index, BOOL_ARE_MIC_SCOS_TESTED] = are_mic_scos_tested
+        new_mic_scos_df.at[index, cols.MIC_SCOS_COLUMN] = new_trial_mic_scos
+        new_mic_scos_df.at[index, cols.BOOL_ARE_MIC_SCOS_TESTED] = are_mic_scos_tested
 
         mic_scos_left = new_trial_mic_scos
 
     new_mic_scos_df = new_mic_scos_df.query(
-        f"{BOOL_ARE_MIC_SCOS_TESTED} == False"
+        f"{cols.BOOL_ARE_MIC_SCOS_TESTED} == False"
     ).head(int_mic_scos_count)
 
-    return new_mic_scos_df[MIC_SCOS_COLUMN]
+    return new_mic_scos_df[cols.MIC_SCOS_COLUMN]
 
 
 def define_new_trial_mic_scos(
@@ -486,20 +464,20 @@ def define_new_trial_mic_scos(
     for index, row in sorted_promising_trials_df.iterrows():
 
         logger.info(
-            f"--ALGORITHM--: Most promising combination: {row[MIC_SCOS_COLUMN]}"
+            f"--ALGORITHM--: Most promising combination: {row[cols.MIC_SCOS_COLUMN]}"
         )
 
-        cleared_energy = row[CLEARED_ENERGY_COLUMN]
-        clearing_prices = row[CLEARING_PRICES_COLUMN]
-        trial_mic_scos = row[MIC_SCOS_COLUMN]
-        mic_scos = row[MIC_SCOS_COLUMN]
-        bool_is_mic_respected = row[BOOL_IS_MIC_RESPECTED]
+        cleared_energy = row[cols.CLEARED_ENERGY_COLUMN]
+        clearing_prices = row[cols.CLEARING_PRICES_COLUMN]
+        trial_mic_scos = row[cols.MIC_SCOS_COLUMN]
+        mic_scos = row[cols.MIC_SCOS_COLUMN]
+        bool_is_mic_respected = row[cols.BOOL_IS_MIC_RESPECTED]
 
         if bool_is_mic_respected:
             logger.info("--ALGORITHM--: MIC is respected")
             leftout_mic_scos_summary = get_leftout_mic_scos_summary(
                 det_cab_date, all_mic_scos, mic_scos, clearing_prices
-            ).sort_values(by=FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
+            ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
             return get_new_mic_scos_by_adding_left_out_scos(
                 leftout_mic_scos_summary, trials_df, mic_scos, int_mic_scos_count
             )
@@ -583,19 +561,21 @@ def iterative_function(
     )
     welfare = pyo.value(model.OBJ)
     bool_is_mic_respected = (
-        trial_results_sco_casadas_grouped[FLOAT_NET_INCOME] >= 0
+        trial_results_sco_casadas_grouped[cols.FLOAT_NET_INCOME] >= 0
     ).all()
 
     # Update trials_df with current trial results
     trial_df_entry = {
-        MIC_SCOS_COLUMN: [current_trial_mic_scos],
-        FLOAT_OBJECTIVE_VALUE: [welfare],
-        BOOL_IS_MIC_RESPECTED: [bool_is_mic_respected],
-        SOLVER_RESULTS_COLUMN: [results],
-        INT_MIC_SCOS_COUNT: [len(current_trial_mic_scos)],
-        CLEARED_ENERGY_COLUMN: [cleared_energy],
-        CLEARING_PRICES_COLUMN: [clearing_prices],
-        SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [get_spain_portugal_transmissions(model)],
+        cols.MIC_SCOS_COLUMN: [current_trial_mic_scos],
+        cols.FLOAT_OBJECTIVE_VALUE: [welfare],
+        cols.BOOL_IS_MIC_RESPECTED: [bool_is_mic_respected],
+        cols.SOLVER_RESULTS_COLUMN: [results],
+        cols.INT_MIC_SCOS_COUNT: [len(current_trial_mic_scos)],
+        cols.CLEARED_ENERGY_COLUMN: [cleared_energy],
+        cols.CLEARING_PRICES_COLUMN: [clearing_prices],
+        cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [
+            get_spain_portugal_transmissions(model)
+        ],
     }
 
     return pd.DataFrame(trial_df_entry)
@@ -620,7 +600,7 @@ def check_if_success_at_first_trial(
     success_at_first_trial = (
         not is_trials_df_provided
         and not is_trial_mic_scos_provided
-        and first_trial_df[BOOL_IS_MIC_RESPECTED]
+        and first_trial_df[cols.BOOL_IS_MIC_RESPECTED]
     )
     if success_at_first_trial:
         logger.info(
@@ -735,7 +715,7 @@ def run_iterative_loop(
     best_trial = get_best_trial(trials_df, mic_respected_only=False)
 
     det_cab_date_scos_filtered = filter_mic_scos_from_det_cab(
-        det_cab_date, best_trial[MIC_SCOS_COLUMN]
+        det_cab_date, best_trial[cols.MIC_SCOS_COLUMN]
     )
 
     # Run market model
@@ -798,7 +778,7 @@ def clear_OMIE_market(
         capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
 
     capacidad_inter_pt_date = capacidad_inter_date.query(
-        f"{CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
+        f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
     det_cab_fr_date = get_france_det_cab_date_from_price(
         price_france_date, capacidad_inter_date
@@ -834,7 +814,7 @@ def clear_OMIE_market(
     cleared_energy = best_trial.cleared_energy
     cleared_det_cab_date = det_cab_date.merge(
         cleared_energy,
-        left_on=ID_INDIVIDUAL_BID,
+        left_on=cols.ID_INDIVIDUAL_BID,
         right_index=True,
         how="outer",
         validate="one_to_one",

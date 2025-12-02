@@ -1,18 +1,5 @@
 from numpy import dtype
-
-from mibel_simulator.const import (
-    CAT_BUY_SELL,
-    CAT_ORDER_TYPE,
-    CAT_PAIS,
-    ID_BLOCK_ORDER,
-    ID_ORDER,
-    ID_SCO,
-    ID_UNIDAD,
-    INT_NUM_BLOQ,
-    INT_NUM_GRUPO_EXCL,
-    INT_NUM_TRAMO,
-    INT_PERIODO,
-)
+import mibel_simulator.columns as cols
 
 
 DET_TYPING = {
@@ -175,15 +162,15 @@ CURVAS_OFERTAS_AFRR_COLUMNS = CURVAS_OFERTAS_AFRR_TYPING.keys()
 
 
 DET_CAB_DAM_SIMULATOR_TYPING = {
-    INT_PERIODO: "int8",
-    INT_NUM_BLOQ: "int8",
-    INT_NUM_TRAMO: "int8",
-    INT_NUM_GRUPO_EXCL: "int8",
-    ID_ORDER: "string",
-    ID_UNIDAD: "string",
-    CAT_BUY_SELL: "category",
-    CAT_ORDER_TYPE: "category",
-    ID_BLOCK_ORDER: "string",
-    ID_SCO: "string",
-    CAT_PAIS: "category",
+    cols.INT_PERIODO: "int8",
+    cols.INT_NUM_BLOQ: "int8",
+    cols.INT_NUM_TRAMO: "int8",
+    cols.INT_NUM_GRUPO_EXCL: "int8",
+    cols.ID_ORDER: "string",
+    cols.ID_UNIDAD: "string",
+    cols.CAT_BUY_SELL: "category",
+    cols.CAT_ORDER_TYPE: "category",
+    cols.ID_BLOCK_ORDER: "string",
+    cols.ID_SCO: "string",
+    cols.CAT_PAIS: "category",
 }
