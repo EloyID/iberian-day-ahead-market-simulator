@@ -10,7 +10,7 @@ def get_float_bid_power_cumsum(
     date_column_name=cols.DATE_SESION,
     hour_column_name=cols.INT_PERIODO,
     cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
-    cod_ofertada_casada_column_name=None,
+    cod_ofertada_casada_column_name=cols.CAT_OFERTADA_CASADA,
     qua_energia_column_name=cols.FLOAT_BID_POWER,
     qua_precio_column_name=cols.FLOAT_BID_PRICE,
 ) -> pd.Series:
@@ -31,9 +31,11 @@ def get_float_bid_power_cumsum(
     Returns:
         pd.Series: Series with cumulative bid power for each bid.
     """
-    groupby_columns = [date_column_name, hour_column_name]
+    groupby_columns = [hour_column_name]
     if cod_ofertada_casada_column_name is not None:
         groupby_columns.append(cod_ofertada_casada_column_name)
+    if date_column_name is not None:
+        groupby_columns.append(date_column_name)
 
     curva_pbc_df_C = (
         curva_pbc_df.query(f"`{cod_tipo_oferta_column_name}` == 'C'")
