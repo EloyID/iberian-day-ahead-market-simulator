@@ -46,6 +46,11 @@ from mibel_simulator.data_preprocessor import (
     get_parent_child_scos,
     get_sco_bids_tramo_grouped,
 )
+from mibel_simulator.parse_omie_files import (
+    parse_cab_file,
+    parse_capacidad_inter_file,
+    parse_det_file,
+)
 from mibel_simulator.run_model import run_model
 from mibel_simulator.model_info_extraction import (
     get_cleared_energy_series,
@@ -747,10 +752,10 @@ def run_iterative_loop(
 
 
 def clear_OMIE_market(
-    det_date: pd.DataFrame,
-    cab_date: pd.DataFrame,
+    det_date: pd.DataFrame | str,
+    cab_date: pd.DataFrame | str,
     uof_zones: pd.DataFrame,
-    capacidad_inter_date: pd.DataFrame,
+    capacidad_inter_date: pd.DataFrame | str,
     price_france_date: pd.DataFrame,
     trials_count: int = 100,
     starting_trials_df: pd.DataFrame = None,
@@ -768,10 +773,10 @@ def clear_OMIE_market(
     with MIC, and returns the results and best models.
 
     Args:
-        det_date (pd.DataFrame): DET DataFrame for the studied day.
-        cab_date (pd.DataFrame): CAB DataFrame for the studied day.
+        det_date (pd.DataFrame | str): DET DataFrame for the studied day or path to DET file.
+        cab_date (pd.DataFrame | str): CAB DataFrame for the studied day or path to CAB file.
         uof_zones (pd.DataFrame): DataFrame mapping units to zones.
-        capacidad_inter_date (pd.DataFrame): DataFrame of interconnection capacities for the studied day.
+        capacidad_inter_date (pd.DataFrame | str): DataFrame of interconnection capacities for the studied day or path to file.
         price_france_date (pd.DataFrame): DataFrame of France prices for the studied day.
         trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
         starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
@@ -784,6 +789,13 @@ def clear_OMIE_market(
             best_model (pyo.ConcreteModel): Pyomo model object for the best trial.
             best_model_binary (pyo.ConcreteModel): Pyomo model object for the best trial (binary version).
     """
+
+    if isinstance(det_date, str):
+        det_date = parse_det_file(det_date)
+    if isinstance(cab_date, str):
+        cab_date = parse_cab_file(cab_date)
+    if isinstance(capacidad_inter_date, str):
+        capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
 
     capacidad_inter_pt_date = capacidad_inter_date.query(
         f"{CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
