@@ -4,6 +4,11 @@ INT_NUM_BLOQ = "int_num_bloq"
 INT_NUM_TRAMO = "int_num_tramo"
 INT_NUM_GRUPO_EXCL = "int_num_grupo_excl"
 
+INT_NUM_TRAMO_PARENT = "int_num_tramo_parent"
+INT_NUM_TRAMO_CHILD = "int_num_tramo_child"
+INT_NUM_BLOQ_PARENT = "int_num_bloq_parent"
+INT_NUM_BLOQ_CHILD = "int_num_bloq_child"
+
 CAT_PAIS = "cat_pais"
 CAT_TIPO_OFERTA = "cat_tipo_oferta"
 CAT_OFERTADA_CASADA = "cat_ofertada_casada"
