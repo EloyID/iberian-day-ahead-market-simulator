@@ -90,22 +90,24 @@ def get_france_det_cab_date_from_price(
     buy_det_cab[cols.FLOAT_BID_POWER] = buy_det_cab[cols.FLOAT_EXPORT_CAPACITY].abs()
     buy_det_cab = buy_det_cab.drop(columns=[cols.FLOAT_EXPORT_CAPACITY])
 
+    det_cab_values = {
+        cols.ID_ORDER: FRANCE_ID_ORDER,
+        cols.ID_UNIDAD: FRANCE_ID_UNIDAD,
+        cols.FLOAT_MIC: 0,
+        cols.FLOAT_MAX_POWER: 99999999,  # High value to avoid issues
+        cols.INT_NUM_BLOQ: 0,
+        cols.INT_NUM_TRAMO: 1,
+        cols.INT_NUM_GRUPO_EXCL: 0,
+        cols.FLOAT_MAV: 0,
+        cols.FLOAT_MAR: 0,
+        cols.CAT_PAIS: CAT_PAIS_SPAIN,  # Spain because it's sell from France to Spain
+    }
+    if date:
+        det_cab_values[cols.DATE_SESION] = pd.Timestamp(date)
+
     det_cab = pd.concat([sell_det_cab, buy_det_cab], ignore_index=True)
     det_cab = (
-        det_cab.assign(
-            **{
-                cols.ID_ORDER: FRANCE_ID_ORDER,
-                cols.ID_UNIDAD: FRANCE_ID_UNIDAD,
-                cols.FLOAT_MIC: 0,
-                cols.FLOAT_MAX_POWER: 99999999,  # High value to avoid issues
-                cols.INT_NUM_BLOQ: 0,
-                cols.INT_NUM_TRAMO: 1,
-                cols.INT_NUM_GRUPO_EXCL: 0,
-                cols.FLOAT_MAV: 0,
-                cols.FLOAT_MAR: 0,
-                cols.CAT_PAIS: CAT_PAIS_SPAIN,  # Spain because it's sell from France to Spain
-            }
-        )
+        det_cab.assign(**det_cab_values)
         .rename(columns={cols.FLOAT_PRICE_FR: cols.FLOAT_BID_PRICE})
         .dropna()
     )
@@ -268,18 +270,20 @@ def get_det_cab_date_for_DAM_simulator(
     # Add columns required for DAM simulator
     det_cab_date[cols.CAT_ORDER_TYPE] = get_cat_order_type_column(det_cab_date)
     det_cab_date[cols.FLOAT_BID_POWER_CUMSUM] = get_float_bid_power_cumsum(
-        det_cab_date,
-        date_column_name=cols.DATE_SESION,
-        hour_column_name=cols.INT_PERIODO,
-        cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
-        qua_energia_column_name=cols.FLOAT_BID_POWER,
-        qua_precio_column_name=cols.FLOAT_BID_PRICE,
+        det_cab_date, date_column_name=None, cod_ofertada_casada_column_name=None
     )
     det_cab_date[cols.ID_INDIVIDUAL_BID] = get_det_cab_date_id_individual_bid(
         det_cab_date
     )
     det_cab_date[cols.ID_BLOCK_ORDER] = get_det_cab_date_id_block_order(det_cab_date)
     det_cab_date[cols.ID_SCO] = get_det_cab_date_id_sco(det_cab_date)
+
+    # If date is not consistent drop the column
+    if (
+        cols.DATE_SESION in det_cab_date.columns
+        and det_cab_date[cols.DATE_SESION].isna().any()
+    ):
+        det_cab_date = det_cab_date.drop(columns=[cols.DATE_SESION])
 
     # Recalculate cols.FLOAT_BID_POWER_CUMSUM by country
     det_cab_date = det_cab_date.sort_values(
@@ -291,11 +295,8 @@ def get_det_cab_date_for_DAM_simulator(
             cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY,
         ] = get_float_bid_power_cumsum(
             det_cab_date.loc[(det_cab_date[cols.CAT_PAIS] == country)],
-            date_column_name=cols.DATE_SESION,
-            hour_column_name=cols.INT_PERIODO,
-            cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
-            qua_energia_column_name=cols.FLOAT_BID_POWER,
-            qua_precio_column_name=cols.FLOAT_BID_PRICE,
+            date_column_name=None,
+            cod_ofertada_casada_column_name=None,
         )
 
     # Set correct typing
