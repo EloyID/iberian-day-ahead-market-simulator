@@ -168,9 +168,9 @@ ParentChildSCOSSchema = pa.DataFrameSchema(
     },
     checks=[
         pa.Check(
-            lambda df: df[cols.INT_NUM_BLOQ + "_parent"]
-            < df[cols.INT_NUM_BLOQ + "_child"],
-            error="INT_NUM_BLOQ_parent must be less than INT_NUM_BLOQ_child",
+            lambda df: df[cols.INT_NUM_TRAMO_PARENT]
+            < df[cols.INT_NUM_TRAMO_CHILD],
+            error="INT_NUM_TRAMO_parent must be less than INT_NUM_TRAMO_child",
         )
     ],
 )
