@@ -1,3 +1,5 @@
+from .residual_demand_curves import ResidualDemandCurvesSchema
+from .sell_profiles import SellProfilesSchema
 from .trials import TrialsSchema
 from .det import DETSchema
 from .cab import CABSchema

@@ -878,12 +878,20 @@ def clear_OMIE_market(
 
     try:
         ClearedDetCabSchema.validate(cleared_det_cab_date, lazy=True)
+    except pa.errors.SchemaErrors as e:
+        warnings.warn(f"Pandera validation warning in ClearedDetCabSchema: {e}")
+    try:
         ClearingPricesSchema.validate(best_trial.clearing_prices, lazy=True)
+    except pa.errors.SchemaErrors as e:
+        warnings.warn(f"Pandera validation warning in ClearingPricesSchema: {e}")
+    try:
         SpainPortugaLTransmissionsSchema.validate(
             best_trial.spain_portugal_transmissions, lazy=True
         )
     except pa.errors.SchemaErrors as e:
-        warnings.warn(f"Pandera validation warning: {e}")
+        warnings.warn(
+            f"Pandera validation warning in SpainPortugaLTransmissionsSchema: {e}"
+        )
 
     results_dict = {
         "model_binary_fixed": model,

@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import pandas as pd
+import pandera as pa
 from mibel_simulator.clearing_process import clear_OMIE_market
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
@@ -16,6 +17,11 @@ from mibel_simulator.parse_omie_files import (
     parse_capacidad_inter_file,
     parse_det_file,
 )
+from mibel_simulator.schemas.cab import CABSchema
+from mibel_simulator.schemas.capacidad_inter_pt import CapacidadInterPTSchema
+from mibel_simulator.schemas.det import DETSchema
+from mibel_simulator.schemas.residual_demand_curves import ResidualDemandCurvesSchema
+from mibel_simulator.schemas.sell_profiles import SellProfilesSchema
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +86,7 @@ def generate_residual_demand_det_cab_and_uof_zone(
     return rdc_det, rdc_cab, uof_zone
 
 
+@pa.check_output(SellProfilesSchema)
 def create_homothetic_sell_profiles(
     profile: list[float], scaling_factors: list[float]
 ) -> pd.DataFrame:
@@ -134,6 +141,8 @@ def get_clearing_prices_dict(results: dict, sell_country: str) -> dict:
     return clearing_prices_dict
 
 
+@pa.check_input(SellProfilesSchema, "sell_profiles")
+@pa.check_output(ResidualDemandCurvesSchema)
 def calculate_residual_demand_curves(
     sell_profiles: pd.DataFrame,
     det_date: pd.DataFrame,
@@ -145,7 +154,7 @@ def calculate_residual_demand_curves(
     trials_count: int = 100,
     zones_default_to_spain: bool = True,
     n_jobs: int = 1,
-):
+) -> pd.DataFrame:
     """
     Calculates the residual demand curves for a set of sell profiles by simulating market clearing.
 
@@ -178,6 +187,10 @@ def calculate_residual_demand_curves(
         cab_date = parse_cab_file(cab_date)
     if isinstance(capacidad_inter_date, str):
         capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
+
+    DETSchema.validate(det_date)
+    CABSchema.validate(cab_date)
+    CapacidadInterPTSchema.validate(capacidad_inter_date)
 
     for idx, profile in sell_profiles.iterrows():
         # Here you would modify the det_date and cab_date based on the profile
