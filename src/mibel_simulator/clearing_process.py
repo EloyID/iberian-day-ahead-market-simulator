@@ -8,6 +8,8 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 import mibel_simulator.columns as cols
+import pandera as pa
+import warnings
 
 from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, TRIALS_DF_COLUMNS
 from mibel_simulator.data_preprocessor import (
@@ -18,6 +20,18 @@ from mibel_simulator.data_preprocessor import (
     get_parent_child_bloques,
     get_parent_child_scos,
     get_sco_bids_tramo_grouped,
+)
+from mibel_simulator.schemas import (
+    CABSchema,
+    CapacidadInterPTSchema,
+    ClearingPricesSchema,
+    DETCABSchema,
+    DETSchema,
+    ExclusiveBlockOrdersGroupedSchema,
+    ParentChildBloquesSchema,
+    ParentChildSCOSSchema,
+    SCOBidsTramoGroupedSchema,
+    TrialsSchema,
 )
 from mibel_simulator.parse_omie_files import (
     parse_cab_file,
@@ -30,8 +44,13 @@ from mibel_simulator.model_info_extraction import (
     get_clearing_prices_df,
     get_spain_portugal_transmissions,
 )
+from mibel_simulator.schemas.cleared_det_cab import ClearedDetCabSchema
+from mibel_simulator.schemas.spain_portugal_transmissions import (
+    SpainPortugaLTransmissionsSchema,
+)
 from mibel_simulator.tools import filter_mic_scos_from_det_cab
 import pyomo.environ as pyo
+from pandera.typing import DataFrame, Series
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +212,7 @@ def get_leftout_mic_scos_summary(
 #### ITERATIVE LOOP
 
 
-def sort_trials_df_by_most_promising(trials_df):
+def sort_trials_df_by_most_promising(trials_df: pd.DataFrame) -> pd.DataFrame:
     """
     Sorts the trials DataFrame to prioritize the most promising SCO combinations.
 
@@ -248,8 +267,29 @@ def get_best_trial(
 
 
 def get_combinations_generator(
-    leftout_mic_scos_summary_combinations, combinations_count, reverse=True
-):
+    leftout_mic_scos_summary_combinations: pd.DataFrame,
+    combinations_count: int,
+    reverse: bool = True,
+) -> list[tuple]:
+    """
+    Generate sorted combinations of left-out MIC SCOs.
+
+    This function creates all possible combinations (of a given size) from the index of
+    `leftout_mic_scos_summary_combinations`, sorts them by the sum of their
+    FLOAT_RATIO_NET_INCOME_BID_POWER, and returns them in the specified order.
+
+    Args:
+        leftout_mic_scos_summary_combinations (pd.DataFrame): DataFrame indexed by SCO IDs,
+            containing at least the FLOAT_RATIO_NET_INCOME_BID_POWER column.
+        combinations_count (int): The number of SCOs in each combination.
+        reverse (bool, optional): If True, sort combinations in descending order of
+            total FLOAT_RATIO_NET_INCOME_BID_POWER. If False, ascending. Defaults to True.
+
+    Returns:
+        list: List of tuples, each tuple is a combination of SCO IDs, sorted by the sum
+            of FLOAT_RATIO_NET_INCOME_BID_POWER.
+    """
+
     scos_combinations = leftout_mic_scos_summary_combinations.index.tolist()
     index_combinations = combinations(scos_combinations, combinations_count)
     index_cobinations_sorted = sorted(
@@ -609,13 +649,19 @@ def check_if_success_at_first_trial(
     return success_at_first_trial
 
 
+@pa.check_input(DETCABSchema, "det_cab_date")
+@pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pt_date")
+@pa.check_input(ParentChildSCOSSchema, "parent_child_scos")
+@pa.check_input(ParentChildBloquesSchema, "parent_child_bloques")
+@pa.check_input(ExclusiveBlockOrdersGroupedSchema, "exclusive_block_orders_grouped")
+@pa.check_input(SCOBidsTramoGroupedSchema, "sco_bids_tramo_grouped")
 def run_iterative_loop(
-    det_cab_date: pd.DataFrame,
-    capacidad_inter_pt_date: pd.DataFrame,
-    parent_child_scos: pd.DataFrame,
-    parent_child_bloques: pd.DataFrame,
-    exclusive_block_orders_grouped: pd.DataFrame,
-    sco_bids_tramo_grouped: pd.DataFrame,
+    det_cab_date: DataFrame,
+    capacidad_inter_pt_date: DataFrame,
+    parent_child_scos: DataFrame,
+    parent_child_bloques: DataFrame,
+    exclusive_block_orders_grouped: DataFrame,
+    sco_bids_tramo_grouped: DataFrame,
     all_mic_scos: list,
     trials_count: int = 100,
     trial_mic_scos: list | None = None,
@@ -712,6 +758,11 @@ def run_iterative_loop(
             trials_df, det_cab_date, all_mic_scos, new_trial_int_mic_scos_count
         )
 
+    try:
+        TrialsSchema.validate(trials_df, lazy=True)
+    except pa.errors.SchemaErrors as e:
+        warnings.warn(f"Pandera validation warning: {e}")
+
     best_trial = get_best_trial(trials_df, mic_respected_only=False)
 
     det_cab_date_scos_filtered = filter_mic_scos_from_det_cab(
@@ -742,7 +793,7 @@ def clear_OMIE_market(
     zones_default_to_spain: bool = False,
     trial_mic_scos: list | None = None,
     n_jobs: int = 1,
-) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
+) -> dict:
     """
     Runs the full OMIE market clearing process for a given day, including data
     preprocessing, structure building, and iterative DAM optimization.
@@ -776,6 +827,10 @@ def clear_OMIE_market(
         cab_date = parse_cab_file(cab_date)
     if isinstance(capacidad_inter_date, str):
         capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
+
+    DETSchema.validate(det_date)
+    CABSchema.validate(cab_date)
+    CapacidadInterPTSchema.validate(capacidad_inter_date)
 
     capacidad_inter_pt_date = capacidad_inter_date.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
@@ -820,6 +875,15 @@ def clear_OMIE_market(
         validate="one_to_one",
         indicator=True,
     )
+
+    try:
+        ClearedDetCabSchema.validate(cleared_det_cab_date, lazy=True)
+        ClearingPricesSchema.validate(best_trial.clearing_prices, lazy=True)
+        SpainPortugaLTransmissionsSchema.validate(
+            best_trial.spain_portugal_transmissions, lazy=True
+        )
+    except pa.errors.SchemaErrors as e:
+        warnings.warn(f"Pandera validation warning: {e}")
 
     results_dict = {
         "model_binary_fixed": model,

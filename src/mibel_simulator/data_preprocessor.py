@@ -23,7 +23,7 @@ def get_france_det_cab_date_from_price(
     price_france: pd.DataFrame,
     capacidad_inter: pd.DataFrame,
     date: pd.Timestamp | str = "",
-):
+) -> pd.DataFrame:
     """
     Generate DET/CAB-like DataFrame rows for the France-Spain interconnection based on price and capacity data for a specific date.
 
