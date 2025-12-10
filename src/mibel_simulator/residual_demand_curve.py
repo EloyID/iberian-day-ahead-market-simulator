@@ -74,6 +74,17 @@ def generate_residual_demand_det_cab_and_uof_zone(
             cols.FLOAT_MAV: 0.0,
             cols.FLOAT_MAR: 0.0,
         }
+    ).query(f"{cols.FLOAT_BID_POWER} > 0")
+
+    if rdc_det.empty:
+        logger.warning(
+            "The generated residual demand DET dataframe is empty. Check the input residual demand curve."
+        )
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    # Filter rdc_cab to only include relevant ID_ORDERs
+    rdc_cab = rdc_cab.query(
+        f"{cols.ID_ORDER} in {rdc_det[cols.ID_ORDER].unique().tolist()}"
     )
 
     uof_zone = pd.DataFrame(
@@ -199,6 +210,11 @@ def calculate_residual_demand_curves(
         rdc_det, rdc_cab, rdc_uof_zone = generate_residual_demand_det_cab_and_uof_zone(
             profile, det_date[cols.DATE_SESION].iloc[0], sell_country
         )
+
+        if rdc_det.empty or rdc_cab.empty or rdc_uof_zone.empty:
+            logger.warning(
+                f"Profile {idx} has empty residual demand, the results are similar to a normal clearing of the market."
+            )
 
         det_date_modified = pd.concat([det_date, rdc_det], ignore_index=True)
         cab_date_modified = pd.concat([cab_date, rdc_cab], ignore_index=True)
