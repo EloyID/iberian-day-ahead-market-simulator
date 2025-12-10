@@ -757,6 +757,10 @@ def run_iterative_loop(
         next_trials_mic_sco = define_new_trial_mic_scos(
             trials_df, det_cab_date, all_mic_scos, new_trial_int_mic_scos_count
         )
+        # TODO: this is a quickfix so the loop ends when no new combinations are found
+        # but it should iterate with other options too
+        if len(next_trials_mic_sco) == 0:
+            break
 
     try:
         TrialsSchema.validate(trials_df, lazy=True)
