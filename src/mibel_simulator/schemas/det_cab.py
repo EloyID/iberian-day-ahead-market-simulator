@@ -88,21 +88,20 @@ check_not_exclusive_groups_max_power_not_exceeded = pa.Check(
 )
 
 check_exclusive_groups_max_power_not_exceeded = pa.Check(
-    lambda df: all(
-        df.query(f"{cols.INT_NUM_GRUPO_EXCL} > 0")
-        .groupby(
-            [cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL, cols.INT_PERIODO], observed=True
-        )
-        .agg(
-            {
-                cols.FLOAT_BID_POWER: "sum",
-                cols.FLOAT_MAX_POWER: "first",
-            }
-        )
-        .eval(f"{cols.FLOAT_BID_POWER} = {cols.FLOAT_BID_POWER}.round(2)")
-        .query(f"{cols.FLOAT_BID_POWER} > {cols.FLOAT_MAX_POWER}")
-        .empty
-    ),
+    lambda df: df.query(f"{cols.INT_NUM_GRUPO_EXCL} > 0")
+    .groupby(
+        [cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL, cols.INT_NUM_BLOQ, cols.INT_PERIODO],
+        observed=True,
+    )
+    .agg(
+        {
+            cols.FLOAT_BID_POWER: "sum",
+            cols.FLOAT_MAX_POWER: "first",
+        }
+    )
+    .eval(f"{cols.FLOAT_BID_POWER} = {cols.FLOAT_BID_POWER}.round(2)")
+    .query(f"{cols.FLOAT_BID_POWER} > {cols.FLOAT_MAX_POWER}")
+    .empty,
     element_wise=False,
     error="There are exclusive groups that exceed MaxPot in some periods",
 )
