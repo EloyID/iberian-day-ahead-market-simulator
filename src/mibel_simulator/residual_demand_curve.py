@@ -22,6 +22,7 @@ from mibel_simulator.schemas.capacidad_inter_pt import CapacidadInterPTSchema
 from mibel_simulator.schemas.det import DETSchema
 from mibel_simulator.schemas.residual_demand_curves import ResidualDemandCurvesSchema
 from mibel_simulator.schemas.sell_profiles import SellProfilesSchema
+from mibel_simulator.tools import concat_provided_uof_zones_with_existing_data
 
 logger = logging.getLogger(__name__)
 
@@ -156,11 +157,11 @@ def get_clearing_prices_dict(results: dict, sell_country: str) -> dict:
 @pa.check_output(ResidualDemandCurvesSchema)
 def calculate_residual_demand_curves(
     sell_profiles: pd.DataFrame,
-    det_date: pd.DataFrame,
-    cab_date: pd.DataFrame,
-    uof_zones: pd.DataFrame,
-    capacidad_inter_date: pd.DataFrame,
+    det_date: pd.DataFrame | str,
+    cab_date: pd.DataFrame | str,
+    capacidad_inter_date: pd.DataFrame | str,
     price_france_date: pd.DataFrame,
+    uof_zones: pd.DataFrame | None = None,
     sell_country: str = "ES",
     trials_count: int = 100,
     zones_default_to_spain: bool = True,
@@ -171,11 +172,11 @@ def calculate_residual_demand_curves(
 
     Args:
         sell_profiles (pd.DataFrame): DataFrame with index as profile names and columns as 'energy_1' to 'energy_24' representing hourly energy values.
-        det_date (pd.DataFrame or str): DataFrame or path to DET file containing market offer details.
-        cab_date (pd.DataFrame or str): DataFrame or path to CAB file containing market header information.
-        uof_zones (pd.DataFrame): DataFrame with UOF zone information.
-        capacidad_inter_date (pd.DataFrame or str): DataFrame or path to interconnection capacity file.
-        price_france_date (pd.DataFrame or str): DataFrame or path to France price file.
+        det_date (pd.DataFrame | str): DataFrame or path to DET file containing market offer details.
+        cab_date (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
+        capacidad_inter_date (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
+        price_france_date (pd.DataFrame): DataFrame with France price information.
+        uof_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_pais within ('ES', 'PT').
         sell_country (str, optional): Country code for the selling side. Defaults to "ES".
         trials_count (int, optional): Number of trials for the market clearing simulation. Defaults to 100.
         zones_default_to_spain (bool, optional): If True, zones default to Spain. Defaults to True.
@@ -218,14 +219,18 @@ def calculate_residual_demand_curves(
 
         det_date_modified = pd.concat([det_date, rdc_det], ignore_index=True)
         cab_date_modified = pd.concat([cab_date, rdc_cab], ignore_index=True)
-        uof_zones_modified = pd.concat([uof_zones, rdc_uof_zone], ignore_index=True)
+
+        if isinstance(uof_zones, pd.DataFrame):
+            uof_zones_modified = pd.concat([uof_zones, rdc_uof_zone], ignore_index=True)
+        else:
+            uof_zones_modified = rdc_uof_zone
 
         results = clear_OMIE_market(
-            det_date_modified,
-            cab_date_modified,
-            uof_zones_modified,
-            capacidad_inter_date,
-            price_france_date,
+            det_date=det_date_modified,
+            cab_date=cab_date_modified,
+            capacidad_inter_date=capacidad_inter_date,
+            uof_zones=uof_zones_modified,
+            price_france_date=price_france_date,
             trials_count=trials_count,
             zones_default_to_spain=zones_default_to_spain,
             n_jobs=n_jobs,

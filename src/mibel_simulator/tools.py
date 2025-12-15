@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 
 import mibel_simulator.columns as cols
+from mibel_simulator.schemas.uof_zones import UOFZonesSchema
 
 
 def get_float_bid_power_cumsum(
@@ -260,3 +261,38 @@ def filter_mic_scos_from_det_cab(
     return det_cab_df.query(
         f"`{id_order_column}` in @mic_scos_to_keep or not `{float_mic_column}` > 0"
     ).copy()
+
+
+def concat_provided_uof_zones_with_existing_data(
+    user_uof_zones: pd.DataFrame,
+) -> pd.DataFrame:
+
+    user_uof_zones = user_uof_zones.copy()[[cols.ID_UNIDAD, cols.CAT_PAIS]]
+    UOFZonesSchema.validate(user_uof_zones)
+
+    existing_uof_zones = pd.read_csv("./data/uof_zones.csv")
+
+    user_uof_zones["__origin"] = "user"
+    existing_uof_zones["__origin"] = "existing"
+
+    altered_zones = (
+        pd.concat([existing_uof_zones, user_uof_zones], ignore_index=True)
+        .groupby([cols.ID_UNIDAD])
+        .filter(lambda x: len(x[cols.CAT_PAIS].unique()) > 1)
+    )
+    if not altered_zones.empty:
+        altered_zones_list = altered_zones[cols.ID_UNIDAD].unique().tolist()
+        # warning
+        print(
+            f"Warning: The following UOF zones are different from existing in the package and will use the user-provided values: {altered_zones_list}"
+        )
+
+    user_unidades = user_uof_zones[cols.ID_UNIDAD].unique().tolist()
+    existing_uof_zones_filtered = existing_uof_zones.query(
+        f"`{cols.ID_UNIDAD}` not in @user_unidades"
+    )
+    combined_uof_zones = pd.concat(
+        [existing_uof_zones_filtered, user_uof_zones], ignore_index=True
+    ).reset_index(drop=True)
+
+    return combined_uof_zones

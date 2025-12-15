@@ -48,7 +48,10 @@ from mibel_simulator.schemas.cleared_det_cab import ClearedDetCabSchema
 from mibel_simulator.schemas.spain_portugal_transmissions import (
     SpainPortugaLTransmissionsSchema,
 )
-from mibel_simulator.tools import filter_mic_scos_from_det_cab
+from mibel_simulator.tools import (
+    concat_provided_uof_zones_with_existing_data,
+    filter_mic_scos_from_det_cab,
+)
 import pyomo.environ as pyo
 from pandera.typing import DataFrame, Series
 
@@ -789,9 +792,9 @@ def run_iterative_loop(
 def clear_OMIE_market(
     det_date: pd.DataFrame | str,
     cab_date: pd.DataFrame | str,
-    uof_zones: pd.DataFrame,
     capacidad_inter_date: pd.DataFrame | str,
     price_france_date: pd.DataFrame,
+    uof_zones: pd.DataFrame | None = None,
     trials_count: int = 100,
     starting_trials_df: pd.DataFrame = None,
     zones_default_to_spain: bool = False,
@@ -810,9 +813,9 @@ def clear_OMIE_market(
     Args:
         det_date (pd.DataFrame | str): DET DataFrame for the studied day or path to DET file.
         cab_date (pd.DataFrame | str): CAB DataFrame for the studied day or path to CAB file.
-        uof_zones (pd.DataFrame): DataFrame mapping units to zones.
         capacidad_inter_date (pd.DataFrame | str): DataFrame of interconnection capacities for the studied day or path to file.
         price_france_date (pd.DataFrame): DataFrame of France prices for the studied day.
+        uof_zones (pd.DataFrame | None): DataFrame mapping units to zones.
         trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
         starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
         zones_default_to_spain (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
@@ -835,6 +838,11 @@ def clear_OMIE_market(
     DETSchema.validate(det_date)
     CABSchema.validate(cab_date)
     CapacidadInterPTSchema.validate(capacidad_inter_date)
+
+    if isinstance(uof_zones, pd.DataFrame):
+        uof_zones = concat_provided_uof_zones_with_existing_data(uof_zones)
+    else:
+        uof_zones = pd.read_csv("./data/uof_zones.csv")
 
     capacidad_inter_pt_date = capacidad_inter_date.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
