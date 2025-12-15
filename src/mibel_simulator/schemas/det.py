@@ -20,11 +20,6 @@ mav_only_in_scos = pa.Check(
     error=f"{cols.FLOAT_MAV} > 0 block offers cannot have MAV > 0",
 )
 
-mic_only_in_scos = pa.Check(
-    lambda df: (df[cols.INT_NUM_BLOQ] == 0) | (df[cols.FLOAT_MIC] == 0),
-    element_wise=True,
-    error=f"{cols.FLOAT_MIC} > 0 block offers cannot have MIC > 0",
-)
 
 multiple_tramos_only_scos = pa.Check(
     lambda df: (df[cols.INT_NUM_BLOQ] == 0) | (df[cols.INT_NUM_TRAMO] == 1),
@@ -52,7 +47,6 @@ DETSchema = pa.DataFrameSchema(
         exclusive_group_must_be_block_offer,
         mar_only_in_block_offers,
         mav_only_in_scos,
-        mic_only_in_scos,
         multiple_tramos_only_scos,
 
     ],
