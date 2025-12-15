@@ -12,7 +12,8 @@ CABSchema = pa.DataFrameSchema(
         cols.CAT_BUY_SELL:     columns_dict[cols.CAT_BUY_SELL],
         cols.FLOAT_MIC:        columns_dict[cols.FLOAT_MIC],
         cols.FLOAT_MAX_POWER:  columns_dict[cols.FLOAT_MAX_POWER],
-    }
+    },
+    unique=[cols.DATE_SESION, cols.ID_ORDER],
 ).update_columns(
     {
         cols.ID_ORDER:   {"unique": True},
