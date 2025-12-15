@@ -26,18 +26,14 @@ def run_model(
     det_cab_date,
     capacidad_inter_PT_date,
     parent_child_scos,
-    parent_child_bloques,
     exclusive_block_orders_grouped,
-    sco_bids_tramo_grouped,
 ):
     ########################### Load Model ########################
     model = make_model(
-        det_cab_date,
-        capacidad_inter_PT_date,
-        parent_child_scos,
-        parent_child_bloques,
-        exclusive_block_orders_grouped,
-        sco_bids_tramo_grouped,
+        det_cab_date=det_cab_date,
+        capacidad_inter_PT_date=capacidad_inter_PT_date,
+        parent_child_scos=parent_child_scos,
+        exclusive_block_orders_grouped=exclusive_block_orders_grouped,
     )
 
     ########################### Solve ########################

@@ -307,49 +307,6 @@ def get_det_cab_date_for_DAM_simulator(
 ########### sets creation
 
 
-def get_parent_child_bloques(det_cab_date: pd.DataFrame) -> pd.DataFrame:
-    """
-    Finds parent-child relationships between non-exclusive block orders in the DET/CAB DataFrame.
-
-    For each block order, identifies the next block order (child) within the same order and exclusion group.
-
-    Args:
-        det_cab_date (pd.DataFrame): DataFrame containing DET/CAB bids.
-
-    Returns:
-        pd.DataFrame: DataFrame with columns for parent and child block order relationships.
-    """
-    det_cab_date_bloques_no_exclusivos = (
-        det_cab_date.dropna(subset=cols.ID_BLOCK_ORDER)
-        .drop_duplicates(cols.ID_BLOCK_ORDER)
-        .query(f"{cols.INT_NUM_GRUPO_EXCL} == 0")
-        .copy()
-    )
-    parent_child_bloques = (
-        det_cab_date_bloques_no_exclusivos.merge(
-            det_cab_date_bloques_no_exclusivos,
-            on=[cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL],
-            how="left",
-            suffixes=("_parent", "_child"),
-        )
-        .query(f"{cols.INT_NUM_BLOQ}_parent < {cols.INT_NUM_BLOQ}_child")
-        .sort_values(
-            [cols.ID_ORDER, f"{cols.INT_NUM_BLOQ}_parent", f"{cols.INT_NUM_BLOQ}_child"]
-        )
-        .drop_duplicates([cols.ID_ORDER, f"{cols.INT_NUM_BLOQ}_parent"], keep="first")[
-            [
-                cols.ID_ORDER,
-                f"{cols.INT_NUM_BLOQ}_parent",
-                cols.INT_NUM_GRUPO_EXCL,
-                f"{cols.INT_NUM_BLOQ}_child",
-                cols.ID_BLOCK_ORDER_CHILD,
-                cols.ID_BLOCK_ORDER_PARENT,
-            ]
-        ]
-    )
-    return parent_child_bloques
-
-
 def get_exclusive_block_orders_grouped(det_cab_date: pd.DataFrame) -> pd.Series:
     """
     Groups exclusive block orders by order ID and exclusion group in the DET/CAB DataFrame.
@@ -423,27 +380,6 @@ def get_parent_child_scos(det_cab_date: pd.DataFrame) -> pd.DataFrame:
         ]
     )
     return parent_child_scos
-
-
-def get_sco_bids_tramo_grouped(det_cab_date: pd.DataFrame) -> pd.Series:
-    """
-    Groups individual bids by SCO order in the DET/CAB DataFrame.
-
-    Creates a list of individual bid identifiers for each SCO.
-
-    Args:
-        det_cab_date (pd.DataFrame): DataFrame containing DET/CAB bids.
-
-    Returns:
-        pd.Series: Series mapping SCO order identifiers to lists of individual bid identifiers.
-    """
-
-    sco_bids_tramo_grouped = (
-        det_cab_date.query(f"{cols.ID_SCO}.notna()")
-        .groupby([cols.ID_SCO], observed=True)[cols.ID_INDIVIDUAL_BID]
-        .apply(list)
-    )
-    return sco_bids_tramo_grouped
 
 
 def get_all_mic_scos(det_cab_date: pd.DataFrame) -> list:

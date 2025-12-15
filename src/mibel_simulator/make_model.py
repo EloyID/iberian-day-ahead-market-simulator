@@ -20,9 +20,7 @@ def make_model(
     det_cab_date,
     capacidad_inter_PT_date,
     parent_child_scos,
-    parent_child_bloques,
     exclusive_block_orders_grouped,
-    sco_bids_tramo_grouped,
 ):
 
     # fmt: off
@@ -89,17 +87,11 @@ def make_model(
     model.BLOCK_ORDER_BIDS_BY_BLOCK =                   Set(model.BLOCK_ORDERS,                  initialize=block_order_bids_by_block,                  doc="Block order individual bids per block order")
     model.BLOCK_ORDERS_BY_COUNTRY =                     Set(model.COUNTRIES,                     initialize=block_orders_by_country,                    doc="Block orders per country")
 
-    bloque_parent_children_joined =          parent_child_bloques[[cols.ID_BLOCK_ORDER_PARENT, cols.ID_BLOCK_ORDER_CHILD]].astype(str).agg("$".join, axis=1)
     exclusive_block_orders_grouped_joined =  exclusive_block_orders_grouped.apply(lambda x: "$".join(x))
-
     sco_parent_children_joined =             parent_child_scos_filtered[[cols.ID_SCO_PARENT, cols.ID_SCO_CHILD]].astype(str).agg("$".join, axis=1)
-    sco_bids_tramo_grouped_joined =          sco_bids_tramo_grouped.apply(lambda x: "$".join(x))
 
-    model.BLOQUE_PARENT_CHILDREN =          Set(initialize=bloque_parent_children_joined,          doc="Parent-child relationships for block orders, the lower the NumBloq, the parent")
     model.EXCLUSIVE_BLOCK_ORDERS_GROUPED =  Set(initialize=exclusive_block_orders_grouped_joined,  doc="Groups of exclusive block orders, a list of block_ids joined by $")
-
     model.SCO_PARENT_CHILDREN =             Set(initialize=sco_parent_children_joined,             doc="Parent-child relationships for SCO tramos, the lower the NumTramo, the parent")
-    model.SCO_BIDS_TRAMO_GROUPED =          Set(initialize=sco_bids_tramo_grouped_joined,          doc="Groups of SCO bids by tramo, a list of sco_ids joined by $")
 
     ##### Parameters #####
     
@@ -246,29 +238,6 @@ def make_model(
         * m.v_u_activated_SCO_TRAMOS[m.p_SCO_TRAMO_PER_BID[s]],
         doc="If a SCO tramo is activated, the minimum acceptance volume (MAV) must be met",
     )
-
-    # model.c_Simple_Seller_Bids_Activation = Constraint(
-    #     model.MAV_SIMPLE_SELLER_BIDS,
-    #     rule=lambda m, s: m.v_u_active_MAV_SIMPLE_SELLER_BIDS[s]
-    #     >= m.v_x_SIMPLE_SELLER_BIDS[s],
-    #     doc="If a simple seller bid with MAV is activated, the minimum acceptance volume (MAV) must be met",
-    # )
-
-    # model.c_MAV_Simple_Seller_Bids_Quantity = Constraint(
-    #     model.MAV_SIMPLE_SELLER_BIDS,
-    #     rule=lambda m, s: m.v_x_SIMPLE_SELLER_BIDS[s]
-    #     >= (m.p_MAV[s] / m.p_quantity_SIMPLE_SELLER_BIDS[s])
-    #     * m.v_u_active_MAV_SIMPLE_SELLER_BIDS[s],
-    #     doc="If a simple seller bid with MAV is activated, the minimum acceptance volume (MAV) must be met",
-    # )
-
-    # !!! Uncomment for block orders parent-child constraints
-    # model.c_Parent_Child_Block_Orders = Constraint(
-    #     model.BLOQUE_PARENT_CHILDREN,
-    #     rule=lambda m, bc: m.v_x_BLOCK_ORDERS[bc.split("$")[0]]
-    #     >= m.v_x_BLOCK_ORDERS[bc.split("$")[1]],
-    #     doc="If a child block order is accepted, the parent block order must be accepted",
-    # )
 
     model.c_Parent_Child_SCO = Constraint(
         model.SCO_PARENT_CHILDREN,
