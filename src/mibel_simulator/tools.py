@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 
 import mibel_simulator.columns as cols
+from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
 from mibel_simulator.schemas.uof_zones import UOFZonesSchema
 
 
@@ -270,7 +271,7 @@ def concat_provided_uof_zones_with_existing_data(
     user_uof_zones = user_uof_zones.copy()[[cols.ID_UNIDAD, cols.CAT_PAIS]]
     UOFZonesSchema.validate(user_uof_zones)
 
-    existing_uof_zones = pd.read_csv("./data/uof_zones.csv")
+    existing_uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
 
     user_uof_zones["__origin"] = "user"
     existing_uof_zones["__origin"] = "existing"

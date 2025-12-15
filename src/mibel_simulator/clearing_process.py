@@ -21,6 +21,7 @@ from mibel_simulator.data_preprocessor import (
     get_parent_child_scos,
     get_sco_bids_tramo_grouped,
 )
+from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
 from mibel_simulator.schemas import (
     CABSchema,
     CapacidadInterPTSchema,
@@ -842,7 +843,7 @@ def clear_OMIE_market(
     if isinstance(uof_zones, pd.DataFrame):
         uof_zones = concat_provided_uof_zones_with_existing_data(uof_zones)
     else:
-        uof_zones = pd.read_csv("./data/uof_zones.csv")
+        uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
 
     capacidad_inter_pt_date = capacidad_inter_date.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
