@@ -17,7 +17,6 @@ from mibel_simulator.data_preprocessor import (
     get_det_cab_date_for_DAM_simulator,
     get_exclusive_block_orders_grouped,
     get_france_det_cab_date_from_price,
-    get_parent_child_scos,
 )
 from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
 from mibel_simulator.schemas import (
@@ -27,7 +26,6 @@ from mibel_simulator.schemas import (
     DETCABSchema,
     DETSchema,
     ExclusiveBlockOrdersGroupedSchema,
-    ParentChildSCOSSchema,
     TrialsSchema,
 )
 from mibel_simulator.parse_omie_files import (
@@ -556,7 +554,6 @@ def iterative_function(
         args (tuple): Tuple containing:
             - det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
             - capacidad_inter_PT_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
-            - parent_child_scos (pd.DataFrame): DataFrame of parent-child SCO relationships.
             - exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
             - current_trial_mic_scos (list): List of SCO order IDs with MIC for this trial.
 
@@ -567,7 +564,6 @@ def iterative_function(
     (
         det_cab_date,
         capacidad_inter_PT_date,
-        parent_child_scos,
         exclusive_block_orders_grouped,
         current_trial_mic_scos,
     ) = args
@@ -581,7 +577,6 @@ def iterative_function(
     model, _, results = run_model(
         det_cab_date_scos_filtered,
         capacidad_inter_PT_date,
-        parent_child_scos,
         exclusive_block_orders_grouped,
     )
 
@@ -643,12 +638,10 @@ def check_if_success_at_first_trial(
 
 @pa.check_input(DETCABSchema, "det_cab_date")
 @pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pt_date")
-@pa.check_input(ParentChildSCOSSchema, "parent_child_scos")
 @pa.check_input(ExclusiveBlockOrdersGroupedSchema, "exclusive_block_orders_grouped")
 def run_iterative_loop(
     det_cab_date: DataFrame,
     capacidad_inter_pt_date: DataFrame,
-    parent_child_scos: DataFrame,
     exclusive_block_orders_grouped: DataFrame,
     all_mic_scos: list,
     trials_count: int = 100,
@@ -664,7 +657,6 @@ def run_iterative_loop(
     Args:
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
         capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
-        parent_child_scos (pd.DataFrame): DataFrame of parent-child SCO relationships.
         exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
         all_mic_scos (list): List of all SCO order IDs with MIC.
         trials_count (int, optional): Maximum number of trials to run. Defaults to 100.
@@ -716,7 +708,6 @@ def run_iterative_loop(
             (
                 det_cab_date,
                 capacidad_inter_pt_date,
-                parent_child_scos,
                 exclusive_block_orders_grouped,
                 trial_mic_scos,
             )
@@ -761,7 +752,6 @@ def run_iterative_loop(
     best_model, best_model_binary, results = run_model(
         det_cab_date=det_cab_date_scos_filtered,
         capacidad_inter_PT_date=capacidad_inter_pt_date,
-        parent_child_scos=parent_child_scos,
         exclusive_block_orders_grouped=exclusive_block_orders_grouped,
     )
 
@@ -837,13 +827,11 @@ def clear_OMIE_market(
         zones_default_to_spain=zones_default_to_spain,
     )
     exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
-    parent_child_scos = get_parent_child_scos(det_cab_date)
     all_mic_scos = get_all_mic_scos(det_cab_date)
 
     trials_df, model, model_binary = run_iterative_loop(
         det_cab_date=det_cab_date,
         capacidad_inter_pt_date=capacidad_inter_pt_date,
-        parent_child_scos=parent_child_scos,
         exclusive_block_orders_grouped=exclusive_block_orders_grouped,
         trials_count=trials_count,
         all_mic_scos=all_mic_scos,

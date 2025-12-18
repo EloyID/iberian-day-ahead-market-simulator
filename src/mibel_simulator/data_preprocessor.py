@@ -172,9 +172,7 @@ def get_det_cab_date_id_sco(det_cab_date: pd.DataFrame) -> np.ndarray:
     """
     return np.where(
         det_cab_date[cols.CAT_ORDER_TYPE] == "C02",
-        det_cab_date[cols.ID_ORDER].astype(str)
-        + "_SCO_"
-        + det_cab_date[cols.INT_NUM_TRAMO].astype(str),
+        det_cab_date[cols.ID_ORDER].astype(str) + "_SCO",
         np.nan,
     )
 
@@ -328,58 +326,6 @@ def get_exclusive_block_orders_grouped(det_cab_date: pd.DataFrame) -> pd.Series:
         .apply(list)
     )
     return exclusive_block_orders_grouped
-
-
-def get_parent_child_scos(det_cab_date: pd.DataFrame) -> pd.DataFrame:
-    """
-    Finds parent-child relationships between SCO orders in the DET/CAB DataFrame.
-
-    For each SCO order, identifies the next SCO order (child) within the same order.
-
-    Args:
-        det_cab_date (pd.DataFrame): DataFrame containing DET/CAB bids.
-
-    Returns:
-        pd.DataFrame: DataFrame with columns for parent and child SCO relationships.
-    """
-    det_cab_date_scos = (
-        det_cab_date.dropna(subset=cols.ID_SCO)
-        .drop_duplicates(cols.ID_SCO)[
-            [
-                cols.ID_ORDER,
-                cols.INT_NUM_TRAMO,
-                cols.ID_SCO,
-            ]
-        ]
-        .copy()
-    )
-
-    parent_child_scos = (
-        det_cab_date_scos.merge(
-            det_cab_date_scos,
-            on=cols.ID_ORDER,
-            how="left",
-            suffixes=("_parent", "_child"),
-        )
-        .query(f"{cols.INT_NUM_TRAMO}_parent < {cols.INT_NUM_TRAMO}_child")
-        .sort_values(
-            [
-                cols.ID_ORDER,
-                f"{cols.INT_NUM_TRAMO}_parent",
-                f"{cols.INT_NUM_TRAMO}_child",
-            ]
-        )
-        .drop_duplicates([cols.ID_ORDER, f"{cols.INT_NUM_TRAMO}_parent"], keep="first")[
-            [
-                cols.ID_ORDER,
-                f"{cols.INT_NUM_TRAMO}_parent",
-                f"{cols.INT_NUM_TRAMO}_child",
-                cols.ID_SCO_CHILD,
-                cols.ID_SCO_PARENT,
-            ]
-        ]
-    )
-    return parent_child_scos
 
 
 def get_all_mic_scos(det_cab_date: pd.DataFrame) -> list:

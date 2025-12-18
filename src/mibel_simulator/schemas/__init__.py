@@ -8,5 +8,4 @@ from .cleared_det_cab import ClearedDetCabSchema
 from .clearing_prices import ClearingPricesSchema
 from .capacidad_inter_pt import CapacidadInterPTSchema
 from .exclusive_block_order_grouped import ExclusiveBlockOrdersGroupedSchema
-from .parent_child_scos import ParentChildSCOSSchema
 from .spain_portugal_transmissions import SpainPortugaLTransmissionsSchema
