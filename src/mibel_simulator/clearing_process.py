@@ -183,10 +183,19 @@ def get_leftout_mic_scos_summary(
             how="left",
             validate="many_to_one",
         )
+        .assign(
+            **{
+                cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
+                    df[cols.FLOAT_CLEARED_PRICE] >= df[cols.FLOAT_BID_PRICE],
+                    df[cols.FLOAT_BID_POWER],
+                    df[cols.FLOAT_MAV],
+                )
+            }
+        )
         .eval(
             f"""
-            {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_BID_POWER} * {cols.FLOAT_CLEARED_PRICE}
-            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_BID_POWER} * {cols.FLOAT_BID_PRICE}
+            {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_CLEARED_PRICE}
+            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_BID_PRICE}
             """
         )
         .groupby([cols.ID_ORDER], observed=True)
@@ -195,13 +204,13 @@ def get_leftout_mic_scos_summary(
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
                 cols.FLOAT_VARIABLE_COST: "sum",
                 cols.FLOAT_MIC: "first",
-                cols.FLOAT_BID_POWER: "sum",
+                cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: "sum",
             }
         )
         .eval(
             f"""
             {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
-            {cols.FLOAT_RATIO_NET_INCOME_BID_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_BID_POWER}
+            {cols.FLOAT_RATIO_NET_INCOME_BID_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER}
             """
         )
     )
@@ -374,10 +383,13 @@ def get_new_mic_scos_by_adding_left_out_scos(
                 trials_df, new_trial_mic_scos
             )
             if not are_mic_scos_tested:
-                ratio_net_income_bid_power = sum(
+                ratio_net_income_bid_power = np.average(
                     leftout_mic_scos_summary.loc[list(leftout_mic_scos)][
                         cols.FLOAT_RATIO_NET_INCOME_BID_POWER
-                    ]
+                    ],
+                    weights=leftout_mic_scos_summary.loc[list(leftout_mic_scos)][
+                        cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER
+                    ],
                 )
 
                 # Add only if the ratio is better than the minimum of the current new combinations or
@@ -673,7 +685,7 @@ def run_iterative_loop(
     is_trials_df_provided = trials_df is not None
     is_trial_mic_scos_provided = trial_mic_scos is not None
 
-    if trials_count // n_jobs < 5:
+    if trials_count // n_jobs < 5 and not is_trials_df_provided:
         logger.warning(
             "--ALGORITHM--: It is recommended trials_count to be at least 5 times n_jobs."
         )
