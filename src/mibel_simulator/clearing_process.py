@@ -17,7 +17,6 @@ from mibel_simulator.data_preprocessor import (
     get_det_cab_date_for_DAM_simulator,
     get_exclusive_block_orders_grouped,
     get_france_det_cab_date_from_price,
-    get_parent_child_scos,
 )
 from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
 from mibel_simulator.schemas import (
@@ -27,7 +26,6 @@ from mibel_simulator.schemas import (
     DETCABSchema,
     DETSchema,
     ExclusiveBlockOrdersGroupedSchema,
-    ParentChildSCOSSchema,
     TrialsSchema,
 )
 from mibel_simulator.parse_omie_files import (
@@ -185,10 +183,19 @@ def get_leftout_mic_scos_summary(
             how="left",
             validate="many_to_one",
         )
+        .assign(
+            **{
+                cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
+                    df[cols.FLOAT_CLEARED_PRICE] >= df[cols.FLOAT_BID_PRICE],
+                    df[cols.FLOAT_BID_POWER],
+                    df[cols.FLOAT_MAV],
+                )
+            }
+        )
         .eval(
             f"""
-            {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_BID_POWER} * {cols.FLOAT_CLEARED_PRICE}
-            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_BID_POWER} * {cols.FLOAT_BID_PRICE}
+            {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_CLEARED_PRICE}
+            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_BID_PRICE}
             """
         )
         .groupby([cols.ID_ORDER], observed=True)
@@ -197,13 +204,13 @@ def get_leftout_mic_scos_summary(
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
                 cols.FLOAT_VARIABLE_COST: "sum",
                 cols.FLOAT_MIC: "first",
-                cols.FLOAT_BID_POWER: "sum",
+                cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: "sum",
             }
         )
         .eval(
             f"""
             {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
-            {cols.FLOAT_RATIO_NET_INCOME_BID_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_BID_POWER}
+            {cols.FLOAT_RATIO_NET_INCOME_BID_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER}
             """
         )
     )
@@ -376,10 +383,13 @@ def get_new_mic_scos_by_adding_left_out_scos(
                 trials_df, new_trial_mic_scos
             )
             if not are_mic_scos_tested:
-                ratio_net_income_bid_power = sum(
+                ratio_net_income_bid_power = np.average(
                     leftout_mic_scos_summary.loc[list(leftout_mic_scos)][
                         cols.FLOAT_RATIO_NET_INCOME_BID_POWER
-                    ]
+                    ],
+                    weights=leftout_mic_scos_summary.loc[list(leftout_mic_scos)][
+                        cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER
+                    ],
                 )
 
                 # Add only if the ratio is better than the minimum of the current new combinations or
@@ -556,7 +566,6 @@ def iterative_function(
         args (tuple): Tuple containing:
             - det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
             - capacidad_inter_PT_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
-            - parent_child_scos (pd.DataFrame): DataFrame of parent-child SCO relationships.
             - exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
             - current_trial_mic_scos (list): List of SCO order IDs with MIC for this trial.
 
@@ -567,7 +576,6 @@ def iterative_function(
     (
         det_cab_date,
         capacidad_inter_PT_date,
-        parent_child_scos,
         exclusive_block_orders_grouped,
         current_trial_mic_scos,
     ) = args
@@ -581,7 +589,6 @@ def iterative_function(
     model, _, results = run_model(
         det_cab_date_scos_filtered,
         capacidad_inter_PT_date,
-        parent_child_scos,
         exclusive_block_orders_grouped,
     )
 
@@ -643,12 +650,10 @@ def check_if_success_at_first_trial(
 
 @pa.check_input(DETCABSchema, "det_cab_date")
 @pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pt_date")
-@pa.check_input(ParentChildSCOSSchema, "parent_child_scos")
 @pa.check_input(ExclusiveBlockOrdersGroupedSchema, "exclusive_block_orders_grouped")
 def run_iterative_loop(
     det_cab_date: DataFrame,
     capacidad_inter_pt_date: DataFrame,
-    parent_child_scos: DataFrame,
     exclusive_block_orders_grouped: DataFrame,
     all_mic_scos: list,
     trials_count: int = 100,
@@ -664,7 +669,6 @@ def run_iterative_loop(
     Args:
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
         capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
-        parent_child_scos (pd.DataFrame): DataFrame of parent-child SCO relationships.
         exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
         all_mic_scos (list): List of all SCO order IDs with MIC.
         trials_count (int, optional): Maximum number of trials to run. Defaults to 100.
@@ -681,7 +685,7 @@ def run_iterative_loop(
     is_trials_df_provided = trials_df is not None
     is_trial_mic_scos_provided = trial_mic_scos is not None
 
-    if trials_count // n_jobs < 5:
+    if trials_count // n_jobs < 5 and not is_trials_df_provided:
         logger.warning(
             "--ALGORITHM--: It is recommended trials_count to be at least 5 times n_jobs."
         )
@@ -716,7 +720,6 @@ def run_iterative_loop(
             (
                 det_cab_date,
                 capacidad_inter_pt_date,
-                parent_child_scos,
                 exclusive_block_orders_grouped,
                 trial_mic_scos,
             )
@@ -761,7 +764,6 @@ def run_iterative_loop(
     best_model, best_model_binary, results = run_model(
         det_cab_date=det_cab_date_scos_filtered,
         capacidad_inter_PT_date=capacidad_inter_pt_date,
-        parent_child_scos=parent_child_scos,
         exclusive_block_orders_grouped=exclusive_block_orders_grouped,
     )
 
@@ -837,13 +839,11 @@ def clear_OMIE_market(
         zones_default_to_spain=zones_default_to_spain,
     )
     exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
-    parent_child_scos = get_parent_child_scos(det_cab_date)
     all_mic_scos = get_all_mic_scos(det_cab_date)
 
     trials_df, model, model_binary = run_iterative_loop(
         det_cab_date=det_cab_date,
         capacidad_inter_pt_date=capacidad_inter_pt_date,
-        parent_child_scos=parent_child_scos,
         exclusive_block_orders_grouped=exclusive_block_orders_grouped,
         trials_count=trials_count,
         all_mic_scos=all_mic_scos,
