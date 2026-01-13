@@ -22,7 +22,6 @@ from mibel_simulator.schemas.capacidad_inter_pt import CapacidadInterPTSchema
 from mibel_simulator.schemas.det import DETSchema
 from mibel_simulator.schemas.residual_demand_curves import ResidualDemandCurvesSchema
 from mibel_simulator.schemas.sell_profiles import SellProfilesSchema
-from mibel_simulator.tools import concat_provided_uof_zones_with_existing_data
 
 logger = logging.getLogger(__name__)
 

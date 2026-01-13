@@ -1,7 +1,6 @@
 ########################### Iterative Loop #########################
 
 
-import gc
 from itertools import combinations
 import logging
 import multiprocessing

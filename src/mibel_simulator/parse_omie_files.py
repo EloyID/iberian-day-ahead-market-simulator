@@ -3,7 +3,6 @@ import os
 import pandas as pd
 import logging
 
-from mibel_simulator.const import INTERCONEXION_UOFS
 import mibel_simulator.columns as cols
 
 logger = logging.getLogger(__name__)
