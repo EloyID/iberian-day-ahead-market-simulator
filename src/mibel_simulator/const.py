@@ -111,3 +111,6 @@ RDC_CAB_C_BASE = {
     cols.FLOAT_MIC: 0.0,
     cols.FLOAT_MAX_POWER: 9999999999,
 }
+
+RDC_ENERGY_COLUMNS = [f"energy_{i}" for i in range(1, 25)]
+RDC_PRICE_COLUMNS = [f"price_{i}" for i in range(1, 25)]

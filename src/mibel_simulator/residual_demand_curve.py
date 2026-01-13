@@ -243,3 +243,43 @@ def calculate_residual_demand_curves(
         }
 
     return residual_demand_curves
+
+
+from mibel_simulator.const import RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS
+
+
+def interpolate_residual_demand_curves(
+    target_energy_levels,
+    residual_demand_curves,
+):
+    interpolated_prices = {}
+    for energy_column, price_column in zip(RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS):
+        target_energy = target_energy_levels[energy_column]
+        residual_demand_curve_df = (
+            residual_demand_curves[[energy_column, price_column]]
+            .dropna()
+            .sort_values(by=energy_column)
+        )
+
+        interpolated_price = np.interp(
+            target_energy,
+            residual_demand_curve_df[energy_column],
+            residual_demand_curve_df[price_column],
+        )
+
+        extrapolated_mask = (
+            target_energy < residual_demand_curve_df[energy_column].min()
+        ) | (target_energy > residual_demand_curve_df[energy_column].max())
+        interpolated_price[extrapolated_mask] = np.nan
+
+        interpolated_price = pd.Series(
+            interpolated_price, index=target_energy.index, name=price_column
+        )
+
+        interpolated_prices[price_column] = interpolated_price
+
+    interpolated_residual_demand_curves = pd.concat(
+        [target_energy_levels[RDC_ENERGY_COLUMNS], pd.DataFrame(interpolated_prices)],
+        axis=1,
+    )
+    return interpolated_residual_demand_curves
