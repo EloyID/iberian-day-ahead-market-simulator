@@ -557,7 +557,7 @@ def iterative_function(
     ],
 ) -> pd.DataFrame:
     """
-    Runs a single DAM market clearing trial for a given combination of SCOs with MIC.
+    Runs a single market clearing trial for a given combination of SCOs with MIC.
 
     This function filters the DET/CAB data for the current SCOs with MIC, runs the market model,
     extracts relevant results, and returns a DataFrame summarizing the trial.
@@ -662,7 +662,7 @@ def run_iterative_loop(
     n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
     """
-    Runs the iterative DAM clearing process, optimizing combinations of SCOs with MIC.
+    Runs the iterative clearing process, optimizing combinations of SCOs with MIC.
 
     For each trial, filters SCOs, runs the market model, collects results, and updates the trial DataFrame. Continues until all combinations are tested or a successful result is found.
 
@@ -784,11 +784,11 @@ def clear_OMIE_market(
 ) -> dict:
     """
     Runs the full OMIE market clearing process for a given day, including data
-    preprocessing, structure building, and iterative DAM optimization.
+    preprocessing, structure building, and iterative optimization.
 
     This function prepares all necessary data structures from the provided DET,
     CAB, UOF zones, interconnection capacity, and France price data. It then
-    runs the iterative DAM clearing process, optimizing combinations of SCOs
+    runs the iterative clearing process, optimizing combinations of SCOs
     with MIC, and returns the results and best models.
 
     Args:

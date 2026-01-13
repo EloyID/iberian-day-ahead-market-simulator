@@ -39,7 +39,7 @@ def get_france_det_cab_date_from_price(
         date (pd.Timestamp | str, optional): Specific date to filter the data. Defaults to "" (no filtering).
 
     Returns:
-        pd.DataFrame: DataFrame in DET/CAB format, ready for use in the DAM simulator.
+        pd.DataFrame: DataFrame in DET/CAB format, ready for use in the simulator.
     """
 
     if cols.DATE_SESION in price_france.columns:
@@ -202,7 +202,7 @@ def get_det_cab_date_for_simulation(
         ValueError: If there are units not found in zone mapping and zones_default_to_spain is False.
 
     Returns:
-        pd.DataFrame: Merged and enriched DET/CAB DataFrame for DAM simulation.
+        pd.DataFrame: Merged and enriched DET/CAB DataFrame for simulation.
     """
 
     # Validate input data contains a single day
@@ -266,7 +266,7 @@ def get_det_cab_date_for_simulation(
     if det_cab_fr_date is not None:
         det_cab_date = pd.concat([det_cab_date, det_cab_fr_date], ignore_index=True)
 
-    # Add columns required for DAM simulator
+    # Add columns required for simulator
     det_cab_date[cols.CAT_ORDER_TYPE] = get_cat_order_type_column(det_cab_date)
     det_cab_date[cols.FLOAT_BID_POWER_CUMSUM] = get_float_bid_power_cumsum(
         det_cab_date, date_column_name=None, cod_ofertada_casada_column_name=None
