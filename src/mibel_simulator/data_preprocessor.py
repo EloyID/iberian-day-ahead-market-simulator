@@ -177,7 +177,7 @@ def get_det_cab_date_id_sco(det_cab_date: pd.DataFrame) -> np.ndarray:
     )
 
 
-def get_det_cab_date_for_DAM_simulator(
+def get_det_cab_date_for_simulation(
     det_date: pd.DataFrame,
     cab_date: pd.DataFrame,
     uof_zones: pd.DataFrame,

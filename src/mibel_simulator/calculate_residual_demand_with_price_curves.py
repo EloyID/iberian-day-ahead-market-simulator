@@ -11,7 +11,7 @@ from mibel_simulator.const import (
     RDC_PRICE_COLUMNS,
     SPAIN_ZONE,
 )
-from mibel_simulator.data_preprocessor import get_det_cab_date_for_DAM_simulator
+from mibel_simulator.data_preprocessor import get_det_cab_date_for_simulation
 from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
 from mibel_simulator.parse_omie_files import (
     parse_cab_file,
@@ -239,7 +239,7 @@ def calculate_residual_demand_with_price_curves(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
 
-    det_cab_date = get_det_cab_date_for_DAM_simulator(
+    det_cab_date = get_det_cab_date_for_simulation(
         det_date=det_date,
         cab_date=cab_date,
         uof_zones=uof_zones,

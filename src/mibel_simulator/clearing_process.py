@@ -14,7 +14,7 @@ import warnings
 from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, TRIALS_DF_COLUMNS
 from mibel_simulator.data_preprocessor import (
     get_all_mic_scos,
-    get_det_cab_date_for_DAM_simulator,
+    get_det_cab_date_for_simulation,
     get_exclusive_block_orders_grouped,
     get_france_det_cab_date_from_price,
 )
@@ -831,7 +831,7 @@ def clear_OMIE_market(
     det_cab_fr_date = get_france_det_cab_date_from_price(
         price_france_date, capacidad_inter_date
     )
-    det_cab_date = get_det_cab_date_for_DAM_simulator(
+    det_cab_date = get_det_cab_date_for_simulation(
         det_date=det_date,
         cab_date=cab_date,
         uof_zones=uof_zones,
