@@ -14,7 +14,7 @@ CURVA_PBC_UOF_RENAMING = {
     "Periodo":                  cols.INT_PERIODO,
     "Pais":                     cols.CAT_PAIS,
     "Fecha":                    cols.DATE_SESION,
-    "Tipo Oferta":              cols.CAT_TIPO_OFERTA,
+    "Tipo Oferta":              cols.CAT_BUY_SELL,
     "Ofertada (O)/Casada (C)":  cols.CAT_OFERTADA_CASADA,
     "Tipología de Oferta":      cols.CAT_ORDER_TYPE,
     "Potencia Compra/Venta":    cols.FLOAT_BID_POWER,
@@ -25,7 +25,7 @@ CURVA_PBC_UOF_RENAMING = {
 CURVA_PBC_UOF_TYPING = {
     cols.INT_PERIODO:            int,
     cols.CAT_PAIS:               'category',
-    cols.CAT_TIPO_OFERTA:        'category',
+    cols.CAT_BUY_SELL:        'category',
     cols.CAT_OFERTADA_CASADA:    'category',
     cols.CAT_ORDER_TYPE:         'category',
     cols.FLOAT_BID_POWER:        float,

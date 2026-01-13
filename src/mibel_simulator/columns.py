@@ -10,7 +10,6 @@ INT_NUM_BLOQ_PARENT = "int_num_bloq_parent"
 INT_NUM_BLOQ_CHILD = "int_num_bloq_child"
 
 CAT_PAIS = "cat_pais"
-CAT_TIPO_OFERTA = "cat_tipo_oferta"
 CAT_OFERTADA_CASADA = "cat_ofertada_casada"
 CAT_ORDER_TYPE = "cat_order_type"
 CAT_FRONTIER = "cat_frontier"
