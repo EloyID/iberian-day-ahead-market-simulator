@@ -180,8 +180,8 @@ def get_det_cab_date_id_sco(det_cab_date: pd.DataFrame) -> np.ndarray:
 def get_det_cab_date_for_DAM_simulator(
     det_date: pd.DataFrame,
     cab_date: pd.DataFrame,
-    det_cab_fr_date: pd.DataFrame,
     uof_zones: pd.DataFrame,
+    det_cab_fr_date: None | pd.DataFrame = None,
     zones_default_to_spain: bool = False,
 ) -> pd.DataFrame:
     """
@@ -194,7 +194,7 @@ def get_det_cab_date_for_DAM_simulator(
     Args:
         det_date (pd.DataFrame): DataFrame with DET data for a single day.
         cab_date (pd.DataFrame): DataFrame with CAB data for a single day.
-        det_cab_fr_date (pd.DataFrame): DataFrame with France DET/CAB bids for the same day.
+        det_cab_fr_date (None | pd.DataFrame): DataFrame with France DET/CAB bids for the same day.
         uof_zones (pd.DataFrame): DataFrame mapping units to zones.
         zones_default_to_spain (bool, optional): If True, assign missing units to Spain zone. Defaults to False.
 
@@ -216,7 +216,7 @@ def get_det_cab_date_for_DAM_simulator(
             cab_date[cols.DATE_SESION].nunique() == 1
         ), "cab_date must contain data for a single day"
 
-    if cols.DATE_SESION in det_cab_fr_date.columns:
+    if det_cab_fr_date is not None and cols.DATE_SESION in det_cab_fr_date.columns:
         assert (
             det_cab_fr_date[cols.DATE_SESION].nunique() == 1
         ), "det_cab_fr_date must contain data for a single day"
@@ -263,7 +263,8 @@ def get_det_cab_date_for_DAM_simulator(
     det_cab_date = det_cab_date.drop(columns=["_merge"])
 
     # Append France interconnection bids
-    det_cab_date = pd.concat([det_cab_date, det_cab_fr_date], ignore_index=True)
+    if det_cab_fr_date is not None:
+        det_cab_date = pd.concat([det_cab_date, det_cab_fr_date], ignore_index=True)
 
     # Add columns required for DAM simulator
     det_cab_date[cols.CAT_ORDER_TYPE] = get_cat_order_type_column(det_cab_date)

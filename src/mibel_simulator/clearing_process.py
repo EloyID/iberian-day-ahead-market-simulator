@@ -832,10 +832,10 @@ def clear_OMIE_market(
         price_france_date, capacidad_inter_date
     )
     det_cab_date = get_det_cab_date_for_DAM_simulator(
-        det_date,
-        cab_date,
-        det_cab_fr_date,
-        uof_zones,
+        det_date=det_date,
+        cab_date=cab_date,
+        uof_zones=uof_zones,
+        det_cab_fr_date=det_cab_fr_date,
         zones_default_to_spain=zones_default_to_spain,
     )
     exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
