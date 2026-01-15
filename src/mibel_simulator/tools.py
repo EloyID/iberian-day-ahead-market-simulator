@@ -266,7 +266,24 @@ def filter_mic_scos_from_det_cab(
 def concat_provided_uof_zones_with_existing_data(
     user_uof_zones: pd.DataFrame,
 ) -> pd.DataFrame:
+    """
+    Merge user-provided UOF zones with the packaged reference list.
 
+    The function copies and schema-validates the user dataframe (only `cols.ID_UNIDAD`
+    and `cols.CAT_PAIS`), loads the bundled UOF zones CSV and returns a combined dataframe
+    ready for downstream use (e.g., deduplication or reconciliation).
+
+    Args:
+        user_uof_zones: DataFrame with at least the columns `cols.ID_UNIDAD`
+            and `cols.CAT_PAIS` to append to the existing UOF zones list.
+
+    Returns:
+        A concatenated DataFrame containing existing and user-provided UOF zones.
+
+    Raises:
+        SchemaError: If `user_uof_zones` fails validation against `UOFZonesSchema`.
+        FileNotFoundError: If the existing UOF zones CSV cannot be loaded.
+    """
     user_uof_zones = user_uof_zones.copy()[[cols.ID_UNIDAD, cols.CAT_PAIS]]
     UOFZonesSchema.validate(user_uof_zones)
 
@@ -291,8 +308,10 @@ def concat_provided_uof_zones_with_existing_data(
     existing_uof_zones_filtered = existing_uof_zones.query(
         f"`{cols.ID_UNIDAD}` not in @user_unidades"
     )
-    combined_uof_zones = pd.concat(
-        [existing_uof_zones_filtered, user_uof_zones], ignore_index=True
-    ).reset_index(drop=True)
+    combined_uof_zones = (
+        pd.concat([existing_uof_zones_filtered, user_uof_zones], ignore_index=True)
+        .reset_index(drop=True)
+        .drop(columns="__origin")
+    )
 
     return combined_uof_zones
