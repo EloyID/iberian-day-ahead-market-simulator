@@ -7,11 +7,13 @@ from mibel_simulator.tools import get_cat_order_type_column, get_float_bid_power
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
     CAT_BUY,
+    CAT_PAIS_FRANCE,
     CAT_PAIS_SPAIN,
     CAT_SELL,
     DET_CAB_DATE_UNIQUE_IDENTIFIERS,
     FRANCE_ID_ORDER,
     FRANCE_ID_UNIDAD,
+    FRONTIER_MAPPING_REVERSE,
     PORTUGAL_ZONE,
     SPAIN_ZONE,
 )
@@ -55,7 +57,8 @@ def get_france_det_cab_date_from_price(
 
     if cols.CAT_FRONTIER in capacidad_inter.columns:
         capacidad_inter = capacidad_inter[
-            capacidad_inter[cols.CAT_FRONTIER] == 3
+            capacidad_inter[cols.CAT_FRONTIER]
+            == FRONTIER_MAPPING_REVERSE[CAT_PAIS_FRANCE]
         ].copy()
     if cols.DATE_SESION in capacidad_inter.columns:
         if date:
@@ -100,7 +103,7 @@ def get_france_det_cab_date_from_price(
         cols.INT_NUM_GRUPO_EXCL: 0,
         cols.FLOAT_MAV: 0,
         cols.FLOAT_MAR: 0,
-        cols.CAT_PAIS: CAT_PAIS_SPAIN,  # Spain because it's sell from France to Spain
+        cols.CAT_PAIS: CAT_PAIS_SPAIN,  # Spain because it's sold from France to Spain
     }
     if date:
         det_cab_values[cols.DATE_SESION] = pd.Timestamp(date)
