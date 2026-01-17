@@ -7,7 +7,7 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 import mibel_simulator.columns as cols
-import pandera as pa
+import pandera.pandas as pa
 import warnings
 
 from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, TRIALS_DF_COLUMNS

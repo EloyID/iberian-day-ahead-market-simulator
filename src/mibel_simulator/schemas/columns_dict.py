@@ -4,7 +4,7 @@ from mibel_simulator.const import (
     PAIS_OPTIONS,
     TIPO_OFERTA_OPTIONS,
 )
-import pandera as pa
+import pandera.pandas as pa
 import mibel_simulator.columns as cols
 
 # fmt: off

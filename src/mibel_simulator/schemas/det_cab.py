@@ -1,5 +1,5 @@
 import pandas as pd
-import pandera as pa
+import pandera.pandas as pa
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
     BLOCK_UNIQUE_IDENTIFIERS,
