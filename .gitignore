@@ -10,3 +10,9 @@ examples/wandb
 examples/results
 *.txt
 *.ipynb
+
+# Ignore everything in data/
+data/**
+!data/
+!data/**/
+!data/**/.gitkeep
