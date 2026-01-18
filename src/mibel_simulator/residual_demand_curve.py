@@ -221,8 +221,10 @@ def calculate_residual_demand_curves(
 
         if isinstance(uof_zones, pd.DataFrame):
             uof_zones_modified = pd.concat([uof_zones, rdc_uof_zone], ignore_index=True)
-        else:
+        elif not rdc_uof_zone.empty:
             uof_zones_modified = rdc_uof_zone
+        else:
+            uof_zones_modified = None
 
         results = clear_OMIE_market(
             det_date=det_date_modified,
