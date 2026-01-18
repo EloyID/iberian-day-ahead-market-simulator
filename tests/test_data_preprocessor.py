@@ -34,7 +34,7 @@ def capacidad_inter():
 
 
 @pytest.fixture
-def expected_det_cab():
+def expected_det_cab_fr():
     return pd.DataFrame(
         {
             "int_periodo": [1, 2, 1, 2],
@@ -76,64 +76,25 @@ def date_basic():
     return "2025-07-01"
 
 
-# ---------------------------------------------------------------------------
-# Fixtures for get_det_cab_date_for_simulation
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def uof_zones_basic():
-    return pd.DataFrame(
-        {
-            cols.ID_UNIDAD: ["UNIT_ES", "UNIT_PT"],
-            cols.CAT_PAIS: ["ES", "PT"],
-        }
-    )
-
-
-@pytest.fixture
-def det_cab_fr_stub():
-    date = pd.Timestamp("2025-07-01")
-    return pd.DataFrame(
-        {
-            cols.DATE_SESION: [date],
-            cols.ID_ORDER: ["FR_ORD"],
-            cols.ID_UNIDAD: ["MIEU"],
-            cols.CAT_BUY_SELL: [CAT_SELL],
-            cols.INT_PERIODO: [3],
-            cols.INT_NUM_BLOQ: [0],
-            cols.INT_NUM_TRAMO: [1],
-            cols.INT_NUM_GRUPO_EXCL: [0],
-            cols.FLOAT_BID_PRICE: [45.0],
-            cols.FLOAT_BID_POWER: [120.0],
-            cols.FLOAT_MAV: [0.0],
-            cols.FLOAT_MAR: [0.0],
-            cols.FLOAT_MIC: [0.0],
-            cols.FLOAT_MAX_POWER: [99999999.0],
-            cols.CAT_PAIS: ["FR"],
-        }
-    )
-
-
 class TestGetFranceDetCabDateFromPrice:
 
     def test_creates_buy_and_sell_bids_per_period(
-        self, price_france, capacidad_inter, expected_det_cab, date_basic
+        self, price_france, capacidad_inter, expected_det_cab_fr, date_basic
     ):
         price_france = price_france.copy()
         capacidad_inter = capacidad_inter.copy()
-        expected_det_cab = expected_det_cab.copy()
+        expected_det_cab_fr = expected_det_cab_fr.copy()
         det_cab = get_france_det_cab_date_from_price(
             price_france, capacidad_inter, date=date_basic
         )
 
         pd.testing.assert_frame_equal(
             det_cab.reset_index(drop=True),
-            expected_det_cab.reset_index(drop=True),
+            expected_det_cab_fr.reset_index(drop=True),
         )
 
     def test_filters_by_date_when_multiple_dates_present(
-        self, price_france, capacidad_inter, expected_det_cab
+        self, price_france, capacidad_inter, expected_det_cab_fr
     ):
         price_france = price_france.copy()
         price_france[cols.DATE_SESION] = pd.Series(
@@ -155,32 +116,32 @@ class TestGetFranceDetCabDateFromPrice:
             price_france, capacidad_inter, date="2025-07-01"
         )
 
-        expected_det_cab = expected_det_cab.iloc[[0, 2]].copy()
+        expected_det_cab_fr = expected_det_cab_fr.iloc[[0, 2]].copy()
 
         pd.testing.assert_frame_equal(
             det_cab.reset_index(drop=True),
-            expected_det_cab.reset_index(drop=True),
+            expected_det_cab_fr.reset_index(drop=True),
         )
 
     def test_filters_cat_frontier_equals_three(
-        self, price_france, capacidad_inter, expected_det_cab
+        self, price_france, capacidad_inter, expected_det_cab_fr
     ):
         capacidad_inter = capacidad_inter.copy()
         capacidad_inter[cols.CAT_FRONTIER] = pd.Series(
             [2, 3]
         )  # One row with PT, one with FR
-        expected_det_cab = expected_det_cab.iloc[[1, 3]].copy()
+        expected_det_cab_fr = expected_det_cab_fr.iloc[[1, 3]].copy()
 
         det_cab = get_france_det_cab_date_from_price(
             price_france, capacidad_inter, date="2025-07-01"
         )
         pd.testing.assert_frame_equal(
             det_cab.reset_index(drop=True),
-            expected_det_cab.reset_index(drop=True),
+            expected_det_cab_fr.reset_index(drop=True),
         )
 
     def test_raises_if_multiple_dates_without_date_param(
-        self, price_france, capacidad_inter, expected_det_cab
+        self, price_france, capacidad_inter, expected_det_cab_fr
     ):
         price_france = price_france.copy()
         price_france[cols.DATE_SESION] = pd.Series(
@@ -192,6 +153,25 @@ class TestGetFranceDetCabDateFromPrice:
 
         with pytest.raises(ValueError):
             get_france_det_cab_date_from_price(price_france, capacidad_inter)
+
+    def test_no_det_cab_entries_with_0_power(
+        self, price_france, capacidad_inter, expected_det_cab_fr, date_basic
+    ):
+        price_france = price_france.copy()
+        capacidad_inter = capacidad_inter.copy()
+        expected_det_cab_fr = expected_det_cab_fr.copy()
+
+        capacidad_inter.loc[0, cols.FLOAT_IMPORT_CAPACITY] = 0.0
+        expected_det_cab_fr = expected_det_cab_fr.drop(index=[0])
+
+        det_cab = get_france_det_cab_date_from_price(
+            price_france, capacidad_inter, date=date_basic
+        )
+
+        pd.testing.assert_frame_equal(
+            det_cab.reset_index(drop=True),
+            expected_det_cab_fr.reset_index(drop=True),
+        )
 
 
 # ---------------------------------------------------------------------------

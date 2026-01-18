@@ -113,6 +113,7 @@ def get_france_det_cab_date_from_price(
         det_cab.assign(**det_cab_values)
         .rename(columns={cols.FLOAT_PRICE_FR: cols.FLOAT_BID_PRICE})
         .dropna()
+        .query(f"{cols.FLOAT_BID_POWER} > 0")
     )
     return det_cab
 
