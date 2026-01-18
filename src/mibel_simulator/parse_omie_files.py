@@ -287,9 +287,10 @@ def parse_det_file(det_filepath: str) -> pd.DataFrame:
     # false data, so we drop it when it represents less than 1% of the data
     if not det_25_hour.empty:
 
-        if len(det_25_hour) < 0.01 * (len(det) / 24):
+        print(len(det_25_hour), len(det) / 24)
+        if len(det_25_hour) < 0.1 * (len(det) / 24):
             logger.warning(
-                "Period 25 represents less than 1%% of the data, dropping it. File: %s",
+                "Period 25 size is less than 0.1 times the size of the other periods, dropping it. You can ignore this, this is a typical issue with OMIE det files. File: %s",
                 det_filepath,
             )
             det = det[det[cols.INT_PERIODO] != 25]
