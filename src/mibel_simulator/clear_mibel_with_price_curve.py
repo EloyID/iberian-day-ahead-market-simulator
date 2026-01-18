@@ -157,3 +157,39 @@ def get_cleared_power_with_price_curve(
     assert not cleared_energy.isna().any(), "Some cleared_energy is NaN"
 
     return cleared_energy
+
+
+def get_cleared_power_as_simple_bids_with_price_curve(
+    price_curve: np.ndarray,
+    det_cab_date: pd.DataFrame,
+):
+
+    price_curve_dict = {i: price_curve[i - 1] for i in range(1, 25)}
+    det_cab_date = det_cab_date.copy()
+    det_cab_date[cols.FLOAT_CLEARED_PRICE] = det_cab_date[cols.INT_PERIODO].map(
+        price_curve_dict
+    )
+
+    cleared_energy = pd.Series(index=det_cab_date.index, dtype=float)
+
+    det_cab_date_buy_mask = det_cab_date[cols.CAT_BUY_SELL] == "C"
+    cleared_energy.loc[det_cab_date_buy_mask] = np.where(
+        det_cab_date.loc[det_cab_date_buy_mask, cols.FLOAT_BID_PRICE]
+        >= det_cab_date.loc[det_cab_date_buy_mask, cols.FLOAT_CLEARED_PRICE],
+        det_cab_date.loc[det_cab_date_buy_mask, cols.FLOAT_BID_POWER],
+        0,
+    )
+
+    det_cab_date_sell_mask = (det_cab_date[cols.CAT_BUY_SELL] == "V") & (
+        det_cab_date[cols.CAT_ORDER_TYPE] == "S"
+    )
+    cleared_energy.loc[det_cab_date_sell_mask] = np.where(
+        det_cab_date.loc[det_cab_date_sell_mask, cols.FLOAT_BID_PRICE]
+        <= det_cab_date.loc[det_cab_date_sell_mask, cols.FLOAT_CLEARED_PRICE],
+        det_cab_date.loc[det_cab_date_sell_mask, cols.FLOAT_BID_POWER],
+        0,
+    )
+
+    assert not cleared_energy.isna().any(), "Some cleared_energy is NaN"
+
+    return cleared_energy

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from mibel_simulator.clear_mibel_with_price_curve import (
+    get_cleared_power_as_simple_bids_with_price_curve,
     get_cleared_power_with_price_curve,
 )
 from mibel_simulator.const import (
@@ -101,38 +102,55 @@ def calculate_complex_residual_demand_II_with_market_split(
     ).add(residual_demand_hourly_from_portugal_with_saturation, fill_value=0)
     residual_demand_with_saturation_hourly.index = residual_demand_hourly_portugal.index
     residual_demand_with_saturation_hourly.name = (
-        "residual_demand_with_saturation_hourly"
+        "complex_residual_demand_II_with_market_split_curves"
     )
     return residual_demand_with_saturation_hourly
 
 
-def sum_cleared_power_by_period(det_cab_date):
+def sum_cleared_power_by_period(
+    det_cab_date, cleared_power_column=cols.FLOAT_CLEARED_POWER
+):
     return (
-        det_cab_date.groupby(cols.INT_PERIODO)[cols.FLOAT_CLEARED_POWER]
-        .sum()
-        .sort_index()
+        det_cab_date.groupby(cols.INT_PERIODO)[cleared_power_column].sum().sort_index()
     )
+
+
+def calculate_complex_residual_demand_I_without_market_split(det_cab_date):
+    energy_hourly_cleared_C = sum_cleared_power_by_period(
+        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C"'),
+    )
+    energy_hourly_cleared_V = sum_cleared_power_by_period(
+        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V"'),
+    )
+
+    return energy_hourly_cleared_C.sub(energy_hourly_cleared_V, fill_value=0)
 
 
 def calculate_only_simple_submitted_relaxed_residual_demand(det_cab_date):
 
     energy_hourly_cleared_C = sum_cleared_power_by_period(
-        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C"')
+        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C"'),
+        cleared_power_column="float_cleared_power_as_simple_bid",
     )
     energy_hourly_cleared_V_S = sum_cleared_power_by_period(
-        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V" & {cols.CAT_ORDER_TYPE} == "S"')
+        det_cab_date.query(
+            f'{cols.CAT_BUY_SELL} == "V" & {cols.CAT_ORDER_TYPE} == "S"'
+        ),
+        cleared_power_column="float_cleared_power_as_simple_bid",
     )
 
     return energy_hourly_cleared_C.sub(energy_hourly_cleared_V_S, fill_value=0)
 
 
-def calculate_complex_residual_demand_I_without_market_split(det_cab_date):
+def calculate_submitted_relaxed_residual_demand(det_cab_date):
 
     energy_hourly_cleared_C = sum_cleared_power_by_period(
-        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C"')
+        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C"'),
+        cleared_power_column="float_cleared_power_as_simple_bid",
     )
     energy_hourly_cleared_V = sum_cleared_power_by_period(
-        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V"')
+        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V"'),
+        cleared_power_column="float_cleared_power_as_simple_bid",
     )
 
     return energy_hourly_cleared_C.sub(energy_hourly_cleared_V, fill_value=0)
@@ -176,67 +194,89 @@ def calculate_residual_demand_with_price_curves(
         zones_default_to_spain=zones_default_to_spain,
     )
 
-    residual_demands_with_simple_bids_curves = []
-    residual_demands_without_saturation_curves = []
-    residual_demands_with_saturation_curves = []
+    only_simple_submitted_relaxed_residual_demands = []
+    submitted_relaxed_residual_demands = []
+    complex_residual_demands_I_without_market_split = []
+    complex_residual_demands_II_with_market_split = []
 
     for price_curve in price_curves:
 
         det_cab_date_aux = det_cab_date.copy()
+        price_series = pd.Series(price_curve, index=RDC_PRICE_COLUMNS)
+
+        # Calculate cleared power values
+        det_cab_date_aux["float_cleared_power_as_simple_bid"] = (
+            get_cleared_power_as_simple_bids_with_price_curve(
+                price_curve, det_cab_date_aux
+            )
+        )
         det_cab_date_aux[cols.FLOAT_CLEARED_POWER] = get_cleared_power_with_price_curve(
             price_curve, det_cab_date_aux
         )
 
-        price_series = pd.Series(price_curve, index=RDC_PRICE_COLUMNS)
-
-        residual_demand_with_simple_bids_hourly = (
+        # Calculate residual demand
+        only_simple_submitted_relaxed_residual_demand = (
             calculate_only_simple_submitted_relaxed_residual_demand(det_cab_date_aux)
         )
-        residual_demand_with_simple_bids_hourly.index = RDC_ENERGY_COLUMNS
-        residual_demand_with_simple_bids_hourly = pd.concat(
-            [price_series, residual_demand_with_simple_bids_hourly]
+        only_simple_submitted_relaxed_residual_demand.index = RDC_ENERGY_COLUMNS
+        only_simple_submitted_relaxed_residual_demand = pd.concat(
+            [price_series, only_simple_submitted_relaxed_residual_demand]
         )
 
-        residual_demand_without_saturation_hourly = (
+        submitted_relaxed_residual_demand = calculate_submitted_relaxed_residual_demand(
+            det_cab_date_aux
+        )
+        submitted_relaxed_residual_demand.index = RDC_ENERGY_COLUMNS
+        submitted_relaxed_residual_demand = pd.concat(
+            [price_series, submitted_relaxed_residual_demand]
+        )
+
+        complex_residual_demand_I_without_market_split = (
             calculate_complex_residual_demand_I_without_market_split(det_cab_date_aux)
         )
-        residual_demand_without_saturation_hourly.index = RDC_ENERGY_COLUMNS
-        residual_demand_without_saturation_hourly = pd.concat(
-            [price_series, residual_demand_without_saturation_hourly]
+        complex_residual_demand_I_without_market_split.index = RDC_ENERGY_COLUMNS
+        complex_residual_demand_I_without_market_split = pd.concat(
+            [price_series, complex_residual_demand_I_without_market_split]
         )
 
-        residual_demand_with_saturation_hourly = (
+        complex_residual_demand_II_with_market_split = (
             calculate_complex_residual_demand_II_with_market_split(
                 det_cab_date_aux, capacidad_inter_PT_date
             )
         )
-        residual_demand_with_saturation_hourly.index = RDC_ENERGY_COLUMNS
-        residual_demand_with_saturation_hourly = pd.concat(
-            [price_series, residual_demand_with_saturation_hourly]
+        complex_residual_demand_II_with_market_split.index = RDC_ENERGY_COLUMNS
+        complex_residual_demand_II_with_market_split = pd.concat(
+            [price_series, complex_residual_demand_II_with_market_split]
         )
 
-        residual_demands_with_simple_bids_curves.append(
-            residual_demand_with_simple_bids_hourly
+        only_simple_submitted_relaxed_residual_demands.append(
+            only_simple_submitted_relaxed_residual_demand
         )
-        residual_demands_without_saturation_curves.append(
-            residual_demand_without_saturation_hourly
+        submitted_relaxed_residual_demands.append(submitted_relaxed_residual_demand)
+        complex_residual_demands_I_without_market_split.append(
+            complex_residual_demand_I_without_market_split
         )
-        residual_demands_with_saturation_curves.append(
-            residual_demand_with_saturation_hourly
+        complex_residual_demands_II_with_market_split.append(
+            complex_residual_demand_II_with_market_split
         )
 
-    residual_demands_with_simple_bids_curves_df = pd.DataFrame(
-        residual_demands_with_simple_bids_curves
+    # Calculate residual demand submitted_relaxed_residual_demandscurves
+    only_simple_submitted_relaxed_residual_demand_df = pd.DataFrame(
+        only_simple_submitted_relaxed_residual_demand
     )
-    residual_demands_without_saturation_curves_df = pd.DataFrame(
-        residual_demands_without_saturation_curves
+    submitted_relaxed_residual_demand_curves_df = pd.DataFrame(
+        submitted_relaxed_residual_demands
     )
-    residual_demands_with_saturation_curves_df = pd.DataFrame(
-        residual_demands_with_saturation_curves
+    complex_residual_demand_I_without_market_split_curves_df = pd.DataFrame(
+        complex_residual_demands_I_without_market_split
+    )
+    complex_residual_demand_II_with_market_split_curves_df = pd.DataFrame(
+        complex_residual_demands_II_with_market_split
     )
 
     return {
-        "residual_demands_with_simple_bids_curves": residual_demands_with_simple_bids_curves_df,
-        "residual_demands_without_saturation_curves": residual_demands_without_saturation_curves_df,
-        "residual_demands_with_saturation_curves": residual_demands_with_saturation_curves_df,
+        "only_simple_submitted_relaxed_residual_demand": only_simple_submitted_relaxed_residual_demand_df,
+        "submitted_relaxed_residual_demand_curves": submitted_relaxed_residual_demand_curves_df,
+        "complex_residual_demand_I_without_market_split_curves": complex_residual_demand_I_without_market_split_curves_df,
+        "complex_residual_demand_II_with_market_split_curves": complex_residual_demand_II_with_market_split_curves_df,
     }

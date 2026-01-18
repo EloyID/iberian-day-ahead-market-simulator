@@ -9,10 +9,11 @@ import pandas as pd
 import pytest
 from mibel_simulator import columns as cols
 from mibel_simulator.calculate_residual_demand_with_price_curves import (
+    calculate_complex_residual_demand_I_without_market_split,
     format_price_curves,
     calculate_complex_residual_demand_II_with_market_split,
     calculate_only_simple_submitted_relaxed_residual_demand,
-    calculate_complex_residual_demand_I_without_market_split,
+    calculate_submitted_relaxed_residual_demand,
 )
 from mibel_simulator.const import SPAIN_ZONE, PORTUGAL_ZONE
 
@@ -79,7 +80,8 @@ class TestCalculateOnlySimpleSubmittedRelaxedResidualDemand:
                 cols.CAT_BUY_SELL: ["C", "V", "C", "V"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "S", "S"],
                 cols.ID_UNIDAD: ["UNIT1", "UNIT2", "UNIT1", "UNIT2"],
-                cols.FLOAT_CLEARED_POWER: [100.0, 50.0, 120.0, 60.0],
+                "float_cleared_power_as_simple_bid": [100.0, 50.0, 120.0, 60.0],
+                cols.FLOAT_CLEARED_POWER: [0.0, 0.0, 0.0, 0.0],  # Ignored in this test
             }
         )
 
@@ -92,7 +94,8 @@ class TestCalculateOnlySimpleSubmittedRelaxedResidualDemand:
                 cols.CAT_BUY_SELL: ["C", "V", "V", "C", "V"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "C01", "S", "C01"],
                 cols.ID_UNIDAD: ["UNIT1", "UNIT2", "UNIT3", "UNIT1", "UNIT3"],
-                cols.FLOAT_CLEARED_POWER: [100.0, 50.0, 30.0, 120.0, 40.0],
+                "float_cleared_power_as_simple_bid": [100.0, 50.0, 30.0, 120.0, 40.0],
+                cols.FLOAT_CLEARED_POWER: [0.0, 0.0, 0.0, 0.0, 0.0],  # Ignored
             }
         )
 
@@ -101,11 +104,14 @@ class TestCalculateOnlySimpleSubmittedRelaxedResidualDemand:
         """Fixture with France exchanges."""
         return pd.DataFrame(
             {
+                # fmt: off
                 cols.INT_PERIODO: [1, 1, 1, 2, 2, 2],
                 cols.CAT_BUY_SELL: ["C", "V", "V", "C", "V", "C"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "S", "S", "S", "S"],
                 cols.ID_UNIDAD: ["UNIT1", "UNIT2", "MIEU", "UNIT1", "UNIT2", "MIEU"],
-                cols.FLOAT_CLEARED_POWER: [100.0, 50.0, 20.0, 120.0, 60.0, 25.0],
+                "float_cleared_power_as_simple_bid": [100.0, 50.0, 20.0, 120.0, 60.0, 25.0],
+                cols.FLOAT_CLEARED_POWER: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                # fmt: on
             }
         )
 
@@ -146,19 +152,22 @@ class TestCalculateOnlySimpleSubmittedRelaxedResidualDemand:
         assert result.loc[2] == pytest.approx(85.0)
 
 
-class TestCalculateResidualDemandIWithoutSaturationHourly:
-    """Test suite for calculate_complex_residual_demand_I_without_market_split function."""
+class TestCalculateSubmittedRelaxedResidualDemand:
+    """Test suite for calculate_submitted_relaxed_residual_demand function."""
 
     @pytest.fixture
     def det_cab_all_bids(self):
         """Fixture with all types of bids."""
         return pd.DataFrame(
             {
+                # fmt: off
                 cols.INT_PERIODO: [1, 1, 1, 2, 2, 2],
                 cols.CAT_BUY_SELL: ["C", "V", "V", "C", "V", "V"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "C01", "S", "S", "C01"],
                 cols.ID_UNIDAD: ["UNIT1", "UNIT2", "UNIT3", "UNIT1", "UNIT2", "UNIT3"],
-                cols.FLOAT_CLEARED_POWER: [100.0, 50.0, 30.0, 120.0, 60.0, 40.0],
+                "float_cleared_power_as_simple_bid": [100.0, 50.0, 30.0, 120.0, 60.0, 40.0],
+                cols.FLOAT_CLEARED_POWER: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                # fmt: on
             }
         )
 
@@ -167,6 +176,7 @@ class TestCalculateResidualDemandIWithoutSaturationHourly:
         """Fixture with France exchanges and all bid types."""
         return pd.DataFrame(
             {
+                # fmt: off
                 cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2],
                 cols.CAT_BUY_SELL: ["C", "V", "V", "V", "C", "V", "C"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "C01", "S", "S", "C01", "S"],
@@ -179,15 +189,15 @@ class TestCalculateResidualDemandIWithoutSaturationHourly:
                     "UNIT3",
                     "MIEU",
                 ],
-                cols.FLOAT_CLEARED_POWER: [100.0, 50.0, 30.0, 20.0, 120.0, 40.0, 25.0],
+                "float_cleared_power_as_simple_bid": [100.0, 50.0, 30.0, 20.0, 120.0, 40.0, 25.0],
+                cols.FLOAT_CLEARED_POWER: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                # fmt: on
             }
         )
 
     def test_includes_all_bid_types(self, det_cab_all_bids):
         """Test that all bid types are included."""
-        result = calculate_complex_residual_demand_I_without_market_split(
-            det_cab_all_bids
-        )
+        result = calculate_submitted_relaxed_residual_demand(det_cab_all_bids)
 
         assert isinstance(result, pd.Series)
         # Period 1: 100 - (50 + 30) = 20
@@ -197,9 +207,7 @@ class TestCalculateResidualDemandIWithoutSaturationHourly:
 
     def test_france_exchanges_included(self, det_cab_with_france_all):
         """Test France exchanges are included."""
-        result = calculate_complex_residual_demand_I_without_market_split(
-            det_cab_with_france_all
-        )
+        result = calculate_submitted_relaxed_residual_demand(det_cab_with_france_all)
 
         # Period 1: Buy(100) - Sell(50+30+20) = 0
         assert result.loc[1] == pytest.approx(0.0)
@@ -207,109 +215,159 @@ class TestCalculateResidualDemandIWithoutSaturationHourly:
         assert result.loc[2] == pytest.approx(105.0)
 
 
-class TestCalculateResidualDemandWithSaturationHourly:
-    """Test suite for calculate_residual_demand_with_saturation_hourly function."""
+@pytest.fixture
+def det_cab_two_countries():
+    """Fixture with Spain and Portugal bids."""
+    return pd.DataFrame(
+        {
+            cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2, 2],
+            cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
+            cols.CAT_PAIS: [
+                SPAIN_ZONE,
+                SPAIN_ZONE,
+                PORTUGAL_ZONE,
+                PORTUGAL_ZONE,
+                SPAIN_ZONE,
+                SPAIN_ZONE,
+                PORTUGAL_ZONE,
+                PORTUGAL_ZONE,
+            ],
+            cols.FLOAT_CLEARED_POWER: [
+                100.0,
+                50.0,
+                80.0,
+                60.0,
+                120.0,
+                70.0,
+                90.0,
+                55.0,
+            ],
+        }
+    )
 
-    @pytest.fixture
-    def det_cab_two_countries(self):
-        """Fixture with Spain and Portugal bids."""
-        return pd.DataFrame(
-            {
-                cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2, 2],
-                cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
-                cols.CAT_PAIS: [
-                    SPAIN_ZONE,
-                    SPAIN_ZONE,
-                    PORTUGAL_ZONE,
-                    PORTUGAL_ZONE,
-                    SPAIN_ZONE,
-                    SPAIN_ZONE,
-                    PORTUGAL_ZONE,
-                    PORTUGAL_ZONE,
-                ],
-                cols.FLOAT_CLEARED_POWER: [
-                    100.0,
-                    50.0,
-                    80.0,
-                    60.0,
-                    120.0,
-                    70.0,
-                    90.0,
-                    55.0,
-                ],
-            }
+
+@pytest.fixture
+def capacidad_inter_pt():
+    """Fixture with PT interconnection capacities."""
+    return pd.DataFrame(
+        {
+            cols.INT_PERIODO: [1, 2],
+            cols.FLOAT_IMPORT_CAPACITY: [100.0, 100.0],
+            cols.FLOAT_EXPORT_CAPACITY: [150.0, 150.0],
+        }
+    )
+
+
+@pytest.fixture
+def det_cab_import_saturated():
+    """Fixture with import saturation scenario."""
+    return pd.DataFrame(
+        {
+            cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2, 2],
+            cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
+            cols.CAT_PAIS: [
+                SPAIN_ZONE,
+                SPAIN_ZONE,
+                PORTUGAL_ZONE,
+                PORTUGAL_ZONE,
+                SPAIN_ZONE,
+                SPAIN_ZONE,
+                PORTUGAL_ZONE,
+                PORTUGAL_ZONE,
+            ],
+            cols.FLOAT_CLEARED_POWER: [
+                200.0,
+                50.0,
+                30.0,
+                150.0,  # PT demand = -120
+                100.0,
+                40.0,
+                50.0,
+                60.0,
+            ],  # Filler for P2
+        }
+    )
+
+
+@pytest.fixture
+def det_cab_export_saturated():
+    """Fixture with export saturation scenario."""
+    return pd.DataFrame(
+        {
+            cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2, 2],
+            cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
+            cols.CAT_PAIS: [
+                SPAIN_ZONE,
+                SPAIN_ZONE,
+                PORTUGAL_ZONE,
+                PORTUGAL_ZONE,
+                SPAIN_ZONE,
+                SPAIN_ZONE,
+                PORTUGAL_ZONE,
+                PORTUGAL_ZONE,
+            ],
+            cols.FLOAT_CLEARED_POWER: [
+                200.0,
+                50.0,
+                250.0,
+                50.0,  # PT demand = 200
+                100.0,
+                40.0,
+                50.0,
+                60.0,
+            ],  # Filler for P2
+        }
+    )
+
+
+class TestCalculateComplexResidualDemandIWithMarketSplit:
+    """Test suite for calculate_complex_residual_demand_II_with_market_split function."""
+
+    def test_no_saturation(self, det_cab_two_countries):
+        """Test residual demand without saturation."""
+        result = calculate_complex_residual_demand_I_without_market_split(
+            det_cab_two_countries
+        )
+        print(det_cab_two_countries)
+        print(result)
+        assert isinstance(result, pd.Series)
+        assert len(result) == 2
+        assert result.loc[1] == pytest.approx(70.0)
+        assert result.loc[2] == pytest.approx(85.0)
+
+    def test_import_saturation(self, det_cab_import_saturated):
+        """Test residual demand with import saturation."""
+        result = calculate_complex_residual_demand_I_without_market_split(
+            det_cab_import_saturated
         )
 
-    @pytest.fixture
-    def capacidad_inter_pt(self):
-        """Fixture with PT interconnection capacities."""
-        return pd.DataFrame(
-            {
-                cols.INT_PERIODO: [1, 2],
-                cols.FLOAT_IMPORT_CAPACITY: [100.0, 100.0],
-                cols.FLOAT_EXPORT_CAPACITY: [150.0, 150.0],
-            }
+        # PT residual = 30 - 150 = -120 (< -100, so import saturated)
+        # Spain: 200 - 50 + -120 = 30 (We ignore the saturation here)
+        assert result.loc[1] == pytest.approx(30.0)
+        assert result.loc[2] == pytest.approx(50.0)
+
+    def test_export_saturation(self, det_cab_export_saturated):
+        """Test residual demand with export saturation."""
+        result = calculate_complex_residual_demand_I_without_market_split(
+            det_cab_export_saturated
         )
 
-    @pytest.fixture
-    def det_cab_import_saturated(self):
-        """Fixture with import saturation scenario."""
-        return pd.DataFrame(
-            {
-                cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2, 2],
-                cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
-                cols.CAT_PAIS: [
-                    SPAIN_ZONE,
-                    SPAIN_ZONE,
-                    PORTUGAL_ZONE,
-                    PORTUGAL_ZONE,
-                    SPAIN_ZONE,
-                    SPAIN_ZONE,
-                    PORTUGAL_ZONE,
-                    PORTUGAL_ZONE,
-                ],
-                cols.FLOAT_CLEARED_POWER: [
-                    200.0,
-                    50.0,
-                    30.0,
-                    150.0,  # PT demand = -120
-                    100.0,
-                    40.0,
-                    50.0,
-                    60.0,
-                ],  # Filler for P2
-            }
+        # PT residual = 250 - 50 = 200 (> export cap 150)
+        # Spain saturated: 200 + 200 - 50 = 350 (We ignore the saturation here)
+        assert result.loc[1] == pytest.approx(350.0)
+        assert result.loc[2] == pytest.approx(50.0)
+
+    def test_series_index(self, det_cab_two_countries):
+        """Test that result has correct name and index."""
+        result = calculate_complex_residual_demand_I_without_market_split(
+            det_cab_two_countries
         )
 
-    @pytest.fixture
-    def det_cab_export_saturated(self):
-        """Fixture with export saturation scenario."""
-        return pd.DataFrame(
-            {
-                cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2, 2],
-                cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
-                cols.CAT_PAIS: [
-                    SPAIN_ZONE,
-                    SPAIN_ZONE,
-                    PORTUGAL_ZONE,
-                    PORTUGAL_ZONE,
-                    SPAIN_ZONE,
-                    SPAIN_ZONE,
-                    PORTUGAL_ZONE,
-                    PORTUGAL_ZONE,
-                ],
-                cols.FLOAT_CLEARED_POWER: [
-                    200.0,
-                    50.0,
-                    250.0,
-                    50.0,  # PT demand = 200
-                    100.0,
-                    40.0,
-                    50.0,
-                    60.0,
-                ],  # Filler for P2
-            }
-        )
+        assert list(result.index) == [1, 2]
+
+
+class TestCalculateComplexResidualDemandIIWithMarketSplit:
+    """Test suite for calculate_complex_residual_demand_II_with_market_split function."""
 
     def test_no_saturation(self, det_cab_two_countries, capacidad_inter_pt):
         """Test residual demand without saturation."""
@@ -331,7 +389,7 @@ class TestCalculateResidualDemandWithSaturationHourly:
         )
 
         # PT residual = 30 - 150 = -120 (< -100, so import saturated)
-        # Spain saturated: 200 - 50 + 100 = 250
+        # Spain saturated: 200 - 50 - 100 = 50
         assert result.loc[1] == pytest.approx(50.0)
         assert result.loc[2] == pytest.approx(50.0)
 
@@ -352,5 +410,5 @@ class TestCalculateResidualDemandWithSaturationHourly:
             det_cab_two_countries, capacidad_inter_pt
         )
 
-        assert result.name == "residual_demand_with_saturation_hourly"
+        assert result.name == "complex_residual_demand_II_with_market_split_curves"
         assert list(result.index) == [1, 2]
