@@ -145,6 +145,188 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
             price in [-500.0, 3500.0] for price in det[cols.FLOAT_BID_PRICE].values
         )
 
+    def test_all_positive_values(self):
+        """Test RDC generation with all positive values (sell orders)."""
+        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        # All should be sell orders, with bid price of -500
+        assert (det[cols.FLOAT_BID_PRICE] == -500.0).all()
+        # UOF should only contain sell unit
+        assert len(uof) == 1
+
+    def test_all_negative_values(self):
+        """Test RDC generation with all negative values (buy orders)."""
+        rdc_data = {f"energy_{i+1}": -100.0 for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        # All should be buy orders, with bid price of 3500
+        assert (det[cols.FLOAT_BID_PRICE] == 3500.0).all()
+        # UOF should only contain buy unit
+        assert len(uof) == 1
+
+    def test_bid_power_absolute_values(self):
+        """Test that bid power is the absolute value of the RDC."""
+        rdc_data = {f"energy_{i+1}": (-50.0 if i % 2 == 0 else 75.0) for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        # Check that power values are absolute
+        assert all(det[cols.FLOAT_BID_POWER] >= 0)
+        # For negative RDC values, bid power should be 50.0
+        negative_indices = [i for i in range(24) if i % 2 == 0]
+        assert all(
+            det[det[cols.INT_PERIODO].isin([i + 1 for i in negative_indices])][
+                cols.FLOAT_BID_POWER
+            ]
+            == 50.0
+        )
+        # For positive RDC values, bid power should be 75.0
+        positive_indices = [i for i in range(24) if i % 2 == 1]
+        assert all(
+            det[det[cols.INT_PERIODO].isin([i + 1 for i in positive_indices])][
+                cols.FLOAT_BID_POWER
+            ]
+            == 75.0
+        )
+
+    def test_det_dataframe_structure(self):
+        """Test that DET DataFrame has correct structure and columns."""
+        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        # Check required columns exist
+        required_cols = [
+            cols.DATE_SESION,
+            cols.ID_ORDER,
+            cols.INT_PERIODO,
+            cols.INT_NUM_BLOQ,
+            cols.INT_NUM_TRAMO,
+            cols.INT_NUM_GRUPO_EXCL,
+            cols.FLOAT_BID_PRICE,
+            cols.FLOAT_BID_POWER,
+            cols.FLOAT_MAV,
+            cols.FLOAT_MAR,
+        ]
+        for col in required_cols:
+            assert col in det.columns
+
+    def test_cab_filtering(self):
+        """Test that CAB is filtered to only include relevant ID_ORDERs."""
+        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        # All ID_ORDER values in CAB should be in DET
+        assert set(cab[cols.ID_ORDER].unique()).issubset(
+            set(det[cols.ID_ORDER].unique())
+        )
+
+    def test_uof_contains_correct_units(self):
+        """Test that UOF zone contains correct unit codes."""
+        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        # When both positive and negative values exist, should have both buy and sell units
+        assert len(uof) == 2
+        assert cols.ID_UNIDAD in uof.columns
+        assert cols.CAT_PAIS in uof.columns
+
+    def test_no_nan_values_in_det(self):
+        """Test that DET DataFrame contains no NaN values."""
+        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        assert not det.isna().any().any()
+        assert not cab.isna().any().any()
+
+    def test_zero_filtering(self):
+        """Test that zero power bids are filtered out from DET."""
+        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else 0.0) for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        # DET should only have 12 rows (periods 1-12 with non-zero power)
+        assert len(det) == 12
+        # CAB should be filtered accordingly
+        assert len(cab) > 0
+
+    def test_multiple_countries(self):
+        """Test RDC generation with different countries."""
+        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        for country in ["ES", "PT", "FR"]:
+            det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+                rdc_series, date, country
+            )
+
+            assert (uof[cols.CAT_PAIS] == country).all()
+
+    def test_very_small_values(self):
+        """Test RDC generation with very small values."""
+        rdc_data = {f"energy_{i+1}": 0.001 for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        assert not det.empty
+        assert (det[cols.FLOAT_BID_POWER] == 0.001).all()
+
+    def test_very_large_values(self):
+        """Test RDC generation with very large values."""
+        rdc_data = {f"energy_{i+1}": 100000.0 for i in range(24)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
+            rdc_series, date, "ES"
+        )
+
+        assert not det.empty
+        assert (det[cols.FLOAT_BID_POWER] == 100000.0).all()
+
 
 class TestGetClearingPricesDict:
     """Test suite for get_clearing_prices_dict function."""
