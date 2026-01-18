@@ -180,9 +180,7 @@ def get_cleared_power_as_simple_bids_with_price_curve(
         0,
     )
 
-    det_cab_date_sell_mask = (det_cab_date[cols.CAT_BUY_SELL] == "V") & (
-        det_cab_date[cols.CAT_ORDER_TYPE] == "S"
-    )
+    det_cab_date_sell_mask = det_cab_date[cols.CAT_BUY_SELL] == "V"
     cleared_energy.loc[det_cab_date_sell_mask] = np.where(
         det_cab_date.loc[det_cab_date_sell_mask, cols.FLOAT_BID_PRICE]
         <= det_cab_date.loc[det_cab_date_sell_mask, cols.FLOAT_CLEARED_PRICE],
