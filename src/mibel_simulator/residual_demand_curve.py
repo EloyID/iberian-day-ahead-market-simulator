@@ -1,4 +1,5 @@
 import logging
+from typing import Literal
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
@@ -252,6 +253,7 @@ from mibel_simulator.const import RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS
 def interpolate_residual_demand_curves(
     target_energy_levels,
     residual_demand_curves,
+    extrapolate_action: Literal["limit", "nan", "warning", "raise"] = "warning",
 ):
     interpolated_prices = {}
     for energy_column, price_column in zip(RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS):
@@ -268,10 +270,23 @@ def interpolate_residual_demand_curves(
             residual_demand_curve_df[price_column],
         )
 
-        extrapolated_mask = (
-            target_energy < residual_demand_curve_df[energy_column].min()
-        ) | (target_energy > residual_demand_curve_df[energy_column].max())
-        interpolated_price[extrapolated_mask] = np.nan
+        if extrapolate_action == "limit":
+            pass
+        else:
+            extrapolated_mask = (
+                target_energy < residual_demand_curve_df[energy_column].min()
+            ) | (target_energy > residual_demand_curve_df[energy_column].max())
+
+            if extrapolate_action == "raise" and extrapolated_mask.any():
+                raise ValueError(
+                    "Extrapolation detected in residual demand curve interpolation."
+                )
+            if extrapolate_action == "warning" and extrapolated_mask.any():
+                logging.warning(
+                    "Extrapolation detected in residual demand curve interpolation. Resulting values set to NaN."
+                )
+            if extrapolate_action == "nan":
+                interpolated_price[extrapolated_mask] = np.nan
 
         interpolated_price = pd.Series(
             interpolated_price, index=target_energy.index, name=price_column
