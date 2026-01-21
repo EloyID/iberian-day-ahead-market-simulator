@@ -100,6 +100,7 @@ def make_model(
     p_congestion_spain_portugal_importacion =   capacidad_inter_PT_date  .set_index(cols.INT_PERIODO)            [cols.FLOAT_IMPORT_CAPACITY].to_dict()
     p_MAR =                                     det_cab_date_V_bloque    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_MAR].to_dict()
     p_MAV =                                     det_cab_date_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_MAV].to_dict()
+    p_MIC =                                     det_cab_date_V_sco       .drop_duplicates(cols.ID_SCO).set_index(cols.ID_SCO)[cols.FLOAT_MIC].to_dict()
     p_SCO_ORDER_PER_BID =                       det_cab_date_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.ID_SCO].to_dict()
 
     model.p_price_min_SIMPLE_SELLERS_BIDS =          Param(model.SIMPLE_SELLER_BIDS,  initialize=p_price_min_SIMPLE_SELLERS_BIDS,                                   doc="Minimum price of each generator - simple bids")
@@ -114,6 +115,7 @@ def make_model(
     model.p_congestion_spain_portugal_importacion =  Param(model.PERIODS,             initialize=p_congestion_spain_portugal_importacion,  within=NonPositiveReals, doc="Maximum capacity Spain import from Portugal (negative value)")
     model.p_MAR =                                    Param(model.BLOCK_ORDERS,        initialize=p_MAR,                                    within=NonNegativeReals, doc="Minimum acceptance ratio (MAR) of each block order")
     model.p_MAV =                                    Param(model.SCO_SELLER_BIDS,     initialize=p_MAV,                                    within=NonNegativeReals, doc="Minimum acceptance volume (MAV) of each SCO seller bid")
+    model.p_MIC =                                    Param(model.SCO_ORDERS,          initialize=p_MIC,                                    within=NonNegativeReals, doc="Minimum Income Condition (MIC) of each SCO seller bid")
     model.p_SCO_ORDER_PER_BID =                      Param(model.SCO_SELLER_BIDS,     initialize=p_SCO_ORDER_PER_BID,                      within=Any,              doc="Order identifier for each SCO bid")
 
     ##### Variables #####
@@ -156,6 +158,9 @@ def make_model(
                 * m.p_quantity_SCO_SELLER_BIDS[s]
                 * m.p_price_min_SCO_SELLER_BIDS[s]
                 for s in m.SCO_SELLER_BIDS
+            )
+            - sum(
+                m.v_u_activated_SCO_ORDERS[sco] * m.p_MIC[sco] for sco in m.SCO_ORDERS
             )
         )
 
