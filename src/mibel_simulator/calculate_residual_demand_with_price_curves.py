@@ -262,7 +262,7 @@ def calculate_residual_demand_with_price_curves(
 
     # Calculate residual demand submitted_relaxed_residual_demandscurves
     only_simple_submitted_relaxed_residual_demand_df = pd.DataFrame(
-        only_simple_submitted_relaxed_residual_demand
+        only_simple_submitted_relaxed_residual_demands
     )
     submitted_relaxed_residual_demand_curves_df = pd.DataFrame(
         submitted_relaxed_residual_demands
