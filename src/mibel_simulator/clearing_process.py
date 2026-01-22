@@ -139,7 +139,7 @@ def get_cleared_paradox_groups_summary(
         """
     )
     cleared_paradox_groups_df_grouped = (
-        cleared_paradox_groups_df.groupby([cols.IDS_PARADOX_GROUPS], observed=True)
+        cleared_paradox_groups_df.groupby([cols.ID_PARADOX_GROUPS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
@@ -216,7 +216,7 @@ def get_leftout_paradox_groups_summary(
             {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_BID_PRICE}
             """
         )
-        .groupby([cols.IDS_PARADOX_GROUPS], observed=True)
+        .groupby([cols.ID_PARADOX_GROUPS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
@@ -375,21 +375,21 @@ def get_new_paradox_groups_list_by_adding_left_out_ones(
     # Create initial new combinations by adding single left-out paradox orders
     new_paradox_groups_df = pd.DataFrame(
         {
-            cols.IDS_PARADOX_GROUPS: leftout_paradox_groups_summary_sorted.index,
+            cols.ID_PARADOX_GROUPS: leftout_paradox_groups_summary_sorted.index,
             cols.FLOAT_RATIO_NET_INCOME_BID_POWER: leftout_paradox_groups_summary_sorted[
                 cols.FLOAT_RATIO_NET_INCOME_BID_POWER
             ].values,
             cols.INT_PARADOX_GROUPS_COUNT: 1 + starting_paradox_groups_count,
         }
     )
-    new_paradox_groups_df[cols.PARADOX_GROUPS_COLUMN] = new_paradox_groups_df[
-        cols.IDS_PARADOX_GROUPS
+    new_paradox_groups_df[cols.IDS_PARADOX_GROUPS] = new_paradox_groups_df[
+        cols.ID_PARADOX_GROUPS
     ].apply(lambda id_paradox_group: starting_ids_paradox_groups + [id_paradox_group])
     new_paradox_groups_df[cols.BOOL_ARE_PARADOX_GROUPS_TESTED] = new_paradox_groups_df[
-        cols.PARADOX_GROUPS_COLUMN
+        cols.IDS_PARADOX_GROUPS
     ].apply(
-        lambda id_paradox_group: check_are_paradox_groups_tested(
-            trials_df, id_paradox_group + starting_ids_paradox_groups
+        lambda ids_paradox_groups: check_are_paradox_groups_tested(
+            trials_df, ids_paradox_groups + starting_ids_paradox_groups
         )
     )
 
@@ -405,6 +405,8 @@ def get_new_paradox_groups_list_by_adding_left_out_ones(
         )
 
     min_ratio = new_paradox_groups_df[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].min()
+    if pd.isna(min_ratio):
+        raise ValueError("No new paradox groups combinations found.")
     create_combinations = True
     combinations_count = 2
 
