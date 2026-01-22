@@ -253,29 +253,49 @@ from mibel_simulator.const import RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS
 def interpolate_residual_demand_curves(
     target_energy_levels,
     residual_demand_curves,
+    target_energy_columns: list[str] = RDC_ENERGY_COLUMNS,
+    target_price_columns: list[str] = RDC_PRICE_COLUMNS,
+    residual_demand_energy_columns: list[str] = RDC_ENERGY_COLUMNS,
+    residual_demand_price_columns: list[str] = RDC_PRICE_COLUMNS,
     extrapolate_action: Literal["limit", "nan", "warning", "raise"] = "warning",
 ):
     interpolated_prices = {}
-    for energy_column, price_column in zip(RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS):
-        target_energy = target_energy_levels[energy_column]
+    for (
+        target_energy_column,
+        target_price_column,
+        residual_demand_energy_column,
+        residual_demand_price_column,
+    ) in zip(
+        target_energy_columns,
+        target_price_columns,
+        residual_demand_energy_columns,
+        residual_demand_price_columns,
+    ):
+        target_energy = target_energy_levels[target_energy_column]
         residual_demand_curve_df = (
-            residual_demand_curves[[energy_column, price_column]]
+            residual_demand_curves[
+                [residual_demand_energy_column, residual_demand_price_column]
+            ]
             .dropna()
-            .sort_values(by=energy_column)
+            .sort_values(by=residual_demand_energy_column)
         )
 
         interpolated_price = np.interp(
             target_energy,
-            residual_demand_curve_df[energy_column],
-            residual_demand_curve_df[price_column],
+            residual_demand_curve_df[residual_demand_energy_column],
+            residual_demand_curve_df[residual_demand_price_column],
         )
 
         if extrapolate_action == "limit":
             pass
         else:
             extrapolated_mask = (
-                target_energy < residual_demand_curve_df[energy_column].min()
-            ) | (target_energy > residual_demand_curve_df[energy_column].max())
+                target_energy
+                < residual_demand_curve_df[residual_demand_energy_column].min()
+            ) | (
+                target_energy
+                > residual_demand_curve_df[residual_demand_energy_column].max()
+            )
 
             if extrapolate_action == "raise" and extrapolated_mask.any():
                 raise ValueError(
@@ -289,13 +309,16 @@ def interpolate_residual_demand_curves(
                 interpolated_price[extrapolated_mask] = np.nan
 
         interpolated_price = pd.Series(
-            interpolated_price, index=target_energy.index, name=price_column
+            interpolated_price, index=target_energy.index, name=target_price_column
         )
 
-        interpolated_prices[price_column] = interpolated_price
+        interpolated_prices[target_price_column] = interpolated_price
 
     interpolated_residual_demand_curves = pd.concat(
-        [target_energy_levels[RDC_ENERGY_COLUMNS], pd.DataFrame(interpolated_prices)],
+        [
+            target_energy_levels[target_energy_columns],
+            pd.DataFrame(interpolated_prices),
+        ],
         axis=1,
     )
     return interpolated_residual_demand_curves
