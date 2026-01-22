@@ -252,14 +252,18 @@ def get_cat_order_type_column(
     return det_cab[cols.CAT_ORDER_TYPE]
 
 
-def filter_mic_scos_from_det_cab(
+def filter_paradox_groups_from_det_cab(
     det_cab_df: pd.DataFrame,
-    mic_scos_to_keep: list,
+    paradox_groups_to_keep: dict,
     id_order_column: str = cols.ID_ORDER,
+    id_block_column: str = cols.ID_BLOCK_ORDER,
     float_mic_column: str = cols.FLOAT_MIC,
+    int_num_bloq_column: str = cols.INT_NUM_BLOQ,
 ) -> pd.DataFrame:
+    mic_scos_to_keep = paradox_groups_to_keep[cols.IDS_MIC_SCOS]
+    bid_blocks_to_keep = paradox_groups_to_keep[cols.IDS_BID_BLOCKS]
     return det_cab_df.query(
-        f"`{id_order_column}` in @mic_scos_to_keep or not `{float_mic_column}` > 0"
+        f"`{id_order_column}` in @mic_scos_to_keep or `{id_block_column}` in @bid_blocks_to_keep or not (`{float_mic_column}` > 0 or `{int_num_bloq_column}` > 0)"
     ).copy()
 
 
@@ -315,3 +319,38 @@ def concat_provided_uof_zones_with_existing_data(
     )
 
     return combined_uof_zones
+
+
+def transform_ids_paradox_groups_list_to_dict(
+    ids_paradox_groups: list,
+) -> dict:
+    """
+    Transforms a list of paradox order IDs into a dictionary separating MIC SCOs and bid blocks.
+
+    Args:
+        ids_paradox_groups (list): List of paradox order IDs.
+    Returns:
+        dict: Dictionary with keys 'ids_mic_scos' and 'ids_bid_blocks' containing respective IDs.
+    """
+    ids_mic_scos = [id for id in ids_paradox_groups if "GE" not in str(id)]
+    ids_bid_blocks = [id for id in ids_paradox_groups if "GE" in str(id)]
+    return {
+        cols.IDS_MIC_SCOS: ids_mic_scos,
+        cols.IDS_BID_BLOCKS: ids_bid_blocks,
+    }
+
+
+def transform_paradox_groups_dict_to_ids_list(
+    paradox_groups_dict: dict,
+) -> list:
+    """
+    Transforms a dict of paradox groups into a list of paradox order IDs.
+
+    Args:
+        paradox_groups_dict (dict): Dictionary with keys 'ids_mic_scos' and 'ids_bid_blocks' containing respective IDs.
+    Returns:
+        list: List of paradox order IDs.
+    """
+    ids_mic_scos = paradox_groups_dict[cols.IDS_MIC_SCOS]
+    ids_bid_blocks = paradox_groups_dict[cols.IDS_BID_BLOCKS]
+    return ids_mic_scos + ids_bid_blocks

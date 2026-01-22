@@ -181,6 +181,29 @@ def get_det_cab_date_id_sco(det_cab_date: pd.DataFrame) -> np.ndarray:
     )
 
 
+def get_det_cab_date_id_paradox_group(det_cab_date: pd.DataFrame) -> np.ndarray:
+    """
+    It is a unique identifier for paradox orders in the DET/CAB DataFrame based on order type.
+    For MIC SCOs, it uses the order ID; for bid blocks, it uses the block order ID.
+    Returns NaN for non-SCO orders.
+
+    Args:
+        det_cab_date (pd.DataFrame): DataFrame containing DET/CAB bids.
+
+    Returns:
+        np.ndarray: Array of SCO order identifiers, or NaN for non-SCO orders.
+    """
+    return np.where(
+        det_cab_date[cols.FLOAT_MIC] > 0,
+        det_cab_date[cols.ID_ORDER],
+        np.where(
+            det_cab_date[cols.INT_NUM_BLOQ] > 0,
+            det_cab_date[cols.ID_BLOCK_ORDER],
+            np.nan,
+        ),
+    )
+
+
 def get_det_cab_date_for_simulation(
     det_date: pd.DataFrame,
     cab_date: pd.DataFrame,
@@ -280,6 +303,9 @@ def get_det_cab_date_for_simulation(
     )
     det_cab_date[cols.ID_BLOCK_ORDER] = get_det_cab_date_id_block_order(det_cab_date)
     det_cab_date[cols.ID_SCO] = get_det_cab_date_id_sco(det_cab_date)
+    det_cab_date[cols.IDS_PARADOX_GROUPS] = get_det_cab_date_id_paradox_group(
+        det_cab_date
+    )
 
     # If date is not consistent drop the column
     if (
@@ -333,7 +359,7 @@ def get_exclusive_block_orders_grouped(det_cab_date: pd.DataFrame) -> pd.Series:
     return exclusive_block_orders_grouped
 
 
-def get_all_mic_scos(det_cab_date: pd.DataFrame) -> list:
+def get_ids_mic_scos(det_cab_date: pd.DataFrame) -> list:
     """
     Returns a sorted list of order IDs for all SCOs with a positive MIC value in the DET/CAB DataFrame.
 
@@ -350,3 +376,39 @@ def get_all_mic_scos(det_cab_date: pd.DataFrame) -> list:
         .tolist()
     )
     return all_mic_scos
+
+
+def get_ids_bid_blocks(det_cab_date: pd.DataFrame) -> list:
+    """
+    Returns a sorted list of block order IDs for all block bids in the DET/CAB DataFrame.
+
+    Args:
+        det_cab_date (pd.DataFrame): DataFrame containing DET/CAB bids.
+
+    Returns:
+        list: List of block order IDs for all block bids.
+    """
+    all_bid_blocks = (
+        det_cab_date.query(f"{cols.INT_NUM_BLOQ} > 0")[cols.ID_BLOCK_ORDER]
+        .sort_values()
+        .unique()
+        .tolist()
+    )
+    return all_bid_blocks
+
+
+def get_all_paradox_groups(det_cab_date: pd.DataFrame) -> dict:
+    """
+    Returns a dict with lists of SCOs with MIC > 0 and block orders from the DET/CAB DataFrame.
+
+    Args:
+        det_cab_date (pd.DataFrame): DataFrame containing DET/CAB bids.
+
+    Returns:
+        dict: Dictionary with lists of SCOs with MIC > 0 and block orders.
+    """
+
+    return {
+        cols.IDS_MIC_SCOS: get_ids_mic_scos(det_cab_date),
+        cols.IDS_BID_BLOCKS: get_ids_bid_blocks(det_cab_date),
+    }

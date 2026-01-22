@@ -12,7 +12,7 @@ import warnings
 
 from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, TRIALS_DF_COLUMNS
 from mibel_simulator.data_preprocessor import (
-    get_all_mic_scos,
+    get_all_paradox_groups,
     get_det_cab_date_for_simulation,
     get_exclusive_block_orders_grouped,
     get_france_det_cab_date_from_price,
@@ -44,7 +44,9 @@ from mibel_simulator.schemas.spain_portugal_transmissions import (
 )
 from mibel_simulator.tools import (
     concat_provided_uof_zones_with_existing_data,
-    filter_mic_scos_from_det_cab,
+    filter_paradox_groups_from_det_cab,
+    transform_ids_paradox_groups_list_to_dict,
+    transform_paradox_groups_dict_to_ids_list,
 )
 import pyomo.environ as pyo
 from pandera.typing import DataFrame, Series
@@ -52,48 +54,53 @@ from pandera.typing import DataFrame, Series
 logger = logging.getLogger(__name__)
 
 
-def check_are_mic_scos_tested(trials_df: pd.DataFrame, scos_combination: list) -> bool:
+def check_are_paradox_groups_tested(
+    trials_df: pd.DataFrame, ids_paradox_groups_combination: list
+) -> bool:
     """
-    Checks if a given combination of SCOs with MIC has already been tested in previous trials.
+    Checks if a given combination of paradox orders has already been tested in previous trials.
 
     Compares the provided combination against all combinations stored in the trials DataFrame,
     returning True if an identical combination has already been tried, and False otherwise.
 
     Args:
-        trials_df (pd.DataFrame): DataFrame containing results of previous trials, including tested SCO combinations.
-        scos_combination (list): List of SCO order IDs with MIC representing the combination to check.
+        trials_df (pd.DataFrame): DataFrame containing results of previous trials, including tested paradox order combinations.
+        ids_paradox_groups_combination (list): List of paradox order IDs representing the combination to check.
 
     Returns:
         bool: True if the combination has already been tested, False otherwise.
     """
 
-    for scos_tried in trials_df[cols.MIC_SCOS_COLUMN]:
-        if set(scos_tried) == set(scos_combination):
+    for paradox_groups_tried in trials_df[cols.PARADOX_GROUPS_COLUMN]:
+        ids_paradox_groups_tried = transform_paradox_groups_dict_to_ids_list(
+            paradox_groups_tried
+        )
+        if set(ids_paradox_groups_tried) == set(ids_paradox_groups_combination):
             return True
     return False
 
 
-def get_trial_cleared_mic_scos_summary(
-    det_cab_date: pd.DataFrame,
+def get_cleared_paradox_groups_summary(
+    det_cab_date_paradox_groups_filtered: pd.DataFrame,
     cleared_energy_df: pd.DataFrame,
     clearing_price_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Aggregates results for SCO orders that were matched in the trial.
+    Aggregates results for paradox orders that were matched in the trial.
 
     Merges DET/CAB data with cleared energy and clearing prices, computes financial metrics, and groups by order ID.
 
     Args:
-        det_cab_date (pd.DataFrame): DET/CAB DataFrame for SCOs in the trial.
+        det_cab_date_paradox_groups_filtered (pd.DataFrame): DET/CAB DataFrame for paradox orders in the trial.
         cleared_energy_df (pd.DataFrame): DataFrame of cleared energy per bid.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
     Returns:
-        pd.DataFrame: DataFrame grouped by order ID with financial results for matched SCOs.
+        pd.DataFrame: DataFrame grouped by order ID with financial results for matched paradox orders.
     """
 
     cleared_det_cab_date = (
-        det_cab_date.merge(
+        det_cab_date_paradox_groups_filtered.merge(
             cleared_energy_df,
             left_on=cols.ID_INDIVIDUAL_BID,
             right_index=True,
@@ -109,9 +116,9 @@ def get_trial_cleared_mic_scos_summary(
     assert cleared_det_cab_date._merge.isin(["both", "left_only"]).all()
     cleared_det_cab_date = cleared_det_cab_date.drop(columns="_merge")
 
-    cleared_mic_scos_df = (
+    cleared_paradox_groups_df = (
         cleared_det_cab_date.query(
-            f"{cols.FLOAT_MIC} > 0 and {cols.FLOAT_CLEARED_POWER} > 0"
+            f"({cols.FLOAT_MIC} > 0 or {cols.INT_NUM_BLOQ} > 0) and {cols.FLOAT_CLEARED_POWER} > 0"
         )
         .copy()
         .merge(
@@ -122,17 +129,17 @@ def get_trial_cleared_mic_scos_summary(
             indicator=True,
         )
     )
-    assert cleared_mic_scos_df._merge.isin(["both"]).all()
-    cleared_mic_scos_df = cleared_mic_scos_df.drop(columns="_merge")
+    assert cleared_paradox_groups_df._merge.isin(["both"]).all()
+    cleared_paradox_groups_df = cleared_paradox_groups_df.drop(columns="_merge")
 
-    cleared_mic_scos_df = cleared_mic_scos_df.eval(
+    cleared_paradox_groups_df = cleared_paradox_groups_df.eval(
         f"""
         {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_CLEARED_PRICE}
         {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_BID_PRICE}
         """
     )
-    cleared_mic_scos_df_grouped = (
-        cleared_mic_scos_df.groupby([cols.ID_ORDER], observed=True)
+    cleared_paradox_groups_df_grouped = (
+        cleared_paradox_groups_df.groupby([cols.IDS_PARADOX_GROUPS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
@@ -149,33 +156,41 @@ def get_trial_cleared_mic_scos_summary(
         )
     )
 
-    return cleared_mic_scos_df_grouped
+    return cleared_paradox_groups_df_grouped
 
 
-def get_leftout_mic_scos_summary(
+def get_leftout_paradox_groups_summary(
     det_cab_date: pd.DataFrame,
-    all_scos: list,
-    trial_scos: list,
+    all_paradox_groups: dict,
+    trial_paradox_groups: dict,
     clearing_price_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Aggregates financial results for SCOs not included in the current trial.
+    Aggregates financial results for paradox orders not included in the current trial.
 
-    Merges left-out SCOs with clearing prices, computes financial metrics, and groups by order ID.
+    Merges left-out paradox orders with clearing prices, computes financial metrics, and groups by order ID.
 
     Args:
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
-        all_scos (list): List of all SCO order IDs.
-        trial_scos (list): List of SCO order IDs included in the trial.
+        all_paradox_groups (dict): Dictionary of all paradox order IDs.
+        trial_paradox_groups (dict): Dictionary of paradox order IDs included in the trial.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
     Returns:
-        pd.DataFrame: DataFrame grouped by order ID with financial results for left-out SCOs.
+        pd.DataFrame: DataFrame grouped by order ID with financial results for left-out paradox orders.
     """
 
+    all_scos = all_paradox_groups[cols.IDS_MIC_SCOS]
+    trial_scos = trial_paradox_groups[cols.IDS_MIC_SCOS]
     left_out_scos = set(all_scos) - set(trial_scos)
+
+    all_bid_blocks = all_paradox_groups[cols.IDS_BID_BLOCKS]
+    trial_bid_blocks = trial_paradox_groups[cols.IDS_BID_BLOCKS]
+    left_out_bid_blocks = set(all_bid_blocks) - set(trial_bid_blocks)
     return (
-        det_cab_date.query(f"{cols.ID_ORDER} in @left_out_scos")
+        det_cab_date.query(
+            f"{cols.ID_ORDER} in @left_out_scos or {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks"
+        )
         .merge(
             clearing_price_df,
             on=[cols.INT_PERIODO, cols.CAT_PAIS],
@@ -187,7 +202,11 @@ def get_leftout_mic_scos_summary(
                 cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
                     df[cols.FLOAT_CLEARED_PRICE] >= df[cols.FLOAT_BID_PRICE],
                     df[cols.FLOAT_BID_POWER],
-                    df[cols.FLOAT_MAV],
+                    np.where(
+                        df[cols.ID_ORDER].isin(left_out_scos),
+                        df[cols.FLOAT_MAV],
+                        df[cols.FLOAT_MAR] * df[cols.FLOAT_BID_POWER],
+                    ),
                 )
             }
         )
@@ -197,7 +216,7 @@ def get_leftout_mic_scos_summary(
             {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_BID_PRICE}
             """
         )
-        .groupby([cols.ID_ORDER], observed=True)
+        .groupby([cols.IDS_PARADOX_GROUPS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
@@ -221,7 +240,6 @@ def get_leftout_mic_scos_summary(
 def sort_trials_df_by_most_promising(trials_df: pd.DataFrame) -> pd.DataFrame:
     """
     Sorts the trials DataFrame to prioritize the most promising SCO combinations.
-
     Trials with successful status are sorted by objective value and SCO count; unsuccessful trials are sorted by SCO count and objective value.
 
     Args:
@@ -231,16 +249,26 @@ def sort_trials_df_by_most_promising(trials_df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: Sorted DataFrame of trials.
     """
 
-    trials_df_status_false = trials_df.query(f"{cols.BOOL_IS_MIC_RESPECTED} == False")
-    trials_df_status_true = trials_df.query(f"{cols.BOOL_IS_MIC_RESPECTED} == True")
+    trials_df_status_false = trials_df.query(
+        f"{cols.BOOL_IS_EXPECTED_INCOME_RESPECTED} == False"
+    )
+    trials_df_status_true = trials_df.query(
+        f"{cols.BOOL_IS_EXPECTED_INCOME_RESPECTED} == True"
+    )
     sorted_promising_trials_df = pd.concat(
         [
             trials_df_status_true.sort_values(
-                by=[cols.FLOAT_OBJECTIVE_VALUE, cols.INT_MIC_SCOS_COUNT],
+                by=[
+                    cols.FLOAT_OBJECTIVE_VALUE,
+                    cols.INT_PARADOX_GROUPS_COUNT,
+                ],
                 ascending=[False, True],
             ),
             trials_df_status_false.sort_values(
-                by=[cols.INT_MIC_SCOS_COUNT, cols.FLOAT_OBJECTIVE_VALUE],
+                by=[
+                    cols.INT_PARADOX_GROUPS_COUNT,
+                    cols.FLOAT_OBJECTIVE_VALUE,
+                ],
                 ascending=[True, False],
             ),
         ],
@@ -267,13 +295,13 @@ def get_best_trial(
         pd.Series: The row of the best trial in the DataFrame.
     """
     if mic_respected_only:
-        trials_df = trials_df.query(f"{cols.BOOL_IS_MIC_RESPECTED} == True")
+        trials_df = trials_df.query(f"{cols.BOOL_IS_EXPECTED_INCOME_RESPECTED} == True")
     sorted_trials_df = sort_trials_df_by_most_promising(trials_df)
     return sorted_trials_df.iloc[0]
 
 
 def get_combinations_generator(
-    leftout_mic_scos_summary_combinations: pd.DataFrame,
+    leftout_paradox_groups_summary_combinations: pd.DataFrame,
     combinations_count: int,
     reverse: bool = True,
 ) -> list[tuple]:
@@ -281,11 +309,11 @@ def get_combinations_generator(
     Generate sorted combinations of left-out MIC SCOs.
 
     This function creates all possible combinations (of a given size) from the index of
-    `leftout_mic_scos_summary_combinations`, sorts them by the sum of their
+    `leftout_paradox_groups_summary_combinations`, sorts them by the sum of their
     FLOAT_RATIO_NET_INCOME_BID_POWER, and returns them in the specified order.
 
     Args:
-        leftout_mic_scos_summary_combinations (pd.DataFrame): DataFrame indexed by SCO IDs,
+        leftout_paradox_groups_summary_combinations (pd.DataFrame): DataFrame indexed by SCO IDs,
             containing at least the FLOAT_RATIO_NET_INCOME_BID_POWER column.
         combinations_count (int): The number of SCOs in each combination.
         reverse (bool, optional): If True, sort combinations in descending order of
@@ -296,12 +324,14 @@ def get_combinations_generator(
             of FLOAT_RATIO_NET_INCOME_BID_POWER.
     """
 
-    scos_combinations = leftout_mic_scos_summary_combinations.index.tolist()
-    index_combinations = combinations(scos_combinations, combinations_count)
+    paradox_groups_combinations = (
+        leftout_paradox_groups_summary_combinations.index.tolist()
+    )
+    index_combinations = combinations(paradox_groups_combinations, combinations_count)
     index_cobinations_sorted = sorted(
         index_combinations,
         key=lambda t: sum(
-            leftout_mic_scos_summary_combinations.loc[list(t)][
+            leftout_paradox_groups_summary_combinations.loc[list(t)][
                 cols.FLOAT_RATIO_NET_INCOME_BID_POWER
             ]
         ),
@@ -310,201 +340,234 @@ def get_combinations_generator(
     return index_cobinations_sorted
 
 
-def get_new_mic_scos_by_adding_left_out_scos(
-    leftout_mic_scos_summary: pd.DataFrame,
+def get_new_paradox_groups_list_by_adding_left_out_ones(
+    leftout_paradox_groups_summary: pd.DataFrame,
     trials_df: pd.DataFrame,
-    starting_mic_scos: list,
-    mic_scos_combinations_count: int = 1,
-) -> pd.Series:
+    starting_paradox_groups: dict,
+    paradox_groups_combinations_count: int = 1,
+) -> list[dict]:
     """
-    Proposes new SCO-with-MIC combinations by adding left-out SCOs to the current combination.
+    Proposes new paradox order combinations by adding left-out paradox orders to the current combination.
 
-    This function sorts left-out SCOs by their net income per bid power, then proposes new combinations
-    by adding the most promising left-out SCOs to the current set. It avoids combinations that have already
-    been tested and can propose combinations with more than one left-out SCO if beneficial. Returns up to
-    mic_scos_combinations_count new combinations.
+    This function sorts left-out paradox orders by their net income per bid power, then proposes new combinations
+    by adding the most promising left-out paradox orders to the current set. It avoids combinations that have already
+    been tested and can propose combinations with more than one left-out paradox order if beneficial. Returns up to
+    paradox_groups_combinations_count new combinations.
 
     Args:
-        leftout_mic_scos_summary (pd.DataFrame): Summary DataFrame of left-out SCOs with financial metrics.
+        leftout_paradox_groups_summary (pd.DataFrame): Summary DataFrame of left-out paradox orders with financial metrics.
         trials_df (pd.DataFrame): DataFrame of all previous trial results.
-        starting_mic_scos (list): List of SCO order IDs with MIC in the current trial.
-        mic_scos_combinations_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
+        starting_paradox_groups (dict): Dictionary of paradox order IDs with MIC in the current trial.
+        paradox_groups_combinations_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
 
     Returns:
-        pd.Series: Series of new SCO-with-MIC combinations (as lists) to try in the next trials.
+        pd.Series: Series of new paradox order combinations (as lists) to try in the next trials.
     """
-    starting_mic_scos_count = len(starting_mic_scos)
-
-    # Sort left-out SCOs by ratio net income / bid power
-    leftout_mic_scos_summary_sorted = leftout_mic_scos_summary.sort_values(
+    starting_ids_paradox_groups = transform_paradox_groups_dict_to_ids_list(
+        starting_paradox_groups
+    )
+    starting_paradox_groups_count = len(starting_ids_paradox_groups)
+    # Sort left-out paradox orders by ratio net income / bid power
+    leftout_paradox_groups_summary_sorted = leftout_paradox_groups_summary.sort_values(
         by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False
     )
 
-    # Create initial new combinations by adding single left-out SCOs
-    new_mic_scos_df = pd.DataFrame(
+    # Create initial new combinations by adding single left-out paradox orders
+    new_paradox_groups_df = pd.DataFrame(
         {
-            cols.ID_ORDER: leftout_mic_scos_summary_sorted.index,
-            cols.FLOAT_RATIO_NET_INCOME_BID_POWER: leftout_mic_scos_summary[
+            cols.IDS_PARADOX_GROUPS: leftout_paradox_groups_summary_sorted.index,
+            cols.FLOAT_RATIO_NET_INCOME_BID_POWER: leftout_paradox_groups_summary_sorted[
                 cols.FLOAT_RATIO_NET_INCOME_BID_POWER
             ].values,
-            cols.INT_MIC_SCOS_COUNT: 1 + starting_mic_scos_count,
+            cols.INT_PARADOX_GROUPS_COUNT: 1 + starting_paradox_groups_count,
         }
     )
-    new_mic_scos_df[cols.MIC_SCOS_COLUMN] = new_mic_scos_df[cols.ID_ORDER].apply(
-        lambda sco: starting_mic_scos + [sco]
+    new_paradox_groups_df[cols.PARADOX_GROUPS_COLUMN] = new_paradox_groups_df[
+        cols.IDS_PARADOX_GROUPS
+    ].apply(lambda id_paradox_group: starting_ids_paradox_groups + [id_paradox_group])
+    new_paradox_groups_df[cols.BOOL_ARE_PARADOX_GROUPS_TESTED] = new_paradox_groups_df[
+        cols.PARADOX_GROUPS_COLUMN
+    ].apply(
+        lambda id_paradox_group: check_are_paradox_groups_tested(
+            trials_df, id_paradox_group + starting_ids_paradox_groups
+        )
     )
-    new_mic_scos_df[cols.BOOL_ARE_MIC_SCOS_TESTED] = new_mic_scos_df[
-        cols.MIC_SCOS_COLUMN
-    ].apply(lambda sco: check_are_mic_scos_tested(trials_df, sco + starting_mic_scos))
 
     # Filter out already tested combinations
-    new_mic_scos_df = new_mic_scos_df.query(
-        f"{cols.BOOL_ARE_MIC_SCOS_TESTED} == False"
-    ).drop(columns=[cols.ID_ORDER])
+    new_paradox_groups_df = new_paradox_groups_df.query(
+        f"{cols.BOOL_ARE_PARADOX_GROUPS_TESTED} == False"
+    ).drop(columns=[cols.IDS_PARADOX_GROUPS])
 
     # If the number of new combinations is greater than the desired, keep only the top ones
-    if len(new_mic_scos_df) > mic_scos_combinations_count:
-        new_mic_scos_df = new_mic_scos_df.head(mic_scos_combinations_count)
+    if len(new_paradox_groups_df) > paradox_groups_combinations_count:
+        new_paradox_groups_df = new_paradox_groups_df.head(
+            paradox_groups_combinations_count
+        )
 
-    min_ratio = new_mic_scos_df[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].min()
+    min_ratio = new_paradox_groups_df[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].min()
     create_combinations = True
     combinations_count = 2
 
     while create_combinations and combinations_count <= 4:
         # Generate combinations of left-out SCOs, sorted by their combined ratio net income / bid power
-        leftout_mic_scos_sorted = get_combinations_generator(
-            leftout_mic_scos_summary_sorted, combinations_count
+        leftout_paradox_groups_sorted = get_combinations_generator(
+            leftout_paradox_groups_summary_sorted, combinations_count
         )
-        new_mic_scos_added_in_iteration = False
-        for leftout_mic_scos in leftout_mic_scos_sorted:
-            new_trial_mic_scos = starting_mic_scos + list(leftout_mic_scos)
-            are_mic_scos_tested = check_are_mic_scos_tested(
-                trials_df, new_trial_mic_scos
+        new_paradox_groups_added_in_iteration = False
+        for leftout_paradox_groups in leftout_paradox_groups_sorted:
+            new_trial_paradox_groups = starting_ids_paradox_groups + list(
+                leftout_paradox_groups
             )
-            if not are_mic_scos_tested:
+            are_paradox_groups_tested = check_are_paradox_groups_tested(
+                trials_df, new_trial_paradox_groups
+            )
+            if not are_paradox_groups_tested:
                 ratio_net_income_bid_power = np.average(
-                    leftout_mic_scos_summary.loc[list(leftout_mic_scos)][
+                    leftout_paradox_groups_summary.loc[list(leftout_paradox_groups)][
                         cols.FLOAT_RATIO_NET_INCOME_BID_POWER
                     ],
-                    weights=leftout_mic_scos_summary.loc[list(leftout_mic_scos)][
-                        cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER
-                    ],
+                    weights=leftout_paradox_groups_summary.loc[
+                        list(leftout_paradox_groups)
+                    ][cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER],
                 )
 
                 # Add only if the ratio is better than the minimum of the current new combinations or
                 # if we still need more combinations
                 if (
                     ratio_net_income_bid_power > min_ratio
-                    or len(new_mic_scos_df) < mic_scos_combinations_count
+                    or len(new_paradox_groups_df) < paradox_groups_combinations_count
                 ):
-                    new_mic_scos_entry = pd.DataFrame(
+                    new_paradox_groups_entry = pd.DataFrame(
                         {
-                            cols.MIC_SCOS_COLUMN: [new_trial_mic_scos],
+                            cols.PARADOX_GROUPS_COLUMN: [new_trial_paradox_groups],
                             cols.FLOAT_RATIO_NET_INCOME_BID_POWER: [
                                 ratio_net_income_bid_power
                             ],
-                            cols.BOOL_ARE_MIC_SCOS_TESTED: [False],
-                            cols.INT_MIC_SCOS_COUNT: [
-                                combinations_count + starting_mic_scos_count
+                            cols.BOOL_ARE_PARADOX_GROUPS_TESTED: [False],
+                            cols.INT_PARADOX_GROUPS_COUNT: [
+                                combinations_count + starting_paradox_groups_count
                             ],
                         }
                     )
 
-                    new_mic_scos_df = (
+                    new_paradox_groups_df = (
                         pd.concat(
-                            [new_mic_scos_df, new_mic_scos_entry], ignore_index=True
+                            [new_paradox_groups_df, new_paradox_groups_entry],
+                            ignore_index=True,
                         )
                         .sort_values(
                             by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER,
                             ascending=False,
                         )
-                        .head(mic_scos_combinations_count)
+                        .head(paradox_groups_combinations_count)
                     )
 
-                    new_mic_scos_added_in_iteration = True
+                    new_paradox_groups_added_in_iteration = True
 
                 else:
                     break
 
         if (
-            not new_mic_scos_added_in_iteration
-            and len(new_mic_scos_df) >= mic_scos_combinations_count
+            not new_paradox_groups_added_in_iteration
+            and len(new_paradox_groups_df) >= paradox_groups_combinations_count
         ):
             create_combinations = False
 
         else:
             combinations_count += 1
 
-    return new_mic_scos_df.head(mic_scos_combinations_count)[cols.MIC_SCOS_COLUMN]
+    return (
+        new_paradox_groups_df.head(paradox_groups_combinations_count)[
+            cols.PARADOX_GROUPS_COLUMN
+        ]
+        .apply(transform_ids_paradox_groups_list_to_dict)
+        .tolist()
+    )
 
 
-def get_new_mic_scos_by_removing_underperforming_scos(
-    trial_cleared_mic_scos_summary: pd.DataFrame,
+def get_new_paradox_groups_list_by_removing_underperforming_ones(
+    trial_cleared_paradox_groups_summary: pd.DataFrame,
     trials_df: pd.DataFrame,
-    scos_combination: list,
-    int_mic_scos_count: int = 1,
+    paradox_groups_combination: dict,
+    int_paradox_groups_count: int = 1,
 ) -> pd.Series:
     """
-    Proposes new SCO-with-MIC combinations by removing underperforming SCOs from the current combination.
+    Proposes new paradox order combinations by removing underperforming paradox orders from the current combination.
 
-    This function identifies SCOs with negative net income per cleared power, removes them one by one from the current combination,
-    and checks if the resulting combinations have already been tested. Returns up to int_mic_scos_count new combinations that have not been tested yet.
+    This function identifies paradox orders with negative net income per cleared power, removes them one by one from the current combination,
+    and checks if the resulting combinations have already been tested. Returns up to int_paradox_groups_count new combinations that have not been tested yet.
 
     Args:
-        trial_cleared_mic_scos_summary (pd.DataFrame): Summary DataFrame of cleared SCOs with MIC for the current trial.
+        trial_cleared_paradox_groups_summary (pd.DataFrame): Summary DataFrame of cleared paradox orders for the current trial.
         trials_df (pd.DataFrame): DataFrame of all previous trial results.
-        scos_combination (list): List of SCO order IDs with MIC in the current trial.
-        int_mic_scos_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
+        paradox_groups_combination (dict): Dictionary of paradox orders in the current trial.
+        int_paradox_groups_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
 
     Returns:
-        pd.Series: Series of new SCO-with-MIC combinations (as lists) to try in the next trials.
+        pd.Series: Series of new paradox order combinations (as lists) to try in the next trials.
     """
-    trial_cleared_mic_scos_summary = trial_cleared_mic_scos_summary.query(
+    trial_cleared_paradox_groups_summary = trial_cleared_paradox_groups_summary.query(
         f"{cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} < 0"
     ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER, ascending=True)
-    new_mic_scos_df = pd.DataFrame(
-        {cols.MIC_SCOS_COLUMN: np.nan, cols.BOOL_ARE_MIC_SCOS_TESTED: np.nan},
-        index=trial_cleared_mic_scos_summary.index,
-    ).astype({cols.MIC_SCOS_COLUMN: object, cols.BOOL_ARE_MIC_SCOS_TESTED: bool})
+    new_paradox_groups_df = pd.DataFrame(
+        {
+            cols.PARADOX_GROUPS_COLUMN: np.nan,
+            cols.BOOL_ARE_PARADOX_GROUPS_TESTED: np.nan,
+        },
+        index=trial_cleared_paradox_groups_summary.index,
+    ).astype(
+        {cols.PARADOX_GROUPS_COLUMN: object, cols.BOOL_ARE_PARADOX_GROUPS_TESTED: bool}
+    )
 
-    mic_scos_left = scos_combination.copy()
+    paradox_group_ids_left = transform_paradox_groups_dict_to_ids_list(
+        paradox_groups_combination
+    )
 
-    for index, row in new_mic_scos_df.iterrows():
+    for index, row in new_paradox_groups_df.iterrows():
+        new_trial_paradox_groups = list(set(paradox_group_ids_left) - set([index]))
+        are_paradox_groups_tested = check_are_paradox_groups_tested(
+            trials_df, new_trial_paradox_groups
+        )
 
-        new_trial_mic_scos = list(set(mic_scos_left) - set([index]))
-        are_mic_scos_tested = check_are_mic_scos_tested(trials_df, new_trial_mic_scos)
+        new_paradox_groups_df.at[index, cols.PARADOX_GROUPS_COLUMN] = (
+            new_trial_paradox_groups
+        )
+        new_paradox_groups_df.at[index, cols.BOOL_ARE_PARADOX_GROUPS_TESTED] = (
+            are_paradox_groups_tested
+        )
 
-        new_mic_scos_df.at[index, cols.MIC_SCOS_COLUMN] = new_trial_mic_scos
-        new_mic_scos_df.at[index, cols.BOOL_ARE_MIC_SCOS_TESTED] = are_mic_scos_tested
+        paradox_group_ids_left = new_trial_paradox_groups
 
-        mic_scos_left = new_trial_mic_scos
+    new_paradox_groups_df = new_paradox_groups_df.query(
+        f"{cols.BOOL_ARE_PARADOX_GROUPS_TESTED} == False"
+    ).head(int_paradox_groups_count)
 
-    new_mic_scos_df = new_mic_scos_df.query(
-        f"{cols.BOOL_ARE_MIC_SCOS_TESTED} == False"
-    ).head(int_mic_scos_count)
+    return (
+        new_paradox_groups_df[cols.PARADOX_GROUPS_COLUMN]
+        .apply(transform_ids_paradox_groups_list_to_dict)
+        .tolist()
+    )
 
-    return new_mic_scos_df[cols.MIC_SCOS_COLUMN]
 
-
-def define_new_trial_mic_scos(
+def define_new_paradox_groups_list(
     trials_df: pd.DataFrame,
     det_cab_date: pd.DataFrame,
-    all_mic_scos: list,
-    int_mic_scos_count: int = 1,
-) -> list:
+    all_paradox_groups: dict,
+    int_paradox_groups_count: int = 1,
+) -> list[dict]:
     """
-    Defines a new combination of SCOs with MIC to try in the next trial.
+    Defines a new combination of paradox groups with MIC to try in the next trial.
 
-    Based on previous trial results, either adds promising left-out SCOs or removes underperforming ones, ensuring combinations are not repeated.
+    Based on previous trial results, either adds promising left-out paradox groups or removes underperforming ones, ensuring combinations are not repeated.
 
     Args:
         trials_df (pd.DataFrame): DataFrame of previous trial results.
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
-        all_mic_scos (list): List of all SCO order IDs with MIC.
-        int_mic_scos_count (int, optional): Maximum number of MIC SCO combinations to propose. Defaults to 1.
+        all_paradox_groups (dict): Dictionary of all paradox groups with MIC.
+        int_paradox_groups_count (int, optional): Maximum number of MIC paradox group combinations to propose. Defaults to 1.
 
     Returns:
-        list: List of SCO order IDs for the next trial.
+        list[dict]: List of paradox groups for the next trial.
     """
 
     # Get the most promising trial
@@ -513,36 +576,40 @@ def define_new_trial_mic_scos(
     for index, row in sorted_promising_trials_df.iterrows():
 
         logger.info(
-            f"--ALGORITHM--: Most promising combination: {row[cols.MIC_SCOS_COLUMN]}"
+            f"--ALGORITHM--: Most promising combination: {row[cols.PARADOX_GROUPS_COLUMN]}"
         )
 
         cleared_energy = row[cols.CLEARED_ENERGY_COLUMN]
         clearing_prices = row[cols.CLEARING_PRICES_COLUMN]
-        trial_mic_scos = row[cols.MIC_SCOS_COLUMN]
-        mic_scos = row[cols.MIC_SCOS_COLUMN]
-        bool_is_mic_respected = row[cols.BOOL_IS_MIC_RESPECTED]
+        paradox_groups = row[cols.PARADOX_GROUPS_COLUMN]
+        is_expected_income_respected = row[cols.BOOL_IS_EXPECTED_INCOME_RESPECTED]
 
-        if bool_is_mic_respected:
+        if is_expected_income_respected:
             logger.info("--ALGORITHM--: MIC is respected")
-            leftout_mic_scos_summary = get_leftout_mic_scos_summary(
-                det_cab_date, all_mic_scos, mic_scos, clearing_prices
+            leftout_paradox_groups_summary = get_leftout_paradox_groups_summary(
+                det_cab_date, all_paradox_groups, paradox_groups, clearing_prices
             ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
-            return get_new_mic_scos_by_adding_left_out_scos(
-                leftout_mic_scos_summary, trials_df, mic_scos, int_mic_scos_count
+            return get_new_paradox_groups_list_by_adding_left_out_ones(
+                leftout_paradox_groups_summary,
+                trials_df,
+                paradox_groups,
+                int_paradox_groups_count,
             )
 
         else:
-            det_cab_date_mic_scos_filtered = filter_mic_scos_from_det_cab(
-                det_cab_date, trial_mic_scos
+            det_cab_date_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
+                det_cab_date, paradox_groups
             )
-            trial_cleared_mic_scos_summary = get_trial_cleared_mic_scos_summary(
-                det_cab_date_mic_scos_filtered, cleared_energy, clearing_prices
+            trial_cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
+                det_cab_date_paradox_groups_filtered,
+                cleared_energy,
+                clearing_prices,
             )
-            return get_new_mic_scos_by_removing_underperforming_scos(
-                trial_cleared_mic_scos_summary,
+            return get_new_paradox_groups_list_by_removing_underperforming_ones(
+                trial_cleared_paradox_groups_summary,
                 trials_df,
-                mic_scos,
-                int_mic_scos_count,
+                paradox_groups,
+                int_paradox_groups_count,
             )
 
 
@@ -566,7 +633,7 @@ def iterative_function(
             - det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
             - capacidad_inter_PT_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
             - exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
-            - current_trial_mic_scos (list): List of SCO order IDs with MIC for this trial.
+            - paradox_groups (list): List of SCO order IDs with MIC for this trial.
 
     Returns:
         pd.DataFrame: DataFrame with the results of the trial (one row).
@@ -576,12 +643,12 @@ def iterative_function(
         det_cab_date,
         capacidad_inter_PT_date,
         exclusive_block_orders_grouped,
-        current_trial_mic_scos,
+        paradox_groups,
     ) = args
 
     # Keep only SCOs in the current trial
-    det_cab_date_scos_filtered = filter_mic_scos_from_det_cab(
-        det_cab_date, current_trial_mic_scos
+    det_cab_date_scos_filtered = filter_paradox_groups_from_det_cab(
+        det_cab_date, paradox_groups
     )
 
     # Run market model
@@ -594,21 +661,29 @@ def iterative_function(
     # Extract information from the model
     cleared_energy = get_cleared_energy_series(model)
     clearing_prices = get_clearing_prices_df(model)
-    trial_results_sco_casadas_grouped = get_trial_cleared_mic_scos_summary(
+    cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
         det_cab_date_scos_filtered, cleared_energy, clearing_prices
     )
     welfare = pyo.value(model.OBJ)
-    bool_is_mic_respected = (
-        trial_results_sco_casadas_grouped[cols.FLOAT_NET_INCOME] >= 0
+    bool_is_expected_income_respected = (
+        cleared_paradox_groups_summary[cols.FLOAT_NET_INCOME] >= 0
     ).all()
+
+    ids_mic_scos = paradox_groups[cols.IDS_MIC_SCOS]
+    ids_bid_blocks = paradox_groups[cols.IDS_BID_BLOCKS]
 
     # Update trials_df with current trial results
     trial_df_entry = {
-        cols.MIC_SCOS_COLUMN: [current_trial_mic_scos],
+        cols.PARADOX_GROUPS_COLUMN: [paradox_groups],
+        cols.IDS_MIC_SCOS: [ids_mic_scos],
+        cols.IDS_BID_BLOCKS: [ids_bid_blocks],
+        cols.IDS_PARADOX_GROUPS: [ids_mic_scos + ids_bid_blocks],
         cols.FLOAT_OBJECTIVE_VALUE: [welfare],
-        cols.BOOL_IS_MIC_RESPECTED: [bool_is_mic_respected],
+        cols.BOOL_IS_EXPECTED_INCOME_RESPECTED: [bool_is_expected_income_respected],
         cols.SOLVER_RESULTS_COLUMN: [results],
-        cols.INT_MIC_SCOS_COUNT: [len(current_trial_mic_scos)],
+        cols.INT_MIC_SCOS_COUNT: [len(ids_mic_scos)],
+        cols.INT_BID_BLOCKS_COUNT: [len(ids_bid_blocks)],
+        cols.INT_PARADOX_GROUPS_COUNT: [len(ids_mic_scos) + len(ids_bid_blocks)],
         cols.CLEARED_ENERGY_COLUMN: [cleared_energy],
         cols.CLEARING_PRICES_COLUMN: [clearing_prices],
         cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [
@@ -622,7 +697,7 @@ def iterative_function(
 def check_if_success_at_first_trial(
     first_trial_df: pd.Series,
     is_trials_df_provided: bool,
-    is_trial_mic_scos_provided: bool,
+    is_trial_paradox_groups_provided: bool,
 ) -> bool:
     """
     Checks if the first trial was successful, i.e., all SCOs with MIC were correctly cleared on the first attempt.
@@ -630,15 +705,15 @@ def check_if_success_at_first_trial(
     Args:
         results (list): List of DataFrames with trial results, where each DataFrame contains the results of a single trial.
         is_trials_df_provided (bool): Indicates if a previous trials DataFrame was provided (i.e., not the first run).
-        is_trial_mic_scos_provided (bool): Indicates if an initial SCOs-with-MIC combination was provided.
+        is_trial_paradox_groups_provided (bool): Indicates if an initial paradox orders combination was provided.
 
     Returns:
         bool: True if the first trial was successful and it was the initial run (no previous trials or initial combination provided), False otherwise.
     """
     success_at_first_trial = (
         not is_trials_df_provided
-        and not is_trial_mic_scos_provided
-        and first_trial_df[cols.BOOL_IS_MIC_RESPECTED]
+        and not is_trial_paradox_groups_provided
+        and first_trial_df[cols.BOOL_IS_EXPECTED_INCOME_RESPECTED]
     )
     if success_at_first_trial:
         logger.info(
@@ -654,9 +729,9 @@ def run_iterative_loop(
     det_cab_date: DataFrame,
     capacidad_inter_pt_date: DataFrame,
     exclusive_block_orders_grouped: DataFrame,
-    all_mic_scos: list,
     trials_count: int = 100,
-    trial_mic_scos: list | None = None,
+    trial_ids_mic_scos: list | None = None,
+    trial_ids_bid_blocks: list | None = None,
     trials_df: pd.DataFrame | None = None,
     n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
@@ -669,9 +744,8 @@ def run_iterative_loop(
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
         capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
         exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
-        all_mic_scos (list): List of all SCO order IDs with MIC.
-        trials_count (int, optional): Maximum number of trials to run. Defaults to 100.
-        trial_mic_scos (list, optional): Initial SCOs with MIC for the first trial.
+        trial_ids_mic_scos (list, optional): Initial SCOs with MIC for the first trial.
+        trial_ids_bid_blocks (list, optional): Initial bid blocks for the first trial.
         trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from.
 
     Returns:
@@ -682,7 +756,17 @@ def run_iterative_loop(
     """
 
     is_trials_df_provided = trials_df is not None
-    is_trial_mic_scos_provided = trial_mic_scos is not None
+    is_trial_ids_mic_scos_provided = trial_ids_mic_scos is not None
+    is_trial_ids_bid_blocks_provided = trial_ids_bid_blocks is not None
+    if is_trial_ids_mic_scos_provided != is_trial_ids_bid_blocks_provided:
+        raise ValueError(
+            "Both trial_ids_mic_scos and trial_ids_bid_blocks must be provided together or none at all."
+        )
+    are_trial_ids_paradox_groups_provided = (
+        is_trial_ids_mic_scos_provided and is_trial_ids_bid_blocks_provided
+    )
+
+    all_paradox_groups = get_all_paradox_groups(det_cab_date)
 
     if trials_count // n_jobs < 5 and not is_trials_df_provided:
         logger.warning(
@@ -694,20 +778,25 @@ def run_iterative_loop(
     if trials_df is None:
         trials_df = pd.DataFrame(columns=TRIALS_DF_COLUMNS)
 
-    # If trial_mic_scos is provided, start with that combination
-    if trial_mic_scos is not None:
-        next_trials_mic_sco = [trial_mic_scos.copy()]
+    # If trial_paradox_groups is provided, start with that combination
+    if are_trial_ids_paradox_groups_provided:
+        next_trials_paradox_groups = [
+            {
+                cols.IDS_MIC_SCOS: trial_ids_mic_scos,
+                cols.IDS_BID_BLOCKS: trial_ids_bid_blocks,
+            }
+        ]
     # If trials_df is defined, define a new combination based on previous trials
     elif not trials_df.empty:
-        next_trials_mic_sco = define_new_trial_mic_scos(
-            trials_df, det_cab_date, all_mic_scos
+        next_trials_paradox_groups = define_new_paradox_groups_list(
+            trials_df, det_cab_date, all_paradox_groups
         )
-        if next_trials_mic_sco is False:
+        if next_trials_paradox_groups is False:
             logger.info("--ALGORITHM--: All combinations tried, finishing")
             return trials_df
-    # Otherwise start with all SCOs with MIC
+    # Otherwise start with all paradox orders
     else:
-        next_trials_mic_sco = [all_mic_scos.copy()]
+        next_trials_paradox_groups = [all_paradox_groups]
 
     #### ITERATIVE LOOP ####
 
@@ -720,9 +809,9 @@ def run_iterative_loop(
                 det_cab_date,
                 capacidad_inter_pt_date,
                 exclusive_block_orders_grouped,
-                trial_mic_scos,
+                trial_paradox_groups,
             )
-            for trial_mic_scos in next_trials_mic_sco
+            for trial_paradox_groups in next_trials_paradox_groups
         ]
         with multiprocessing.Pool(processes=n_jobs) as pool:
             results = pool.map(iterative_function, args_list)
@@ -730,22 +819,29 @@ def run_iterative_loop(
             trials_df = pd.concat([trials_df] + results, ignore_index=True)
 
             if check_if_success_at_first_trial(
-                trials_df.iloc[0], is_trials_df_provided, is_trial_mic_scos_provided
+                trials_df.iloc[0],
+                is_trials_df_provided,
+                are_trial_ids_paradox_groups_provided,
             ):
                 logger.info("--ALGORITHM--: Success at first trial, finishing")
                 break
 
             ### hasta aqui
-        new_trial_int_mic_scos_count = min(n_jobs, trials_count - completed_trials)
+        new_trial_int_paradox_groups_count = min(
+            n_jobs, trials_count - completed_trials
+        )
         logger.info(
             f"--ALGORITHM--: Completed trials: {completed_trials}/{trials_count}"
         )
-        next_trials_mic_sco = define_new_trial_mic_scos(
-            trials_df, det_cab_date, all_mic_scos, new_trial_int_mic_scos_count
+        next_trials_paradox_groups = define_new_paradox_groups_list(
+            trials_df,
+            det_cab_date,
+            all_paradox_groups,
+            new_trial_int_paradox_groups_count,
         )
         # TODO: this is a quickfix so the loop ends when no new combinations are found
         # but it should iterate with other options too
-        if len(next_trials_mic_sco) == 0:
+        if len(next_trials_paradox_groups) == 0:
             break
 
     try:
@@ -755,8 +851,8 @@ def run_iterative_loop(
 
     best_trial = get_best_trial(trials_df, mic_respected_only=False)
 
-    det_cab_date_scos_filtered = filter_mic_scos_from_det_cab(
-        det_cab_date, best_trial[cols.MIC_SCOS_COLUMN]
+    det_cab_date_scos_filtered = filter_paradox_groups_from_det_cab(
+        det_cab_date, best_trial[cols.PARADOX_GROUPS_COLUMN]
     )
 
     # Run market model
@@ -778,7 +874,8 @@ def clear_OMIE_market(
     trials_count: int = 100,
     starting_trials_df: pd.DataFrame = None,
     zones_default_to_spain: bool = False,
-    trial_mic_scos: list | None = None,
+    trial_ids_mic_scos: list | None = None,
+    trial_ids_bid_blocks: list | None = None,
     n_jobs: int = 1,
 ) -> dict:
     """
@@ -799,7 +896,8 @@ def clear_OMIE_market(
         trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
         starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
         zones_default_to_spain (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
-        trial_mic_scos (list | None, optional): List of MIC SCOs for trial. Defaults to None.
+        trial_ids_mic_scos (list | None, optional): List of MIC SCOs for trial. Defaults to None.
+        trial_ids_bid_blocks (list | None, optional): List of bid blocks for trial. Defaults to None.
         n_jobs (int, optional): Number of parallel jobs to run. Defaults to 1.
     Returns:
         tuple: (trials_df, best_model, best_model_binary)
@@ -838,16 +936,15 @@ def clear_OMIE_market(
         zones_default_to_spain=zones_default_to_spain,
     )
     exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
-    all_mic_scos = get_all_mic_scos(det_cab_date)
 
     trials_df, model, model_binary = run_iterative_loop(
         det_cab_date=det_cab_date,
         capacidad_inter_pt_date=capacidad_inter_pt_date,
         exclusive_block_orders_grouped=exclusive_block_orders_grouped,
         trials_count=trials_count,
-        all_mic_scos=all_mic_scos,
         trials_df=starting_trials_df,
-        trial_mic_scos=trial_mic_scos,
+        trial_ids_mic_scos=trial_ids_mic_scos,
+        trial_ids_bid_blocks=trial_ids_bid_blocks,
         n_jobs=n_jobs,
     )
 

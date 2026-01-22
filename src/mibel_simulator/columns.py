@@ -47,10 +47,18 @@ BOOL_IS_EXCLUSIVE_GROUP = "bool_is_exclusive_group"
 DATE_SESION = "date_sesion"
 DATETIME_SESION = "datetime_sesion"
 
-MIC_SCOS_COLUMN = "mic_scos"
+IDS_MIC_SCOS = "ids_mic_scos"
 INT_MIC_SCOS_COUNT = "int_mic_scos_count"
-BOOL_ARE_MIC_SCOS_TESTED = "bool_are_mic_scos_tested"
-BOOL_IS_MIC_RESPECTED = "bool_is_mic_respected"
+IDS_BID_BLOCKS = "ids_bid_blocks"
+INT_BID_BLOCKS_COUNT = "int_bid_blocks_count"
+BOOL_ARE_PARADOX_GROUPS_TESTED = "bool_are_paradox_groups_tested"
+BOOL_IS_EXPECTED_INCOME_RESPECTED = "bool_is_expected_income_respected"
+PARADOX_GROUPS_COLUMN = "paradox_groups"
+IDS_PARADOX_GROUPS = (
+    "ids_paradox_groups"  # id_order if mic_sco, id_block_order if bid_block
+)
+INT_PARADOX_GROUPS_COUNT = "int_paradox_groups_count"
+
 FLOAT_VARIABLE_COST = "float_variable_cost"
 FLOAT_CLEARED_POWER = "float_cleared_power"
 FLOAT_CLEARED_POWER_CUMSUM = "float_cleared_power_cumsum"
