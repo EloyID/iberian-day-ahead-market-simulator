@@ -12,6 +12,6 @@ ExclusiveBlockOrdersGroupedSchema = pa.SeriesSchema(
             pa.Index(pa.Int, name=cols.INT_NUM_GRUPO_EXCL, coerce=True),
         ]
     ),
-    dtype=pa.Object,
+    dtype=pa.String,
     nullable=False,
 )

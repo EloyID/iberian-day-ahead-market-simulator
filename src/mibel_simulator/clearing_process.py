@@ -14,7 +14,6 @@ from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, TRIALS_DF_COLUMNS
 from mibel_simulator.data_preprocessor import (
     get_all_paradox_groups,
     get_det_cab_date_for_simulation,
-    get_exclusive_block_orders_grouped,
     get_france_det_cab_date_from_price,
 )
 from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
@@ -392,6 +391,9 @@ def get_new_paradox_groups_list_by_adding_left_out_ones(
             trials_df, ids_paradox_groups + starting_ids_paradox_groups
         )
     )
+    new_paradox_groups_df[cols.PARADOX_GROUPS_COLUMN] = new_paradox_groups_df[
+        cols.IDS_PARADOX_GROUPS
+    ].apply(transform_ids_paradox_groups_list_to_dict)
 
     # Filter out already tested combinations
     new_paradox_groups_df = new_paradox_groups_df.query(
@@ -406,7 +408,7 @@ def get_new_paradox_groups_list_by_adding_left_out_ones(
 
     min_ratio = new_paradox_groups_df[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].min()
     if pd.isna(min_ratio):
-        raise ValueError("No new paradox groups combinations found.")
+        min_ratio = -np.inf
     create_combinations = True
     combinations_count = 2
 
@@ -619,8 +621,6 @@ def iterative_function(
     args: tuple[
         pd.DataFrame,
         pd.DataFrame,
-        pd.DataFrame,
-        pd.DataFrame,
         list,
     ],
 ) -> pd.DataFrame:
@@ -634,7 +634,6 @@ def iterative_function(
         args (tuple): Tuple containing:
             - det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
             - capacidad_inter_PT_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
-            - exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
             - paradox_groups (list): List of SCO order IDs with MIC for this trial.
 
     Returns:
@@ -644,7 +643,6 @@ def iterative_function(
     (
         det_cab_date,
         capacidad_inter_PT_date,
-        exclusive_block_orders_grouped,
         paradox_groups,
     ) = args
 
@@ -657,7 +655,6 @@ def iterative_function(
     model, _, results = run_model(
         det_cab_date_scos_filtered,
         capacidad_inter_PT_date,
-        exclusive_block_orders_grouped,
     )
 
     # Extract information from the model
@@ -726,11 +723,9 @@ def check_if_success_at_first_trial(
 
 @pa.check_input(DETCABSchema, "det_cab_date")
 @pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pt_date")
-@pa.check_input(ExclusiveBlockOrdersGroupedSchema, "exclusive_block_orders_grouped")
 def run_iterative_loop(
     det_cab_date: DataFrame,
     capacidad_inter_pt_date: DataFrame,
-    exclusive_block_orders_grouped: DataFrame,
     trials_count: int = 100,
     trial_ids_mic_scos: list | None = None,
     trial_ids_bid_blocks: list | None = None,
@@ -745,7 +740,6 @@ def run_iterative_loop(
     Args:
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
         capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
-        exclusive_block_orders_grouped (pd.DataFrame): DataFrame of exclusive block order groups.
         trial_ids_mic_scos (list, optional): Initial SCOs with MIC for the first trial.
         trial_ids_bid_blocks (list, optional): Initial bid blocks for the first trial.
         trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from.
@@ -810,7 +804,6 @@ def run_iterative_loop(
             (
                 det_cab_date,
                 capacidad_inter_pt_date,
-                exclusive_block_orders_grouped,
                 trial_paradox_groups,
             )
             for trial_paradox_groups in next_trials_paradox_groups
@@ -861,7 +854,6 @@ def run_iterative_loop(
     best_model, best_model_binary, results = run_model(
         det_cab_date=det_cab_date_scos_filtered,
         capacidad_inter_PT_date=capacidad_inter_pt_date,
-        exclusive_block_orders_grouped=exclusive_block_orders_grouped,
     )
 
     return trials_df, best_model, best_model_binary
@@ -937,12 +929,10 @@ def clear_OMIE_market(
         det_cab_fr_date=det_cab_fr_date,
         zones_default_to_spain=zones_default_to_spain,
     )
-    exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
 
     trials_df, model, model_binary = run_iterative_loop(
         det_cab_date=det_cab_date,
         capacidad_inter_pt_date=capacidad_inter_pt_date,
-        exclusive_block_orders_grouped=exclusive_block_orders_grouped,
         trials_count=trials_count,
         trials_df=starting_trials_df,
         trial_ids_mic_scos=trial_ids_mic_scos,

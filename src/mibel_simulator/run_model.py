@@ -7,13 +7,11 @@ from mibel_simulator.make_model import make_model
 def run_model(
     det_cab_date,
     capacidad_inter_PT_date,
-    exclusive_block_orders_grouped,
 ):
     ########################### Load Model ########################
     model = make_model(
         det_cab_date=det_cab_date,
         capacidad_inter_PT_date=capacidad_inter_PT_date,
-        exclusive_block_orders_grouped=exclusive_block_orders_grouped,
     )
 
     ########################### Solve ########################

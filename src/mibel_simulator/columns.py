@@ -53,7 +53,7 @@ IDS_BID_BLOCKS = "ids_bid_blocks"
 INT_BID_BLOCKS_COUNT = "int_bid_blocks_count"
 BOOL_ARE_PARADOX_GROUPS_TESTED = "bool_are_paradox_groups_tested"
 BOOL_IS_EXPECTED_INCOME_RESPECTED = "bool_is_expected_income_respected"
-ID_PARADOX_GROUPS = "id_paradox_group"
+ID_PARADOX_GROUPS = "id_paradox_groups"
 PARADOX_GROUPS_COLUMN = "paradox_groups"
 IDS_PARADOX_GROUPS = (
     "ids_paradox_groups"  # id_order if mic_sco, id_block_order if bid_block

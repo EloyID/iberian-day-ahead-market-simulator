@@ -303,7 +303,7 @@ def get_det_cab_date_for_simulation(
     )
     det_cab_date[cols.ID_BLOCK_ORDER] = get_det_cab_date_id_block_order(det_cab_date)
     det_cab_date[cols.ID_SCO] = get_det_cab_date_id_sco(det_cab_date)
-    det_cab_date[cols.IDS_PARADOX_GROUPS] = get_det_cab_date_id_paradox_group(
+    det_cab_date[cols.ID_PARADOX_GROUPS] = get_det_cab_date_id_paradox_group(
         det_cab_date
     )
 

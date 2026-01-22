@@ -15,12 +15,25 @@ from pyomo.environ import (
     Any,
 )
 
+from mibel_simulator.data_preprocessor import get_exclusive_block_orders_grouped
+from mibel_simulator.schemas.exclusive_block_order_grouped import (
+    ExclusiveBlockOrdersGroupedSchema,
+)
+
 
 def make_model(
     det_cab_date,
     capacidad_inter_PT_date,
-    exclusive_block_orders_grouped,
 ):
+
+    exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
+    try:
+        ExclusiveBlockOrdersGroupedSchema.validate(
+            exclusive_block_orders_grouped, lazy=True
+        )
+    except Exception as e:
+        print("ExclusiveBlockOrdersGroupedSchema validation error:")
+        print(e)
 
     # fmt: off
 
