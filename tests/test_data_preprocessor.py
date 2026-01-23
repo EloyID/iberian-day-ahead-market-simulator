@@ -196,6 +196,7 @@ class TestGetDetCabDateForSimulation:
             det_cab_fr_date=full_simplified_det_cab_fr_dataframe,
         ).sort_index()
 
+        print(det_cab.id_paradox_groups.to_list())
         pd.testing.assert_frame_equal(
             det_cab.reset_index(drop=True),
             full_simplified_det_cab_dataframe.reset_index(drop=True),

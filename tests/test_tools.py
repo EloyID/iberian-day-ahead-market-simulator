@@ -218,25 +218,69 @@ class TestConcatProvidedUOFZonesWithExistingData:
         )
 
 
-class TestFilterMicScosFromDetCab:
-    """Test suite for filter_mic_scos_from_det_cab function."""
+class TestFilterParadoxGroupsFromDetCab:
+    """Test suite for filter_paradox_groups_from_det_cab function."""
 
-    def test_filter_mic_scos(self, full_simplified_det_cab_dataframe):
-        """Test filtering MIC SCOs from DET/CAB."""
-        mic_scos = ["ID_SCO_MIC"]  # Order 1 is a MIC SCO
-        result = tools.filter_mic_scos_from_det_cab(
-            full_simplified_det_cab_dataframe, mic_scos
+    def test_filter_paradox_groups(self, full_simplified_det_cab_dataframe):
+        """Test filtering paradox groups from DET/CAB."""
+        paradox_groups = {
+            "ids_mic_scos": ["ID_SCO_MIC"],
+            "ids_bid_blocks": [
+                "ID_BLOCK_B_1_GE_0",
+                "ID_BLOCK_B_2_GE_0",
+                "ID_EXCL_BLOCK_B_1_GE_1",
+                "ID_EXCL_BLOCK_B_2_GE_1",
+            ],
+        }  # Order 1 is a MIC SCO
+        result = tools.filter_paradox_groups_from_det_cab(
+            full_simplified_det_cab_dataframe, paradox_groups
         )
 
-        # Should include rows where ID_ORDER is in mic_scos OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradox_groups OR where FLOAT_MIC is not > 0
         assert len(result) == 30
 
-    def test_filter_out_mic_scos(self, full_simplified_det_cab_dataframe):
-        """Test filtering MIC SCOs from DET/CAB."""
-        mic_scos = []  # Order 1 is a MIC SCO
-        result = tools.filter_mic_scos_from_det_cab(
-            full_simplified_det_cab_dataframe, mic_scos
+    def test_filter_out_all_paradox_groups(self, full_simplified_det_cab_dataframe):
+        """Test filtering paradox groups from DET/CAB."""
+        paradox_groups = {
+            "ids_mic_scos": [],
+            "ids_bid_blocks": [],
+        }  # Order 1 is a MIC SCO
+        result = tools.filter_paradox_groups_from_det_cab(
+            full_simplified_det_cab_dataframe, paradox_groups
         )
 
-        # Should include rows where ID_ORDER is in mic_scos OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradox_groups  OR where FLOAT_MIC is not > 0
+        assert len(result) == 15
+
+    def test_filter_out_bid_blocks_paradox_groups(
+        self, full_simplified_det_cab_dataframe
+    ):
+        """Test filtering paradox groups from DET/CAB."""
+        paradox_groups = {
+            "ids_mic_scos": ["ID_SCO_MIC"],
+            "ids_bid_blocks": [],
+        }  # Order 1 is a MIC SCO
+        result = tools.filter_paradox_groups_from_det_cab(
+            full_simplified_det_cab_dataframe, paradox_groups
+        )
+
+        # Should include rows where ID_ORDER is in paradox_groups  OR where FLOAT_MIC is not > 0
+        assert len(result) == 18
+
+    def test_filter_out_mic_sco_paradox_groups(self, full_simplified_det_cab_dataframe):
+        """Test filtering paradox groups from DET/CAB."""
+        paradox_groups = {
+            "ids_mic_scos": [],
+            "ids_bid_blocks": [
+                "ID_BLOCK_B_1_GE_0",
+                "ID_BLOCK_B_2_GE_0",
+                "ID_EXCL_BLOCK_B_1_GE_1",
+                "ID_EXCL_BLOCK_B_2_GE_1",
+            ],
+        }  # Order 1 is a MIC SCO
+        result = tools.filter_paradox_groups_from_det_cab(
+            full_simplified_det_cab_dataframe, paradox_groups
+        )
+
+        # Should include rows where ID_ORDER is in paradox_groups  OR where FLOAT_MIC is not > 0
         assert len(result) == 27
