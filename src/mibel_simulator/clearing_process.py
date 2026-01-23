@@ -414,24 +414,24 @@ def get_new_paradox_groups_list_by_adding_left_out_ones(
 
     while create_combinations and combinations_count <= 4:
         # Generate combinations of left-out SCOs, sorted by their combined ratio net income / bid power
-        leftout_paradox_groups_sorted = get_combinations_generator(
+        leftout_paradox_ids_groups_sorted = get_combinations_generator(
             leftout_paradox_groups_summary_sorted, combinations_count
         )
         new_paradox_groups_added_in_iteration = False
-        for leftout_paradox_groups in leftout_paradox_groups_sorted:
-            new_trial_paradox_groups = starting_ids_paradox_groups + list(
-                leftout_paradox_groups
+        for leftout_ids_paradox_groups in leftout_paradox_ids_groups_sorted:
+            new_trial_ids_paradox_groups = starting_ids_paradox_groups + list(
+                leftout_ids_paradox_groups
             )
             are_paradox_groups_tested = check_are_paradox_groups_tested(
-                trials_df, new_trial_paradox_groups
+                trials_df, new_trial_ids_paradox_groups
             )
             if not are_paradox_groups_tested:
                 ratio_net_income_bid_power = np.average(
-                    leftout_paradox_groups_summary.loc[list(leftout_paradox_groups)][
-                        cols.FLOAT_RATIO_NET_INCOME_BID_POWER
-                    ],
+                    leftout_paradox_groups_summary.loc[
+                        list(leftout_ids_paradox_groups)
+                    ][cols.FLOAT_RATIO_NET_INCOME_BID_POWER],
                     weights=leftout_paradox_groups_summary.loc[
-                        list(leftout_paradox_groups)
+                        list(leftout_ids_paradox_groups)
                     ][cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER],
                 )
 
@@ -443,7 +443,11 @@ def get_new_paradox_groups_list_by_adding_left_out_ones(
                 ):
                     new_paradox_groups_entry = pd.DataFrame(
                         {
-                            cols.PARADOX_GROUPS_COLUMN: [new_trial_paradox_groups],
+                            cols.PARADOX_GROUPS_COLUMN: [
+                                transform_ids_paradox_groups_list_to_dict(
+                                    new_trial_ids_paradox_groups
+                                )
+                            ],
                             cols.FLOAT_RATIO_NET_INCOME_BID_POWER: [
                                 ratio_net_income_bid_power
                             ],
@@ -480,13 +484,9 @@ def get_new_paradox_groups_list_by_adding_left_out_ones(
         else:
             combinations_count += 1
 
-    return (
-        new_paradox_groups_df.head(paradox_groups_combinations_count)[
-            cols.PARADOX_GROUPS_COLUMN
-        ]
-        .apply(transform_ids_paradox_groups_list_to_dict)
-        .tolist()
-    )
+    return new_paradox_groups_df.head(paradox_groups_combinations_count)[
+        cols.PARADOX_GROUPS_COLUMN
+    ].tolist()
 
 
 def get_new_paradox_groups_list_by_removing_underperforming_ones(
@@ -647,13 +647,13 @@ def iterative_function(
     ) = args
 
     # Keep only SCOs in the current trial
-    det_cab_date_scos_filtered = filter_paradox_groups_from_det_cab(
+    det_cab_date_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
         det_cab_date, paradox_groups
     )
 
     # Run market model
     model, _, results = run_model(
-        det_cab_date_scos_filtered,
+        det_cab_date_paradox_groups_filtered,
         capacidad_inter_PT_date,
     )
 
@@ -661,7 +661,7 @@ def iterative_function(
     cleared_energy = get_cleared_energy_series(model)
     clearing_prices = get_clearing_prices_df(model)
     cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
-        det_cab_date_scos_filtered, cleared_energy, clearing_prices
+        det_cab_date_paradox_groups_filtered, cleared_energy, clearing_prices
     )
     welfare = pyo.value(model.OBJ)
     bool_is_expected_income_respected = (
@@ -785,7 +785,7 @@ def run_iterative_loop(
     # If trials_df is defined, define a new combination based on previous trials
     elif not trials_df.empty:
         next_trials_paradox_groups = define_new_paradox_groups_list(
-            trials_df, det_cab_date, all_paradox_groups
+            trials_df, det_cab_date, all_paradox_groups, min(n_jobs, trials_count)
         )
         if next_trials_paradox_groups is False:
             logger.info("--ALGORITHM--: All combinations tried, finishing")
