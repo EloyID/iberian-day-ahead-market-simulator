@@ -576,7 +576,8 @@ def define_new_paradox_groups_list(
 
     # Get the most promising trial
     sorted_promising_trials_df = sort_trials_df_by_most_promising(trials_df)
-
+    int_paradox_groups_count_start = int_paradox_groups_count
+    new_paradox_groups_list = []
     for index, row in sorted_promising_trials_df.iterrows():
 
         logger.info(
@@ -593,11 +594,13 @@ def define_new_paradox_groups_list(
             leftout_paradox_groups_summary = get_leftout_paradox_groups_summary(
                 det_cab_date, all_paradox_groups, paradox_groups, clearing_prices
             ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
-            return get_new_paradox_groups_list_by_adding_left_out_ones(
-                leftout_paradox_groups_summary,
-                trials_df,
-                paradox_groups,
-                int_paradox_groups_count,
+            new_paradox_groups_list.extend(
+                get_new_paradox_groups_list_by_adding_left_out_ones(
+                    leftout_paradox_groups_summary,
+                    trials_df,
+                    paradox_groups,
+                    int_paradox_groups_count,
+                )
             )
 
         else:
@@ -609,12 +612,22 @@ def define_new_paradox_groups_list(
                 cleared_energy,
                 clearing_prices,
             )
-            return get_new_paradox_groups_list_by_removing_underperforming_ones(
-                trial_cleared_paradox_groups_summary,
-                trials_df,
-                paradox_groups,
-                int_paradox_groups_count,
+            new_paradox_groups_list.extend(
+                get_new_paradox_groups_list_by_removing_underperforming_ones(
+                    trial_cleared_paradox_groups_summary,
+                    trials_df,
+                    paradox_groups,
+                    int_paradox_groups_count,
+                )
             )
+
+        int_paradox_groups_count = int_paradox_groups_count_start - len(
+            new_paradox_groups_list
+        )
+        if int_paradox_groups_count <= 0:
+            break
+
+    return new_paradox_groups_list
 
 
 def iterative_function(
