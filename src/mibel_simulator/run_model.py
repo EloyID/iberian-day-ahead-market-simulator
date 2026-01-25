@@ -25,6 +25,8 @@ def run_model(
 
     model.v_u_activated_BLOCK_ORDERS.fix()
     model.v_u_activated_SCO_ORDERS.fix()
+    model.v_u_activated_FRANCE_EXPORT_BIDS.fix()
+    model.v_u_activated_FRANCE_IMPORT_BIDS.fix()
 
     opt = SolverFactory("gurobi")
     results = opt.solve(model, tee=False)  # True)

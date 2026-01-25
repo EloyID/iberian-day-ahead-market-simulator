@@ -1,4 +1,4 @@
-from mibel_simulator.const import PORTUGAL_ZONE, SPAIN_ZONE
+from mibel_simulator.const import FRANCE_ID_UNIDAD, PORTUGAL_ZONE, SPAIN_ZONE
 import mibel_simulator.columns as cols
 from pyomo.environ import Binary
 from pyomo.environ import (
@@ -20,6 +20,9 @@ from mibel_simulator.schemas.exclusive_block_order_grouped import (
     ExclusiveBlockOrdersGroupedSchema,
 )
 
+# FUTURE WORK: if you make import/export bids from France as mutually exclusive, you can simplify
+# the code
+
 
 def make_model(
     det_cab_date,
@@ -37,8 +40,10 @@ def make_model(
 
     # fmt: off
 
-    det_cab_date_C =        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C"').copy()
-    det_cab_date_V =        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V"').copy()
+    det_cab_date_C =           det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C" and {cols.ID_UNIDAD} != @FRANCE_ID_UNIDAD').copy()
+    det_cab_date_C_export_FR = det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C" and {cols.ID_UNIDAD} == @FRANCE_ID_UNIDAD').copy()
+    det_cab_date_V =           det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V" and {cols.ID_UNIDAD} != @FRANCE_ID_UNIDAD').copy()
+    det_cab_date_V_import_FR = det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V" and {cols.ID_UNIDAD} == @FRANCE_ID_UNIDAD').copy()
 
     det_cab_date_V_bloque = det_cab_date_V.query(f"{cols.ID_BLOCK_ORDER}.notna()").copy()
     det_cab_date_V_simple = det_cab_date_V.query(f"{cols.ID_BLOCK_ORDER}.isna() and {cols.ID_SCO}.isna()").copy()
@@ -65,6 +70,8 @@ def make_model(
     sco_seller_bids =       det_cab_date_V_sco      [cols.ID_INDIVIDUAL_BID].tolist()
     block_orders =          det_cab_date_V_bloque   [cols.ID_BLOCK_ORDER].unique().tolist()
     sco_orders =            det_cab_date_V_sco      [cols.ID_SCO].unique().tolist()
+    france_export_bids =    det_cab_date_C_export_FR[cols.ID_INDIVIDUAL_BID].tolist()
+    france_import_bids =    det_cab_date_V_import_FR[cols.ID_INDIVIDUAL_BID].tolist()
 
     model.BUYER_BIDS =          Set(initialize=buyer_bids,          doc="Buyer individual bid ids")
     model.SIMPLE_SELLER_BIDS =  Set(initialize=simple_seller_bids,  doc="Seller simple individual bid ids")
@@ -72,14 +79,17 @@ def make_model(
     model.SCO_SELLER_BIDS =     Set(initialize=sco_seller_bids,     doc="Seller SCO individual bid ids")
     model.BLOCK_ORDERS =        Set(initialize=block_orders,        doc="Seller block order ids")
     model.SCO_ORDERS =          Set(initialize=sco_orders,          doc="Seller SCO order ids")
+    model.FRANCE_EXPORT_BIDS =  Set(initialize=france_export_bids,  doc="France export individual bid ids")
+    model.FRANCE_IMPORT_BIDS =  Set(initialize=france_import_bids,  doc="France import individual bid ids")
 
-    buyer_bids_per_period_and_country_fnc =          lambda period, country:   det_cab_date_C         .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_order_bids_by_block_and_period_fnc =       lambda bloque_id, period: det_cab_date_V_bloque  .query(f"{cols.ID_BLOCK_ORDER} == @bloque_id   and {cols.INT_PERIODO} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
-    simple_seller_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_V_simple  .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_order_bids_by_block_fnc =                  lambda bloque_id:         det_cab_date_V_bloque  .query(f"{cols.ID_BLOCK_ORDER} == @bloque_id"                                     )[cols.ID_INDIVIDUAL_BID].tolist()
-    sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_date_V_sco     .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_orders_by_country_fnc =                    lambda country:           det_cab_date_V_bloque  .query(f"{cols.CAT_PAIS} == @country"                                             )[cols.ID_BLOCK_ORDER].unique().tolist()
-
+    buyer_bids_per_period_and_country_fnc =          lambda period, country:   det_cab_date_C          .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    block_order_bids_by_block_and_period_fnc =       lambda bloque_id, period: det_cab_date_V_bloque   .query(f"{cols.ID_BLOCK_ORDER} == @bloque_id   and {cols.INT_PERIODO} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
+    simple_seller_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_V_simple   .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    block_order_bids_by_block_fnc =                  lambda bloque_id:         det_cab_date_V_bloque   .query(f"{cols.ID_BLOCK_ORDER} == @bloque_id"                                     )[cols.ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_date_V_sco      .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    block_orders_by_country_fnc =                    lambda country:           det_cab_date_V_bloque   .query(f"{cols.CAT_PAIS} == @country"                                             )[cols.ID_BLOCK_ORDER].unique().tolist()
+    france_export_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_C_export_FR.query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    france_import_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_V_import_FR.query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
 
     buyer_bids_per_period_and_country =         {(period, country):   buyer_bids_per_period_and_country_fnc(period, country)          for period in periods           for country in countries}
     block_order_bids_by_block_and_period =      {(bloque_id, period): block_order_bids_by_block_and_period_fnc(bloque_id, period)     for bloque_id in block_orders   for period in periods}
@@ -87,6 +97,8 @@ def make_model(
     block_order_bids_by_block =                 {bloque_id:           block_order_bids_by_block_fnc(bloque_id)                        for bloque_id in block_orders}
     sco_seller_bids_per_period_and_country =    {(period, country):   sco_seller_bids_per_period_and_country_fnc(period, country)     for period in periods           for country in countries}
     block_orders_by_country =                   {country:             block_orders_by_country_fnc(country)                            for country in countries}
+    france_export_bids_per_period_and_country = {(period, country):   france_export_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
+    france_import_bids_per_period_and_country = {(period, country):   france_import_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
 
     model.BUYER_BIDS_PER_PERIOD_AND_COUNTRY =           Set(model.PERIODS,      model.COUNTRIES, initialize=buyer_bids_per_period_and_country,          doc="Buyer individual bid ids per peri        od and country")
     model.SIMPLE_SELLER_BIDS_PER_PERIOD_AND_COUNTRY =   Set(model.PERIODS,      model.COUNTRIES, initialize=simple_seller_bids_per_period_and_country,  doc="Simple seller individual bids per period and country")
@@ -94,6 +106,8 @@ def make_model(
     model.BLOCK_ORDER_BIDS_BY_BLOCK_AND_PERIOD =        Set(model.BLOCK_ORDERS, model.PERIODS,   initialize=block_order_bids_by_block_and_period,       doc="Block order individual bids per block order and period")
     model.BLOCK_ORDER_BIDS_BY_BLOCK =                   Set(model.BLOCK_ORDERS,                  initialize=block_order_bids_by_block,                  doc="Block order individual bids per block order")
     model.BLOCK_ORDERS_BY_COUNTRY =                     Set(model.COUNTRIES,                     initialize=block_orders_by_country,                    doc="Block orders per country")
+    model.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY =   Set(model.PERIODS,      model.COUNTRIES, initialize=france_export_bids_per_period_and_country,  doc="France export individual bids per period and country")
+    model.FRANCE_IMPORT_BIDS_PER_PERIOD_AND_COUNTRY =   Set(model.PERIODS,      model.COUNTRIES, initialize=france_import_bids_per_period_and_country,  doc="France import individual bids per period and country")
 
     exclusive_block_orders_grouped_joined =  exclusive_block_orders_grouped.apply(lambda x: "$".join(x))
 
@@ -105,10 +119,14 @@ def make_model(
     p_price_min_BLOCK_ORDERS =                  det_cab_date_V_bloque    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_BID_PRICE].to_dict()
     p_price_min_SCO_SELLER_BIDS =               det_cab_date_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
     p_price_max_BUYERS_BIDS =                   det_cab_date_C           .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
+    p_price_max_FRANCE_EXPORT_BIDS =            det_cab_date_C_export_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
+    p_price_min_FRANCE_IMPORT_BIDS =            det_cab_date_V_import_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
     p_quantity_SIMPLE_SELLER_BIDS =             det_cab_date_V_simple    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
     p_quantity_SCO_SELLER_BIDS =                det_cab_date_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
     p_quantity_BLOCK_ORDER_BIDS =               det_cab_date_V_bloque    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
     p_quantity_BUYER_BIDS =                     det_cab_date_C           .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
+    p_quantity_FRANCE_EXPORT_BIDS =             det_cab_date_C_export_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
+    p_quantity_FRANCE_IMPORT_BIDS =             det_cab_date_V_import_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
     p_congestion_spain_portugal_exportacion =   capacidad_inter_PT_date  .set_index(cols.INT_PERIODO)            [cols.FLOAT_EXPORT_CAPACITY].to_dict()
     p_congestion_spain_portugal_importacion =   capacidad_inter_PT_date  .set_index(cols.INT_PERIODO)            [cols.FLOAT_IMPORT_CAPACITY].to_dict()
     p_MAR =                                     det_cab_date_V_bloque    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_MAR].to_dict()
@@ -120,10 +138,14 @@ def make_model(
     model.p_price_min_BLOCK_ORDERS =                 Param(model.BLOCK_ORDERS,        initialize=p_price_min_BLOCK_ORDERS,                                          doc="Minimum price of each generator - block orders")
     model.p_price_min_SCO_SELLER_BIDS =              Param(model.SCO_SELLER_BIDS,     initialize=p_price_min_SCO_SELLER_BIDS,                                       doc="Minimum price of each generator - SCO bids")
     model.p_price_max_BUYERS_BIDS =                  Param(model.BUYER_BIDS,          initialize=p_price_max_BUYERS_BIDS,                                           doc="Maximum price of each consumer")
+    model.p_price_max_FRANCE_EXPORT_BIDS =           Param(model.FRANCE_EXPORT_BIDS,  initialize=p_price_max_FRANCE_EXPORT_BIDS,                                    doc="Maximum price of France export bids")
+    model.p_price_min_FRANCE_IMPORT_BIDS =           Param(model.FRANCE_IMPORT_BIDS,  initialize=p_price_min_FRANCE_IMPORT_BIDS,                                    doc="Minimum price of France import bids")  
     model.p_quantity_SIMPLE_SELLER_BIDS =            Param(model.SIMPLE_SELLER_BIDS,  initialize=p_quantity_SIMPLE_SELLER_BIDS,            within=NonNegativeReals, doc="Quantity offered by each generator")
     model.p_quantity_SCO_SELLER_BIDS =               Param(model.SCO_SELLER_BIDS,     initialize=p_quantity_SCO_SELLER_BIDS,               within=NonNegativeReals, doc="Quantity offered by each generator - SCO bids")
     model.p_quantity_BLOCK_ORDER_BIDS =              Param(model.BLOCK_ORDER_BIDS,    initialize=p_quantity_BLOCK_ORDER_BIDS,              within=NonNegativeReals, doc="Quantity offered by each generator - block orders")
     model.p_quantity_BUYER_BIDS =                    Param(model.BUYER_BIDS,          initialize=p_quantity_BUYER_BIDS,                    within=NonNegativeReals, doc="Quantity demanded by each consumer")
+    model.p_quantity_FRANCE_EXPORT_BIDS =            Param(model.FRANCE_EXPORT_BIDS,  initialize=p_quantity_FRANCE_EXPORT_BIDS,            within=NonNegativeReals, doc="Quantity demanded by France export bids")
+    model.p_quantity_FRANCE_IMPORT_BIDS =            Param(model.FRANCE_IMPORT_BIDS,  initialize=p_quantity_FRANCE_IMPORT_BIDS,            within=NonNegativeReals, doc="Quantity demanded by France import bids")
     model.p_congestion_spain_portugal_exportacion =  Param(model.PERIODS,             initialize=p_congestion_spain_portugal_exportacion,  within=NonNegativeReals, doc="Maximum capacity Spain export to Portugal")
     model.p_congestion_spain_portugal_importacion =  Param(model.PERIODS,             initialize=p_congestion_spain_portugal_importacion,  within=NonPositiveReals, doc="Maximum capacity Spain import from Portugal (negative value)")
     model.p_MAR =                                    Param(model.BLOCK_ORDERS,        initialize=p_MAR,                                    within=NonNegativeReals, doc="Minimum acceptance ratio (MAR) of each block order")
@@ -133,13 +155,17 @@ def make_model(
 
     ##### Variables #####
 
-    model.v_x_SIMPLE_SELLER_BIDS =        Var(model.SIMPLE_SELLER_BIDS, within=UnitInterval, doc="Quantity ratio sold by each generator")
-    model.v_x_BUYER_BIDS =                Var(model.BUYER_BIDS,         within=UnitInterval, doc="Quantity ratio bought by each consumer")
-    model.v_x_BLOCK_ORDERS =              Var(model.BLOCK_ORDERS,       within=UnitInterval, doc="Quantity ratio sold by each block order")
-    model.v_x_SCO_SELLER_BIDS =           Var(model.SCO_SELLER_BIDS,    within=UnitInterval, doc="Quantity ratio sold by each SCO bid")
-    model.v_u_activated_SCO_ORDERS =      Var(model.SCO_ORDERS,         within=Binary,       doc="Whether a SCO order is activated or not")
-    model.v_u_activated_BLOCK_ORDERS =    Var(model.BLOCK_ORDERS,       within=Binary,       doc="Whether a block order is activated or not")
-    model.v_transmission_spain_portugal = Var(model.PERIODS,                                 doc="Quantity transmitted between Spain and Portugal")
+    model.v_x_SIMPLE_SELLER_BIDS =           Var(model.SIMPLE_SELLER_BIDS, within=UnitInterval, doc="Quantity ratio sold by each generator")
+    model.v_x_BUYER_BIDS =                   Var(model.BUYER_BIDS,         within=UnitInterval, doc="Quantity ratio bought by each consumer")
+    model.v_x_BLOCK_ORDERS =                 Var(model.BLOCK_ORDERS,       within=UnitInterval, doc="Quantity ratio sold by each block order")
+    model.v_x_SCO_SELLER_BIDS =              Var(model.SCO_SELLER_BIDS,    within=UnitInterval, doc="Quantity ratio sold by each SCO bid")
+    model.v_x_FRANCE_EXPORT_BIDS =           Var(model.FRANCE_EXPORT_BIDS, within=UnitInterval, doc="Quantity ratio bought by France export bids")
+    model.v_x_FRANCE_IMPORT_BIDS =           Var(model.FRANCE_IMPORT_BIDS, within=UnitInterval, doc="Quantity ratio sold by France import bids")
+    model.v_u_activated_SCO_ORDERS =         Var(model.SCO_ORDERS,         within=Binary,       doc="Whether a SCO order is activated or not")
+    model.v_u_activated_BLOCK_ORDERS =       Var(model.BLOCK_ORDERS,       within=Binary,       doc="Whether a block order is activated or not")
+    model.v_u_activated_FRANCE_EXPORT_BIDS = Var(model.FRANCE_EXPORT_BIDS, within=Binary,       doc="Whether a France export bid is activated or not")
+    model.v_u_activated_FRANCE_IMPORT_BIDS = Var(model.FRANCE_IMPORT_BIDS, within=Binary,       doc="Whether a France import bid is activated or not")
+    model.v_transmission_spain_portugal =    Var(model.PERIODS,                                 doc="Quantity transmitted between Spain and Portugal")
 
     ##### Objective #####
 
@@ -152,6 +178,12 @@ def make_model(
                 * m.p_quantity_BUYER_BIDS[b]
                 * m.p_price_max_BUYERS_BIDS[b]
                 for b in m.BUYER_BIDS
+            )
+            + sum(
+                m.v_x_FRANCE_EXPORT_BIDS[b]
+                * m.p_quantity_FRANCE_EXPORT_BIDS[b]
+                * m.p_price_max_FRANCE_EXPORT_BIDS[b]
+                for b in m.FRANCE_EXPORT_BIDS
             )
             - sum(
                 m.v_x_SIMPLE_SELLER_BIDS[s]
@@ -174,6 +206,12 @@ def make_model(
             )
             - sum(
                 m.v_u_activated_SCO_ORDERS[sco] * m.p_MIC[sco] for sco in m.SCO_ORDERS
+            )
+            - sum(
+                m.v_x_FRANCE_IMPORT_BIDS[b]
+                * m.p_quantity_FRANCE_IMPORT_BIDS[b]
+                * m.p_price_min_FRANCE_IMPORT_BIDS[b]
+                for b in m.FRANCE_IMPORT_BIDS
             )
         )
 
@@ -201,6 +239,14 @@ def make_model(
             m.v_x_BUYER_BIDS[b] * m.p_quantity_BUYER_BIDS[b]
             for b in m.BUYER_BIDS_PER_PERIOD_AND_COUNTRY[p, c]
         )
+        + sum(
+            [
+                m.v_x_FRANCE_EXPORT_BIDS[b] * m.p_quantity_FRANCE_EXPORT_BIDS[b]
+                for b in m.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, c]
+            ]
+            if c == SPAIN_ZONE
+            else []
+        )
         + (
             m.v_transmission_spain_portugal[p]
             if c == SPAIN_ZONE
@@ -218,6 +264,14 @@ def make_model(
         + sum(
             m.v_x_SCO_SELLER_BIDS[s] * m.p_quantity_SCO_SELLER_BIDS[s]
             for s in m.SCO_SELLER_BIDS_PER_PERIOD_AND_COUNTRY[p, c]
+        )
+        + sum(
+            [
+                m.v_x_FRANCE_IMPORT_BIDS[b] * m.p_quantity_FRANCE_IMPORT_BIDS[b]
+                for b in m.FRANCE_IMPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, c]
+            ]
+            if c == SPAIN_ZONE
+            else []
         ),
         doc="Supply and demand balance in each country and period",
     )
@@ -255,6 +309,34 @@ def make_model(
         rule=lambda m, bg: sum(m.v_u_activated_BLOCK_ORDERS[bo] for bo in bg.split("$"))
         <= 1,
         doc="At most one block order in an exclusive group can be accepted",
+    )
+
+    model.c_France_Export_Activation = Constraint(
+        model.FRANCE_EXPORT_BIDS,
+        rule=lambda m, b: m.v_u_activated_FRANCE_EXPORT_BIDS[b]
+        >= m.v_x_FRANCE_EXPORT_BIDS[b],
+        doc="If a France export bid is accepted, it must be activated",
+    )
+
+    model.c_France_Import_Activation = Constraint(
+        model.FRANCE_IMPORT_BIDS,
+        rule=lambda m, b: m.v_u_activated_FRANCE_IMPORT_BIDS[b]
+        >= m.v_x_FRANCE_IMPORT_BIDS[b],
+        doc="If a France import bid is accepted, it must be activated",
+    )
+
+    model.c_France_Export_Import_Exclusivity = Constraint(
+        model.PERIODS,
+        rule=lambda m, p: sum(
+            m.v_u_activated_FRANCE_EXPORT_BIDS[b]
+            for b in m.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, SPAIN_ZONE]
+        )
+        + sum(
+            m.v_u_activated_FRANCE_IMPORT_BIDS[b]
+            for b in m.FRANCE_IMPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, SPAIN_ZONE]
+        )
+        <= 1,
+        doc="France import and export bids are mutually exclusive in each period",
     )
 
     return model

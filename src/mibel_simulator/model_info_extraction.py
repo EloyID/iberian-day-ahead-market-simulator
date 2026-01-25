@@ -114,6 +114,44 @@ def get_buyers_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
     return pd.Series(cleared_buyers_energy, name=cols.FLOAT_CLEARED_POWER)
 
 
+def get_france_export_bids_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
+    """_summary_
+
+    Args:
+        model (pyo.ConcreteModel): _description_
+
+    Returns:
+        pd.Series: _description_
+    """
+    france_export_cleared_energy = {
+        s: pyo.value(
+            model.v_x_FRANCE_EXPORT_BIDS[s] * model.p_quantity_FRANCE_EXPORT_BIDS[s]
+        )
+        for s in model.FRANCE_EXPORT_BIDS
+        if pyo.value(model.v_x_FRANCE_EXPORT_BIDS[s]) > 0
+    }
+    return pd.Series(france_export_cleared_energy, name=cols.FLOAT_CLEARED_POWER)
+
+
+def get_france_import_bids_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
+    """_summary_
+
+    Args:
+        model (pyo.ConcreteModel): _description_
+
+    Returns:
+        pd.Series: _description_
+    """
+    france_import_cleared_energy = {
+        s: pyo.value(
+            model.v_x_FRANCE_IMPORT_BIDS[s] * model.p_quantity_FRANCE_IMPORT_BIDS[s]
+        )
+        for s in model.FRANCE_IMPORT_BIDS
+        if pyo.value(model.v_x_FRANCE_IMPORT_BIDS[s]) > 0
+    }
+    return pd.Series(france_import_cleared_energy, name=cols.FLOAT_CLEARED_POWER)
+
+
 def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
     """_summary_
 
@@ -127,12 +165,16 @@ def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
     block_orders_energy = get_block_orders_cleared_energy_series(model)
     sco_energy = get_sco_cleared_energy_series(model)
     cleared_buyers_energy = get_buyers_cleared_energy_series(model)
+    france_export_energy = get_france_export_bids_cleared_energy_series(model)
+    france_import_energy = get_france_import_bids_cleared_energy_series(model)
 
     series_list = [
         simple_sellers_energy,
         block_orders_energy,
         sco_energy,
         cleared_buyers_energy,
+        france_export_energy,
+        france_import_energy,
     ]
     non_empty_series = [s for s in series_list if not s.empty]
     return pd.concat(
