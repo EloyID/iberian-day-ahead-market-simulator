@@ -6,6 +6,9 @@ import logging
 import multiprocessing
 import numpy as np
 import pandas as pd
+from mibel_simulator.get_new_paradox_groups_list_adding_and_removing import (
+    get_new_paradox_groups_list_adding_and_removing,
+)
 import mibel_simulator.columns as cols
 import pandera.pandas as pa
 import warnings
@@ -17,6 +20,11 @@ from mibel_simulator.data_preprocessor import (
     get_france_det_cab_date_from_price,
 )
 from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
+from mibel_simulator.paradox_groups_tools import (
+    check_are_paradox_groups_tested,
+    transform_ids_paradox_groups_list_to_dict,
+    transform_paradox_groups_dict_to_ids_list,
+)
 from mibel_simulator.schemas import (
     CABSchema,
     CapacidadInterPTSchema,
@@ -44,39 +52,11 @@ from mibel_simulator.schemas.spain_portugal_transmissions import (
 from mibel_simulator.tools import (
     concat_provided_uof_zones_with_existing_data,
     filter_paradox_groups_from_det_cab,
-    transform_ids_paradox_groups_list_to_dict,
-    transform_paradox_groups_dict_to_ids_list,
 )
 import pyomo.environ as pyo
 from pandera.typing import DataFrame, Series
 
 logger = logging.getLogger(__name__)
-
-
-def check_are_paradox_groups_tested(
-    trials_df: pd.DataFrame, ids_paradox_groups_combination: list
-) -> bool:
-    """
-    Checks if a given combination of paradox orders has already been tested in previous trials.
-
-    Compares the provided combination against all combinations stored in the trials DataFrame,
-    returning True if an identical combination has already been tried, and False otherwise.
-
-    Args:
-        trials_df (pd.DataFrame): DataFrame containing results of previous trials, including tested paradox order combinations.
-        ids_paradox_groups_combination (list): List of paradox order IDs representing the combination to check.
-
-    Returns:
-        bool: True if the combination has already been tested, False otherwise.
-    """
-
-    for paradox_groups_tried in trials_df[cols.PARADOX_GROUPS_COLUMN]:
-        ids_paradox_groups_tried = transform_paradox_groups_dict_to_ids_list(
-            paradox_groups_tried
-        )
-        if set(ids_paradox_groups_tried) == set(ids_paradox_groups_combination):
-            return True
-    return False
 
 
 def get_cleared_paradox_groups_summary(
@@ -299,196 +279,6 @@ def get_best_trial(
     return sorted_trials_df.iloc[0]
 
 
-def get_combinations_generator(
-    leftout_paradox_groups_summary_combinations: pd.DataFrame,
-    combinations_count: int,
-    reverse: bool = True,
-) -> list[tuple]:
-    """
-    Generate sorted combinations of left-out MIC SCOs.
-
-    This function creates all possible combinations (of a given size) from the index of
-    `leftout_paradox_groups_summary_combinations`, sorts them by the sum of their
-    FLOAT_RATIO_NET_INCOME_BID_POWER, and returns them in the specified order.
-
-    Args:
-        leftout_paradox_groups_summary_combinations (pd.DataFrame): DataFrame indexed by SCO IDs,
-            containing at least the FLOAT_RATIO_NET_INCOME_BID_POWER column.
-        combinations_count (int): The number of SCOs in each combination.
-        reverse (bool, optional): If True, sort combinations in descending order of
-            total FLOAT_RATIO_NET_INCOME_BID_POWER. If False, ascending. Defaults to True.
-
-    Returns:
-        list: List of tuples, each tuple is a combination of SCO IDs, sorted by the sum
-            of FLOAT_RATIO_NET_INCOME_BID_POWER.
-    """
-
-    paradox_groups_combinations = (
-        leftout_paradox_groups_summary_combinations.index.tolist()
-    )
-    index_combinations = combinations(paradox_groups_combinations, combinations_count)
-    index_cobinations_sorted = sorted(
-        index_combinations,
-        key=lambda t: sum(
-            leftout_paradox_groups_summary_combinations.loc[list(t)][
-                cols.FLOAT_RATIO_NET_INCOME_BID_POWER
-            ]
-        ),
-        reverse=reverse,
-    )
-    return index_cobinations_sorted
-
-
-def get_new_paradox_groups_list_by_adding_left_out_ones(
-    leftout_paradox_groups_summary: pd.DataFrame,
-    trials_df: pd.DataFrame,
-    starting_paradox_groups: dict,
-    paradox_groups_combinations_count: int = 1,
-) -> list[dict]:
-    """
-    Proposes new paradox order combinations by adding left-out paradox orders to the current combination.
-
-    This function sorts left-out paradox orders by their net income per bid power, then proposes new combinations
-    by adding the most promising left-out paradox orders to the current set. It avoids combinations that have already
-    been tested and can propose combinations with more than one left-out paradox order if beneficial. Returns up to
-    paradox_groups_combinations_count new combinations.
-
-    Args:
-        leftout_paradox_groups_summary (pd.DataFrame): Summary DataFrame of left-out paradox orders with financial metrics.
-        trials_df (pd.DataFrame): DataFrame of all previous trial results.
-        starting_paradox_groups (dict): Dictionary of paradox order IDs with MIC in the current trial.
-        paradox_groups_combinations_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
-
-    Returns:
-        pd.Series: Series of new paradox order combinations (as lists) to try in the next trials.
-    """
-    starting_ids_paradox_groups = transform_paradox_groups_dict_to_ids_list(
-        starting_paradox_groups
-    )
-    starting_paradox_groups_count = len(starting_ids_paradox_groups)
-    # Sort left-out paradox orders by ratio net income / bid power
-    leftout_paradox_groups_summary_sorted = leftout_paradox_groups_summary.sort_values(
-        by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False
-    )
-
-    # Create initial new combinations by adding single left-out paradox orders
-    new_paradox_groups_df = pd.DataFrame(
-        {
-            cols.ID_PARADOX_GROUPS: leftout_paradox_groups_summary_sorted.index,
-            cols.FLOAT_RATIO_NET_INCOME_BID_POWER: leftout_paradox_groups_summary_sorted[
-                cols.FLOAT_RATIO_NET_INCOME_BID_POWER
-            ].values,
-            cols.INT_PARADOX_GROUPS_COUNT: 1 + starting_paradox_groups_count,
-        }
-    )
-    new_paradox_groups_df[cols.IDS_PARADOX_GROUPS] = new_paradox_groups_df[
-        cols.ID_PARADOX_GROUPS
-    ].apply(lambda id_paradox_group: starting_ids_paradox_groups + [id_paradox_group])
-    new_paradox_groups_df[cols.BOOL_ARE_PARADOX_GROUPS_TESTED] = new_paradox_groups_df[
-        cols.IDS_PARADOX_GROUPS
-    ].apply(
-        lambda ids_paradox_groups: check_are_paradox_groups_tested(
-            trials_df, ids_paradox_groups + starting_ids_paradox_groups
-        )
-    )
-    new_paradox_groups_df[cols.PARADOX_GROUPS_COLUMN] = new_paradox_groups_df[
-        cols.IDS_PARADOX_GROUPS
-    ].apply(transform_ids_paradox_groups_list_to_dict)
-
-    # Filter out already tested combinations
-    new_paradox_groups_df = new_paradox_groups_df.query(
-        f"{cols.BOOL_ARE_PARADOX_GROUPS_TESTED} == False"
-    ).drop(columns=[cols.IDS_PARADOX_GROUPS])
-
-    # If the number of new combinations is greater than the desired, keep only the top ones
-    if len(new_paradox_groups_df) > paradox_groups_combinations_count:
-        new_paradox_groups_df = new_paradox_groups_df.head(
-            paradox_groups_combinations_count
-        )
-
-    min_ratio = new_paradox_groups_df[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].min()
-    if pd.isna(min_ratio):
-        min_ratio = -np.inf
-    create_combinations = True
-    combinations_count = 2
-
-    while create_combinations and combinations_count <= 4:
-        # Generate combinations of left-out SCOs, sorted by their combined ratio net income / bid power
-        leftout_paradox_ids_groups_sorted = get_combinations_generator(
-            leftout_paradox_groups_summary_sorted, combinations_count
-        )
-        new_paradox_groups_added_in_iteration = False
-        for leftout_ids_paradox_groups in leftout_paradox_ids_groups_sorted:
-            new_trial_ids_paradox_groups = starting_ids_paradox_groups + list(
-                leftout_ids_paradox_groups
-            )
-            are_paradox_groups_tested = check_are_paradox_groups_tested(
-                trials_df, new_trial_ids_paradox_groups
-            )
-            if not are_paradox_groups_tested:
-                ratio_net_income_bid_power = np.average(
-                    leftout_paradox_groups_summary.loc[
-                        list(leftout_ids_paradox_groups)
-                    ][cols.FLOAT_RATIO_NET_INCOME_BID_POWER],
-                    weights=leftout_paradox_groups_summary.loc[
-                        list(leftout_ids_paradox_groups)
-                    ][cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER],
-                )
-
-                # Add only if the ratio is better than the minimum of the current new combinations or
-                # if we still need more combinations
-                if (
-                    ratio_net_income_bid_power > min_ratio
-                    or len(new_paradox_groups_df) < paradox_groups_combinations_count
-                ):
-                    new_paradox_groups_entry = pd.DataFrame(
-                        {
-                            cols.PARADOX_GROUPS_COLUMN: [
-                                transform_ids_paradox_groups_list_to_dict(
-                                    new_trial_ids_paradox_groups
-                                )
-                            ],
-                            cols.FLOAT_RATIO_NET_INCOME_BID_POWER: [
-                                ratio_net_income_bid_power
-                            ],
-                            cols.BOOL_ARE_PARADOX_GROUPS_TESTED: [False],
-                            cols.INT_PARADOX_GROUPS_COUNT: [
-                                combinations_count + starting_paradox_groups_count
-                            ],
-                        }
-                    )
-
-                    new_paradox_groups_df = (
-                        pd.concat(
-                            [new_paradox_groups_df, new_paradox_groups_entry],
-                            ignore_index=True,
-                        )
-                        .sort_values(
-                            by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER,
-                            ascending=False,
-                        )
-                        .head(paradox_groups_combinations_count)
-                    )
-
-                    new_paradox_groups_added_in_iteration = True
-
-                else:
-                    break
-
-        if (
-            not new_paradox_groups_added_in_iteration
-            and len(new_paradox_groups_df) >= paradox_groups_combinations_count
-        ):
-            create_combinations = False
-
-        else:
-            combinations_count += 1
-
-    return new_paradox_groups_df.head(paradox_groups_combinations_count)[
-        cols.PARADOX_GROUPS_COLUMN
-    ].tolist()
-
-
 def get_new_paradox_groups_list_by_removing_underperforming_ones(
     trial_cleared_paradox_groups_summary: pd.DataFrame,
     trials_df: pd.DataFrame,
@@ -594,9 +384,18 @@ def define_new_paradox_groups_list(
             leftout_paradox_groups_summary = get_leftout_paradox_groups_summary(
                 det_cab_date, all_paradox_groups, paradox_groups, clearing_prices
             ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
+            det_cab_date_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
+                det_cab_date, paradox_groups
+            )
+            trial_cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
+                det_cab_date_paradox_groups_filtered,
+                cleared_energy,
+                clearing_prices,
+            )
             new_paradox_groups_list.extend(
-                get_new_paradox_groups_list_by_adding_left_out_ones(
+                get_new_paradox_groups_list_adding_and_removing(
                     leftout_paradox_groups_summary,
+                    trial_cleared_paradox_groups_summary,
                     trials_df,
                     paradox_groups,
                     int_paradox_groups_count,

@@ -319,38 +319,3 @@ def concat_provided_uof_zones_with_existing_data(
     )
 
     return combined_uof_zones
-
-
-def transform_ids_paradox_groups_list_to_dict(
-    ids_paradox_groups: list,
-) -> dict:
-    """
-    Transforms a list of paradox order IDs into a dictionary separating MIC SCOs and bid blocks.
-
-    Args:
-        ids_paradox_groups (list): List of paradox order IDs.
-    Returns:
-        dict: Dictionary with keys 'ids_mic_scos' and 'ids_bid_blocks' containing respective IDs.
-    """
-    ids_mic_scos = [id for id in ids_paradox_groups if "GE" not in str(id)]
-    ids_bid_blocks = [id for id in ids_paradox_groups if "GE" in str(id)]
-    return {
-        cols.IDS_MIC_SCOS: ids_mic_scos,
-        cols.IDS_BID_BLOCKS: ids_bid_blocks,
-    }
-
-
-def transform_paradox_groups_dict_to_ids_list(
-    paradox_groups_dict: dict,
-) -> list:
-    """
-    Transforms a dict of paradox groups into a list of paradox order IDs.
-
-    Args:
-        paradox_groups_dict (dict): Dictionary with keys 'ids_mic_scos' and 'ids_bid_blocks' containing respective IDs.
-    Returns:
-        list: List of paradox order IDs.
-    """
-    ids_mic_scos = paradox_groups_dict[cols.IDS_MIC_SCOS]
-    ids_bid_blocks = paradox_groups_dict[cols.IDS_BID_BLOCKS]
-    return ids_mic_scos + ids_bid_blocks
