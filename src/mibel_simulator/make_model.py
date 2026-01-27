@@ -20,6 +20,8 @@ from mibel_simulator.schemas.exclusive_block_order_grouped import (
     ExclusiveBlockOrdersGroupedSchema,
 )
 
+EPSILON = 1e-6
+
 # FUTURE WORK: if you make import/export bids from France as mutually exclusive, you can simplify
 # the code
 
@@ -96,7 +98,7 @@ def make_model(
     simple_seller_bids_per_period_and_country = {(period, country):   simple_seller_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
     block_order_bids_by_block =                 {bloque_id:           block_order_bids_by_block_fnc(bloque_id)                        for bloque_id in block_orders}
     sco_seller_bids_per_period_and_country =    {(period, country):   sco_seller_bids_per_period_and_country_fnc(period, country)     for period in periods           for country in countries}
-    block_orders_by_country =                   {country:             block_orders_by_country_fnc(country)                            for country in countries}
+    block_orders_by_country =                   {country:             block_orders_by_country_fnc(country)                                                            for country in countries}
     france_export_bids_per_period_and_country = {(period, country):   france_export_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
     france_import_bids_per_period_and_country = {(period, country):   france_import_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
 
@@ -289,6 +291,13 @@ def make_model(
         doc="If a block order is activated, the minimum acceptance ratio (MAR) must be met",
     )
 
+    model.c_Avoid_Block_Orders_Quantity_Degeneration = Constraint(
+        model.BLOCK_ORDERS,
+        rule=lambda m, bo: m.v_x_BLOCK_ORDERS[bo]
+        >= EPSILON * m.v_u_activated_BLOCK_ORDERS[bo],
+        doc="If a block order is activated, at least a small quantity must be accepted (MAR = 0 case)",
+    )
+
     model.c_SCO_Order_Activation = Constraint(
         model.SCO_SELLER_BIDS,
         rule=lambda m, s: m.v_u_activated_SCO_ORDERS[m.p_SCO_ORDER_PER_BID[s]]
@@ -318,11 +327,25 @@ def make_model(
         doc="If a France export bid is accepted, it must be activated",
     )
 
+    model.c_Avoid_France_Export_Quantity_Degeneration = Constraint(
+        model.FRANCE_EXPORT_BIDS,
+        rule=lambda m, b: m.v_x_FRANCE_EXPORT_BIDS[b]
+        >= EPSILON * m.v_u_activated_FRANCE_EXPORT_BIDS[b],
+        doc="If a France export bid is activated, at least a small quantity must be accepted",
+    )
+
     model.c_France_Import_Activation = Constraint(
         model.FRANCE_IMPORT_BIDS,
         rule=lambda m, b: m.v_u_activated_FRANCE_IMPORT_BIDS[b]
         >= m.v_x_FRANCE_IMPORT_BIDS[b],
         doc="If a France import bid is accepted, it must be activated",
+    )
+
+    model.c_Avoid_France_Import_Quantity_Degeneration = Constraint(
+        model.FRANCE_IMPORT_BIDS,
+        rule=lambda m, b: m.v_x_FRANCE_IMPORT_BIDS[b]
+        >= EPSILON * m.v_u_activated_FRANCE_IMPORT_BIDS[b],
+        doc="If a France import bid is activated, at least a small quantity must be accepted",
     )
 
     model.c_France_Export_Import_Exclusivity = Constraint(
