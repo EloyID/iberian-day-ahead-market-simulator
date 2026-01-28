@@ -32,13 +32,13 @@ def make_model(
 ):
 
     exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
-    try:
-        ExclusiveBlockOrdersGroupedSchema.validate(
-            exclusive_block_orders_grouped, lazy=True
-        )
-    except Exception as e:
-        print("ExclusiveBlockOrdersGroupedSchema validation error:")
-        print(e)
+    exclusive_block_orders_grouped_joined = exclusive_block_orders_grouped.apply(
+        lambda x: "$".join(x)
+    )
+
+    ExclusiveBlockOrdersGroupedSchema.validate(
+        exclusive_block_orders_grouped_joined, lazy=True
+    )
 
     # fmt: off
 
@@ -111,7 +111,6 @@ def make_model(
     model.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY =   Set(model.PERIODS,      model.COUNTRIES, initialize=france_export_bids_per_period_and_country,  doc="France export individual bids per period and country")
     model.FRANCE_IMPORT_BIDS_PER_PERIOD_AND_COUNTRY =   Set(model.PERIODS,      model.COUNTRIES, initialize=france_import_bids_per_period_and_country,  doc="France import individual bids per period and country")
 
-    exclusive_block_orders_grouped_joined =  exclusive_block_orders_grouped.apply(lambda x: "$".join(x))
 
     model.EXCLUSIVE_BLOCK_ORDERS_GROUPED =  Set(initialize=exclusive_block_orders_grouped_joined,  doc="Groups of exclusive block orders, a list of block_ids joined by $")
 
