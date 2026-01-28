@@ -104,6 +104,8 @@ def get_france_det_cab_date_from_price(
         cols.FLOAT_MAV: 0,
         cols.FLOAT_MAR: 0,
         cols.CAT_PAIS: CAT_PAIS_SPAIN,  # Spain because it's sold from France to Spain
+        cols.FLOAT_VAR_COST_COMPLEX_ORDER: 0,
+        cols.FLOAT_FIX_COST_COMPLEX_ORDER: 0,
     }
     if date:
         det_cab_values[cols.DATE_SESION] = pd.Timestamp(date)
@@ -181,6 +183,25 @@ def get_det_cab_date_id_sco(det_cab_date: pd.DataFrame) -> np.ndarray:
     )
 
 
+def get_det_cab_date_id_complex_order(det_cab_date: pd.DataFrame) -> np.ndarray:
+    """
+    Generates a unique identifier for complex orders in the DET/CAB DataFrame based on order type and order ID.
+
+    Returns NaN for non-complex orders.
+
+    Args:
+        det_cab_date (pd.DataFrame): DataFrame containing DET/CAB bids.
+
+    Returns:
+        np.ndarray: Array of complex order identifiers, or NaN for non-complex orders.
+    """
+    return np.where(
+        det_cab_date[cols.CAT_ORDER_TYPE] == "COMPLEX_ORDER",
+        det_cab_date[cols.ID_ORDER].astype(str) + "_COMPLEX_ORDER",
+        np.nan,
+    )
+
+
 def get_det_cab_date_id_paradox_group(det_cab_date: pd.DataFrame) -> np.ndarray:
     """
     It is a unique identifier for paradox orders in the DET/CAB DataFrame based on order type.
@@ -199,7 +220,11 @@ def get_det_cab_date_id_paradox_group(det_cab_date: pd.DataFrame) -> np.ndarray:
         np.where(
             det_cab_date[cols.INT_NUM_BLOQ] > 0,
             det_cab_date[cols.ID_BLOCK_ORDER],
-            np.nan,
+            np.where(
+                det_cab_date[cols.ID_COMPLEX_ORDER].notna(),
+                det_cab_date[cols.ID_COMPLEX_ORDER],
+                np.nan,
+            ),
         ),
     )
 
@@ -303,6 +328,9 @@ def get_det_cab_date_for_simulation(
     )
     det_cab_date[cols.ID_BLOCK_ORDER] = get_det_cab_date_id_block_order(det_cab_date)
     det_cab_date[cols.ID_SCO] = get_det_cab_date_id_sco(det_cab_date)
+    det_cab_date[cols.ID_COMPLEX_ORDER] = get_det_cab_date_id_complex_order(
+        det_cab_date
+    )
     det_cab_date[cols.ID_PARADOX_GROUPS] = get_det_cab_date_id_paradox_group(
         det_cab_date
     )
@@ -370,7 +398,7 @@ def get_ids_mic_scos(det_cab_date: pd.DataFrame) -> list:
         list: List of order IDs for SCOs with MIC > 0.
     """
     all_mic_scos = (
-        det_cab_date.query(f"{cols.FLOAT_MIC} > 0")[cols.ID_ORDER]
+        det_cab_date.query(f"{cols.FLOAT_MIC} > 0")[cols.ID_SCO]
         .sort_values()
         .unique()
         .tolist()
@@ -397,6 +425,25 @@ def get_ids_bid_blocks(det_cab_date: pd.DataFrame) -> list:
     return all_bid_blocks
 
 
+def get_ids_complex_orders(det_cab_date: pd.DataFrame) -> list:
+    """
+    Returns a sorted list of complex order IDs for all complex orders in the DET/CAB DataFrame.
+
+    Args:
+        det_cab_date (pd.DataFrame): DataFrame containing DET/CAB bids.
+
+    Returns:
+        list: List of complex order IDs for all complex orders.
+    """
+    all_complex_orders = (
+        det_cab_date.query(f"{cols.ID_COMPLEX_ORDER}.notna()")[cols.ID_COMPLEX_ORDER]
+        .sort_values()
+        .unique()
+        .tolist()
+    )
+    return all_complex_orders
+
+
 def get_all_paradox_groups(det_cab_date: pd.DataFrame) -> dict:
     """
     Returns a dict with lists of SCOs with MIC > 0 and block orders from the DET/CAB DataFrame.
@@ -411,4 +458,5 @@ def get_all_paradox_groups(det_cab_date: pd.DataFrame) -> dict:
     return {
         cols.IDS_MIC_SCOS: get_ids_mic_scos(det_cab_date),
         cols.IDS_BID_BLOCKS: get_ids_bid_blocks(det_cab_date),
+        cols.IDS_COMPLEX_ORDERS: get_ids_complex_orders(det_cab_date),
     }

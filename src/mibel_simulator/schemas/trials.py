@@ -8,6 +8,7 @@ TrialsSchema = pa.DataFrameSchema(
     {
         cols.IDS_MIC_SCOS:                         columns_dict[cols.IDS_MIC_SCOS],
         cols.IDS_BID_BLOCKS:                       columns_dict[cols.IDS_BID_BLOCKS],
+        cols.IDS_COMPLEX_ORDERS:                   columns_dict[cols.IDS_COMPLEX_ORDERS],
         cols.PARADOX_GROUPS_COLUMN:                columns_dict[cols.PARADOX_GROUPS_COLUMN],
         cols.IDS_PARADOX_GROUPS:                   columns_dict[cols.IDS_PARADOX_GROUPS],
         cols.FLOAT_OBJECTIVE_VALUE:                columns_dict[cols.FLOAT_OBJECTIVE_VALUE],
@@ -15,6 +16,7 @@ TrialsSchema = pa.DataFrameSchema(
         cols.SOLVER_RESULTS_COLUMN:                columns_dict[cols.SOLVER_RESULTS_COLUMN],
         cols.INT_MIC_SCOS_COUNT:                   columns_dict[cols.INT_MIC_SCOS_COUNT],
         cols.INT_BID_BLOCKS_COUNT:                 columns_dict[cols.INT_BID_BLOCKS_COUNT],
+        cols.INT_COMPLEX_ORDERS_COUNT:             columns_dict[cols.INT_COMPLEX_ORDERS_COUNT],
         cols.INT_PARADOX_GROUPS_COUNT:             columns_dict[cols.INT_PARADOX_GROUPS_COUNT],
         cols.CLEARED_ENERGY_COLUMN:                columns_dict[cols.CLEARED_ENERGY_COLUMN],
         cols.CLEARING_PRICES_COLUMN:               columns_dict[cols.CLEARING_PRICES_COLUMN],

@@ -97,6 +97,25 @@ def get_sco_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
     return pd.Series(sco_cleared_sellers_energy, name=cols.FLOAT_CLEARED_POWER)
 
 
+def get_complex_orders_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
+    """_summary_
+
+    Args:
+        model (pyo.ConcreteModel): _description_
+
+    Returns:
+        pd.Series: _description_
+    """
+    complex_cleared_sellers_energy = {
+        co: pyo.value(
+            model.v_x_COMPLEX_ORDERS[co] * model.p_quantity_COMPLEX_ORDER_BIDS[co]
+        )
+        for co in model.COMPLEX_ORDERS
+        if pyo.value(model.v_x_COMPLEX_ORDERS[co]) > 0
+    }
+    return pd.Series(complex_cleared_sellers_energy, name=cols.FLOAT_CLEARED_POWER)
+
+
 def get_buyers_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
     """_summary_
 
@@ -164,6 +183,7 @@ def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
     simple_sellers_energy = get_simple_sellers_cleared_energy_series(model)
     block_orders_energy = get_block_orders_cleared_energy_series(model)
     sco_energy = get_sco_cleared_energy_series(model)
+    complex_orders_energy = get_complex_orders_cleared_energy_series(model)
     cleared_buyers_energy = get_buyers_cleared_energy_series(model)
     france_export_energy = get_france_export_bids_cleared_energy_series(model)
     france_import_energy = get_france_import_bids_cleared_energy_series(model)
@@ -172,6 +192,7 @@ def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
         simple_sellers_energy,
         block_orders_energy,
         sco_energy,
+        complex_orders_energy,
         cleared_buyers_energy,
         france_export_energy,
         france_import_energy,

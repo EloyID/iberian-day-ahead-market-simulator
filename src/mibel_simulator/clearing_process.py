@@ -97,7 +97,7 @@ def get_cleared_paradox_groups_summary(
 
     cleared_paradox_groups_df = (
         cleared_det_cab_date.query(
-            f"({cols.FLOAT_MIC} > 0 or {cols.INT_NUM_BLOQ} > 0) and {cols.FLOAT_CLEARED_POWER} > 0"
+            f"({cols.FLOAT_MIC} > 0 or {cols.INT_NUM_BLOQ} > 0 or {cols.ID_COMPLEX_ORDER}.notna()) and {cols.FLOAT_CLEARED_POWER} > 0"
         )
         .copy()
         .merge(
@@ -114,25 +114,44 @@ def get_cleared_paradox_groups_summary(
     cleared_paradox_groups_df = cleared_paradox_groups_df.eval(
         f"""
         {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_CLEARED_PRICE}
-        {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_BID_PRICE}
         """
+    ).assign(
+        **{
+            cols.FLOAT_FIX_COST: lambda df: np.where(
+                df[cols.ID_COMPLEX_ORDER].notna(),
+                df[cols.FLOAT_FIX_COST_COMPLEX_ORDER],
+                df[cols.FLOAT_MIC],
+            ),
+            cols.FLOAT_TOTAL_VARIABLE_COST: lambda df: np.where(
+                df[cols.ID_COMPLEX_ORDER].notna(),
+                df[cols.FLOAT_CLEARED_POWER] * df[cols.FLOAT_VAR_COST_COMPLEX_ORDER],
+                df[cols.FLOAT_CLEARED_POWER] * df[cols.FLOAT_BID_PRICE],
+            ),
+        }
     )
     cleared_paradox_groups_df_grouped = (
         cleared_paradox_groups_df.groupby([cols.ID_PARADOX_GROUPS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
-                cols.FLOAT_VARIABLE_COST: "sum",
-                cols.FLOAT_MIC: "first",
+                cols.FLOAT_TOTAL_VARIABLE_COST: "sum",
+                cols.FLOAT_FIX_COST: "first",
                 cols.FLOAT_CLEARED_POWER: "sum",
             }
         )
         .eval(
             f"""
-            {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
+            {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_TOTAL_VARIABLE_COST} + {cols.FLOAT_FIX_COST} )
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_CLEARED_POWER}            
             """
         )
+    )
+
+    assert cleared_paradox_groups_df_grouped[cols.FLOAT_NET_INCOME].notna().all()
+    assert (
+        cleared_paradox_groups_df_grouped[cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER]
+        .notna()
+        .all()
     )
 
     return cleared_paradox_groups_df_grouped
@@ -159,6 +178,13 @@ def get_leftout_paradox_groups_summary(
         pd.DataFrame: DataFrame grouped by order ID with financial results for left-out paradox orders.
     """
 
+    det_cab_date = det_cab_date.copy().merge(
+        clearing_price_df,
+        on=[cols.INT_PERIODO, cols.CAT_PAIS],
+        how="left",
+        validate="many_to_one",
+    )
+
     all_scos = all_paradox_groups[cols.IDS_MIC_SCOS]
     trial_scos = trial_paradox_groups[cols.IDS_MIC_SCOS]
     left_out_scos = set(all_scos) - set(trial_scos)
@@ -166,51 +192,103 @@ def get_leftout_paradox_groups_summary(
     all_bid_blocks = all_paradox_groups[cols.IDS_BID_BLOCKS]
     trial_bid_blocks = trial_paradox_groups[cols.IDS_BID_BLOCKS]
     left_out_bid_blocks = set(all_bid_blocks) - set(trial_bid_blocks)
-    return (
-        det_cab_date.query(
-            f"{cols.ID_ORDER} in @left_out_scos or {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks"
-        )
-        .merge(
-            clearing_price_df,
-            on=[cols.INT_PERIODO, cols.CAT_PAIS],
-            how="left",
-            validate="many_to_one",
-        )
+
+    all_complex_orders = all_paradox_groups[cols.IDS_COMPLEX_ORDERS]
+    trial_complex_orders = trial_paradox_groups[cols.IDS_COMPLEX_ORDERS]
+    left_out_complex_orders = set(all_complex_orders) - set(trial_complex_orders)
+
+    det_cab_date_scos = (
+        det_cab_date.query(f"{cols.ID_SCO} in @left_out_scos")
         .assign(
             **{
                 cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
                     df[cols.FLOAT_CLEARED_PRICE] >= df[cols.FLOAT_BID_PRICE],
                     df[cols.FLOAT_BID_POWER],
-                    np.where(
-                        df[cols.ID_ORDER].isin(left_out_scos),
-                        df[cols.FLOAT_MAV],
-                        df[cols.FLOAT_MAR] * df[cols.FLOAT_BID_POWER],
-                    ),
-                )
+                    df[cols.FLOAT_MAV],
+                ),
             }
         )
         .eval(
             f"""
+            {cols.FLOAT_FIX_COST} = {cols.FLOAT_MIC}
+            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_BID_PRICE}
+            """
+        )
+    )
+    det_cab_date_bid_blocks = (
+        det_cab_date.query(f" {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks")
+        .assign(
+            **{
+                cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
+                    df[cols.FLOAT_CLEARED_PRICE] >= df[cols.FLOAT_BID_PRICE],
+                    df[cols.FLOAT_BID_POWER],
+                    df[cols.FLOAT_MAR] * df[cols.FLOAT_BID_POWER],
+                ),
+            }
+        )
+        .eval(
+            f"""
+            {cols.FLOAT_FIX_COST} = 0
+            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_BID_PRICE}
+            """
+        )
+    )
+    det_cab_date_complex_orders = (
+        det_cab_date.query(f" {cols.ID_COMPLEX_ORDER} in @left_out_complex_orders")
+        .assign(
+            **{
+                cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
+                    df[cols.FLOAT_CLEARED_PRICE] >= df[cols.FLOAT_BID_PRICE],
+                    df[cols.FLOAT_BID_POWER],
+                    0,
+                ),
+            }
+        )
+        .eval(
+            f"""
+            {cols.FLOAT_FIX_COST} = {cols.FLOAT_FIX_COST_COMPLEX_ORDER}
+            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_VAR_COST_COMPLEX_ORDER}
+            """
+        )
+    )
+
+    det_cab_date_paradox_groups = (
+        pd.concat(
+            [
+                det_cab_date_scos,
+                det_cab_date_bid_blocks,
+                det_cab_date_complex_orders,
+            ],
+            ignore_index=True,
+        )
+        .eval(
+            f"""
             {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_CLEARED_PRICE}
-            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_BID_PRICE}
+            {cols.FLOAT_TOTAL_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_VARIABLE_COST}
             """
         )
         .groupby([cols.ID_PARADOX_GROUPS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
-                cols.FLOAT_VARIABLE_COST: "sum",
-                cols.FLOAT_MIC: "first",
+                cols.FLOAT_TOTAL_VARIABLE_COST: "sum",
+                cols.FLOAT_FIX_COST: "first",
                 cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: "sum",
             }
         )
         .eval(
             f"""
-            {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
+            {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_TOTAL_VARIABLE_COST} + {cols.FLOAT_FIX_COST} )
             {cols.FLOAT_RATIO_NET_INCOME_BID_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER}
             """
         )
     )
+
+    assert det_cab_date_paradox_groups[cols.FLOAT_NET_INCOME].notna().all()
+    assert (
+        det_cab_date_paradox_groups[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
+    )
+    return det_cab_date_paradox_groups
 
 
 #### ITERATIVE LOOP
@@ -482,19 +560,24 @@ def iterative_function(
 
     ids_mic_scos = paradox_groups[cols.IDS_MIC_SCOS]
     ids_bid_blocks = paradox_groups[cols.IDS_BID_BLOCKS]
+    ids_complex_orders = paradox_groups[cols.IDS_COMPLEX_ORDERS]
 
     # Update trials_df with current trial results
     trial_df_entry = {
         cols.PARADOX_GROUPS_COLUMN: [paradox_groups],
         cols.IDS_MIC_SCOS: [ids_mic_scos],
         cols.IDS_BID_BLOCKS: [ids_bid_blocks],
-        cols.IDS_PARADOX_GROUPS: [ids_mic_scos + ids_bid_blocks],
+        cols.IDS_COMPLEX_ORDERS: [ids_complex_orders],
+        cols.IDS_PARADOX_GROUPS: [ids_mic_scos + ids_bid_blocks + ids_complex_orders],
         cols.FLOAT_OBJECTIVE_VALUE: [welfare],
         cols.BOOL_IS_EXPECTED_INCOME_RESPECTED: [bool_is_expected_income_respected],
         cols.SOLVER_RESULTS_COLUMN: [results],
         cols.INT_MIC_SCOS_COUNT: [len(ids_mic_scos)],
         cols.INT_BID_BLOCKS_COUNT: [len(ids_bid_blocks)],
-        cols.INT_PARADOX_GROUPS_COUNT: [len(ids_mic_scos) + len(ids_bid_blocks)],
+        cols.INT_COMPLEX_ORDERS_COUNT: [len(ids_complex_orders)],
+        cols.INT_PARADOX_GROUPS_COUNT: [
+            len(ids_mic_scos) + len(ids_bid_blocks) + len(ids_complex_orders)
+        ],
         cols.CLEARED_ENERGY_COLUMN: [cleared_energy],
         cols.CLEARING_PRICES_COLUMN: [clearing_prices],
         cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [
@@ -541,6 +624,7 @@ def run_iterative_loop(
     trials_count: int = 100,
     trial_ids_mic_scos: list | None = None,
     trial_ids_bid_blocks: list | None = None,
+    trial_ids_complex_orders: list | None = None,
     trials_df: pd.DataFrame | None = None,
     n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
@@ -554,6 +638,7 @@ def run_iterative_loop(
         capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
         trial_ids_mic_scos (list, optional): Initial SCOs with MIC for the first trial.
         trial_ids_bid_blocks (list, optional): Initial bid blocks for the first trial.
+        trial_ids_complex_orders (list, optional): Initial complex orders for the first trial.
         trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from.
 
     Returns:
@@ -566,12 +651,19 @@ def run_iterative_loop(
     is_trials_df_provided = trials_df is not None
     is_trial_ids_mic_scos_provided = trial_ids_mic_scos is not None
     is_trial_ids_bid_blocks_provided = trial_ids_bid_blocks is not None
-    if is_trial_ids_mic_scos_provided != is_trial_ids_bid_blocks_provided:
+    is_trial_ids_complex_orders_provided = trial_ids_complex_orders is not None
+    # if all equal provided
+    if (
+        is_trial_ids_mic_scos_provided != is_trial_ids_bid_blocks_provided
+        or is_trial_ids_mic_scos_provided != is_trial_ids_complex_orders_provided
+    ):
         raise ValueError(
-            "Both trial_ids_mic_scos and trial_ids_bid_blocks must be provided together or none at all."
+            "trial_ids_mic_scos, trial_ids_bid_blocks, and trial_ids_complex_orders must be provided together or none at all."
         )
     are_trial_ids_paradox_groups_provided = (
-        is_trial_ids_mic_scos_provided and is_trial_ids_bid_blocks_provided
+        is_trial_ids_mic_scos_provided
+        and is_trial_ids_bid_blocks_provided
+        and is_trial_ids_complex_orders_provided
     )
 
     all_paradox_groups = get_all_paradox_groups(det_cab_date)
@@ -592,6 +684,7 @@ def run_iterative_loop(
             {
                 cols.IDS_MIC_SCOS: trial_ids_mic_scos,
                 cols.IDS_BID_BLOCKS: trial_ids_bid_blocks,
+                cols.IDS_COMPLEX_ORDERS: trial_ids_complex_orders,
             }
         ]
     # If trials_df is defined, define a new combination based on previous trials
@@ -682,6 +775,7 @@ def clear_OMIE_market(
     zones_default_to_spain: bool = False,
     trial_ids_mic_scos: list | None = None,
     trial_ids_bid_blocks: list | None = None,
+    trial_ids_complex_orders: list | None = None,
     n_jobs: int = 1,
 ) -> dict:
     """
@@ -749,6 +843,7 @@ def clear_OMIE_market(
         trials_df=starting_trials_df,
         trial_ids_mic_scos=trial_ids_mic_scos,
         trial_ids_bid_blocks=trial_ids_bid_blocks,
+        trial_ids_complex_orders=trial_ids_complex_orders,
         n_jobs=n_jobs,
     )
 

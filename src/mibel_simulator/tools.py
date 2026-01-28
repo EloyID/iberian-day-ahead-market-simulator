@@ -74,6 +74,8 @@ def get_is_simple_bid(
     mav_column: str = cols.FLOAT_MAV,
     mar_column: str = cols.FLOAT_MAR,
     fijoeuro_column: str = cols.FLOAT_MIC,
+    fix_cost_complex_order_column: str = cols.FLOAT_FIX_COST_COMPLEX_ORDER,
+    var_cost_complex_order_column: str = cols.FLOAT_VAR_COST_COMPLEX_ORDER,
 ) -> pd.Series:
     """
     Identifies simple bids in the DET/CAB DataFrame.
@@ -91,16 +93,23 @@ def get_is_simple_bid(
         num_grupo_excl_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_GRUPO_EXCL.
         mav_column (str, optional): Name of the MAV column. Defaults to cols.FLOAT_MAV.
         mar_column (str, optional): Name of the MAR column. Defaults to cols.FLOAT_MAR.
-        fijoeuro_column (str, optional): Name of the MIC column. Defaults to cols.FLOAT_MIC.
+        fix_cost_complex_order_column (str, optional): Name of the FIXOEURO column. Defaults to cols.FLOAT_FIX_COST_COMPLEX_ORDER.
+        var_cost_complex_order_column (str, optional): Name of the VAREURO column. Defaults to cols.FLOAT_VAR_COST_COMPLEX_ORDER.
 
     Returns:
         pd.Series: Boolean Series indicating which bids are simple bids.
     """
     is_SCO_ = get_is_SCO(det_cab, id_order_column, mav_column, fijoeuro_column)
+    is_complex_order = get_is_complex_order(
+        det_cab,
+        fix_cost_complex_order_column,
+        var_cost_complex_order_column,
+    )
     return (
         (det_cab[num_bloq_column] == 0)
         & (det_cab[num_grupo_excl_column] == 0)
         & (det_cab[mar_column] == 0)
+        & (~is_complex_order)
         & (~is_SCO_)
     )
 
@@ -175,6 +184,30 @@ def get_is_exclusive_block_group(
     return det_cab[num_grupo_excl_column] > 0
 
 
+def get_is_complex_order(
+    det_cab: pd.DataFrame,
+    fix_cost_complex_order_column: str = cols.FLOAT_FIX_COST_COMPLEX_ORDER,
+    var_cost_complex_order_column: str = cols.FLOAT_VAR_COST_COMPLEX_ORDER,
+) -> pd.Series:
+    """
+    Identifies complex orders in the DET/CAB DataFrame.
+
+    A complex order is defined as a bid that has either FIXOEURO or VAREURO greater than zero.
+
+    Args:
+        det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
+        fix_cost_complex_order_column (str, optional): Name of the FIXOEURO column. Defaults to cols.FLOAT_FIX_COST_COMPLEX_ORDER.
+        var_cost_complex_order_column (str, optional): Name of the VAREURO column. Defaults to cols.FLOAT_VAR_COST_COMPLEX_ORDER.
+
+    Returns:
+        pd.Series: Boolean Series indicating which bids are complex orders.
+    """
+
+    return ((det_cab[fix_cost_complex_order_column] > 0)) | (
+        (det_cab[var_cost_complex_order_column] > 0)
+    )
+
+
 def get_cat_order_type_column(
     det_cab: pd.DataFrame,
     id_order_column: str = cols.ID_ORDER,
@@ -183,6 +216,8 @@ def get_cat_order_type_column(
     mav_column: str = cols.FLOAT_MAV,
     mar_column: str = cols.FLOAT_MAR,
     fijoeuro_column: str = cols.FLOAT_MIC,
+    fix_cost_complex_order_column: str = cols.FLOAT_FIX_COST_COMPLEX_ORDER,
+    var_cost_complex_order_column: str = cols.FLOAT_VAR_COST_COMPLEX_ORDER,
 ) -> pd.Series:
     """
     Assigns the order type category to each row in the DET/CAB DataFrame based on bid characteristics.
@@ -197,6 +232,8 @@ def get_cat_order_type_column(
         mav_column (str, optional): Name of the mav column. Defaults to cols.FLOAT_MAV.
         mar_column (str, optional): Name of the mar column. Defaults to cols.FLOAT_MAR.
         fijoeuro_column (str, optional): Name of the float_mic column. Defaults to cols.FLOAT_MIC.
+        fix_cost_complex_order_column (str, optional): Name of the float_fix_cost column. Defaults to cols.FLOAT_FIX_COST_COMPLEX_ORDER.
+        var_cost_complex_order_column (str, optional): Name of the float_var_cost column. Defaults to cols.FLOAT_VAR_COST_COMPLEX_ORDER.
 
     Returns:
         pd.Series: Series of order type codes for each bid.
@@ -222,6 +259,11 @@ def get_cat_order_type_column(
     det_cab[cols.BOOL_IS_EXCLUSIVE_GROUP] = get_is_exclusive_block_group(
         det_cab, num_grupo_excl_column
     )
+    det_cab[cols.BOOL_IS_COMPLEX_ORDER] = get_is_complex_order(
+        det_cab,
+        fix_cost_complex_order_column,
+        var_cost_complex_order_column,
+    )
 
     assert (
         det_cab[
@@ -230,10 +272,11 @@ def get_cat_order_type_column(
                 cols.BOOL_IS_SCO,
                 cols.BOOL_IS_NOT_EXCLUSIVE_GROUP,
                 cols.BOOL_IS_EXCLUSIVE_GROUP,
+                cols.BOOL_IS_COMPLEX_ORDER,
             ]
         ].sum(axis=1)
         == 1
-    ).all()
+    ).all(), "Each row must belong to exactly one category"
 
     det_cab[cols.CAT_ORDER_TYPE] = np.where(
         det_cab[cols.BOOL_IS_SIMPLE_BID],
@@ -244,7 +287,13 @@ def get_cat_order_type_column(
             np.where(
                 det_cab[cols.BOOL_IS_NOT_EXCLUSIVE_GROUP],
                 "C01",
-                np.where(det_cab[cols.BOOL_IS_EXCLUSIVE_GROUP], "C04", "Error"),
+                np.where(
+                    det_cab[cols.BOOL_IS_EXCLUSIVE_GROUP],
+                    "C04",
+                    np.where(
+                        det_cab[cols.BOOL_IS_COMPLEX_ORDER], "COMPLEX_ORDER", "Error"
+                    ),
+                ),
             ),
         ),
     )
@@ -255,15 +304,17 @@ def get_cat_order_type_column(
 def filter_paradox_groups_from_det_cab(
     det_cab_df: pd.DataFrame,
     paradox_groups_to_keep: dict,
-    id_order_column: str = cols.ID_ORDER,
+    id_sco_column: str = cols.ID_SCO,
     id_block_column: str = cols.ID_BLOCK_ORDER,
     float_mic_column: str = cols.FLOAT_MIC,
     int_num_bloq_column: str = cols.INT_NUM_BLOQ,
+    id_complex_order_column: str = cols.ID_COMPLEX_ORDER,
 ) -> pd.DataFrame:
     mic_scos_to_keep = paradox_groups_to_keep[cols.IDS_MIC_SCOS]
     bid_blocks_to_keep = paradox_groups_to_keep[cols.IDS_BID_BLOCKS]
+    complex_orders_to_keep = paradox_groups_to_keep[cols.IDS_COMPLEX_ORDERS]
     return det_cab_df.query(
-        f"`{id_order_column}` in @mic_scos_to_keep or `{id_block_column}` in @bid_blocks_to_keep or not (`{float_mic_column}` > 0 or `{int_num_bloq_column}` > 0)"
+        f"`{id_sco_column}` in @mic_scos_to_keep or `{id_block_column}` in @bid_blocks_to_keep or not (`{float_mic_column}` > 0 or `{int_num_bloq_column}` > 0) or`{id_complex_order_column}` in @complex_orders_to_keep"
     ).copy()
 
 

@@ -12,6 +12,8 @@ CABSchema = pa.DataFrameSchema(
         cols.CAT_BUY_SELL:     columns_dict[cols.CAT_BUY_SELL],
         cols.FLOAT_MIC:        columns_dict[cols.FLOAT_MIC],
         cols.FLOAT_MAX_POWER:  columns_dict[cols.FLOAT_MAX_POWER],
+        cols.FLOAT_FIX_COST_COMPLEX_ORDER:   columns_dict[cols.FLOAT_FIX_COST_COMPLEX_ORDER],
+        cols.FLOAT_VAR_COST_COMPLEX_ORDER:   columns_dict[cols.FLOAT_VAR_COST_COMPLEX_ORDER],
     },
     unique=[cols.DATE_SESION, cols.ID_ORDER],
 ).update_columns(
