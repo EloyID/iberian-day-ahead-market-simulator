@@ -315,8 +315,7 @@ def make_model(
 
     model.c_Exclusive_Block_Orders = Constraint(
         model.EXCLUSIVE_BLOCK_ORDERS_GROUPED,
-        rule=lambda m, bg: sum(m.v_u_activated_BLOCK_ORDERS[bo] for bo in bg.split("$"))
-        <= 1,
+        rule=lambda m, bg: sum(m.v_x_BLOCK_ORDERS[bo] for bo in bg.split("$")) <= 1,
         doc="At most one block order in an exclusive group can be accepted",
     )
 
