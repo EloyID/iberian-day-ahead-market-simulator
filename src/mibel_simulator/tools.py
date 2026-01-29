@@ -313,9 +313,23 @@ def filter_paradox_groups_from_det_cab(
     mic_scos_to_keep = paradox_groups_to_keep[cols.IDS_MIC_SCOS]
     bid_blocks_to_keep = paradox_groups_to_keep[cols.IDS_BID_BLOCKS]
     complex_orders_to_keep = paradox_groups_to_keep[cols.IDS_COMPLEX_ORDERS]
-    return det_cab_df.query(
-        f"`{id_sco_column}` in @mic_scos_to_keep or `{id_block_column}` in @bid_blocks_to_keep or not (`{float_mic_column}` > 0 or `{int_num_bloq_column}` > 0) or`{id_complex_order_column}` in @complex_orders_to_keep"
-    ).copy()
+
+    mics_not_to_keep_mask = (det_cab_df[float_mic_column] > 0) & (
+        ~det_cab_df[id_sco_column].isin(mic_scos_to_keep)
+    )
+    blocks_not_to_keep_mask = (det_cab_df[int_num_bloq_column] > 0) & (
+        ~det_cab_df[id_block_column].isin(bid_blocks_to_keep)
+    )
+    complex_orders_not_to_keep_mask = (
+        ~det_cab_df[id_complex_order_column].isin(complex_orders_to_keep)
+    ) & det_cab_df[id_complex_order_column].notna()
+    return det_cab_df.loc[
+        ~(
+            mics_not_to_keep_mask
+            | blocks_not_to_keep_mask
+            | complex_orders_not_to_keep_mask
+        )
+    ].copy()
 
 
 def concat_provided_uof_zones_with_existing_data(

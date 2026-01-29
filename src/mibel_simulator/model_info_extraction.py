@@ -108,10 +108,10 @@ def get_complex_orders_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Ser
     """
     complex_cleared_sellers_energy = {
         co: pyo.value(
-            model.v_x_COMPLEX_ORDERS[co] * model.p_quantity_COMPLEX_ORDER_BIDS[co]
+            model.v_x_COMPLEX_ORDERS_BIDS[co] * model.p_quantity_COMPLEX_ORDERS_BIDS[co]
         )
-        for co in model.COMPLEX_ORDERS
-        if pyo.value(model.v_x_COMPLEX_ORDERS[co]) > 0
+        for co in model.COMPLEX_ORDERS_BIDS
+        if pyo.value(model.v_x_COMPLEX_ORDERS_BIDS[co]) > 0
     }
     return pd.Series(complex_cleared_sellers_energy, name=cols.FLOAT_CLEARED_POWER)
 
