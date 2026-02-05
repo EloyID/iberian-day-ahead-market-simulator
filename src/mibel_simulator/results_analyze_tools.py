@@ -615,9 +615,9 @@ def calculate_welfare_from_curva_pbc_uof(
         print(
             f"Total welfare calculated in two different ways do not match, {total_welfare} vs {total_welfare_2}"
         )
-    if any(welfare_by_unidad < 0):
+    if any(welfare_by_unidad < -0.1):
         print("Warning: Some unidades have negative welfare:")
-        print(welfare_by_unidad[welfare_by_unidad < 0])
+        print(welfare_by_unidad[welfare_by_unidad < -0.1])
 
     return welfare_by_unidad
 
@@ -662,14 +662,20 @@ def calculate_welfare_from_cleared_det_cab_date(
     cleared_det_cab_date_C_welfare = cleared_det_cab_date_C.groupby("id_unidad")[
         "qua_benefit"
     ].sum()
-    cleared_det_cab_date_V_welfare = (
-        cleared_det_cab_date_V.groupby("id_unidad")
-        .agg(
-            qua_benefit_sum=("qua_benefit", "sum"),
-            fix_cost=("float_mic", "first"),
-        )
-        .eval("qua_benefit = qua_benefit_sum - fix_cost")["qua_benefit"]
+    cleared_det_cab_date_V_grouped = cleared_det_cab_date_V.groupby("id_unidad").agg(
+        float_cleared_power_sum=("float_cleared_power", "sum"),
+        qua_benefit_sum=("qua_benefit", "sum"),
+        fix_cost=("float_mic", "first"),
     )
+    # Calculate has_been_cleared outside eval
+    cleared_det_cab_date_V_grouped["int_has_been_cleared"] = (
+        cleared_det_cab_date_V_grouped["float_cleared_power_sum"] > 0
+    ).astype(int)
+
+    # Now use eval for the simple calculation
+    cleared_det_cab_date_V_welfare = cleared_det_cab_date_V_grouped.eval(
+        "qua_benefit = qua_benefit_sum - (fix_cost * int_has_been_cleared)"
+    )["qua_benefit"]
 
     welfare_by_unidad = pd.concat(
         [
@@ -681,8 +687,8 @@ def calculate_welfare_from_cleared_det_cab_date(
 
     total_welfare = welfare_by_unidad.sum()
 
-    if any(welfare_by_unidad < 0):
+    if any(welfare_by_unidad < -0.1):
         print("Warning: Some unidades have negative welfare:")
-        print(welfare_by_unidad[welfare_by_unidad < 0])
+        print(welfare_by_unidad[welfare_by_unidad < -0.1])
 
     return welfare_by_unidad
