@@ -434,6 +434,7 @@ def iterative_function(
         pd.DataFrame,
         pd.DataFrame,
         list,
+        pd.Series | None,
     ],
 ) -> pd.DataFrame:
     """
@@ -447,6 +448,7 @@ def iterative_function(
             - det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
             - capacidad_inter_PT_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
             - paradox_groups (list): List of SCO order IDs with MIC for this trial.
+            - france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
 
     Returns:
         pd.DataFrame: DataFrame with the results of the trial (one row).
@@ -456,6 +458,7 @@ def iterative_function(
         det_cab_date,
         capacidad_inter_PT_date,
         paradox_groups,
+        france_fixed_exchange,
     ) = args
 
     # Keep only SCOs in the current trial
@@ -467,6 +470,7 @@ def iterative_function(
     model, _, results = run_model(
         det_cab_date_paradox_groups_filtered,
         capacidad_inter_PT_date,
+        france_fixed_exchange,
     )
 
     # Extract information from the model
@@ -538,6 +542,7 @@ def check_if_success_at_first_trial(
 def run_iterative_loop(
     det_cab_date: DataFrame,
     capacidad_inter_pt_date: DataFrame,
+    france_fixed_exchange: pd.Series | None = None,
     trials_count: int = 100,
     trial_ids_mic_scos: list | None = None,
     trial_ids_bid_blocks: list | None = None,
@@ -552,6 +557,7 @@ def run_iterative_loop(
     Args:
         det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
         capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
+        france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
         trial_ids_mic_scos (list, optional): Initial SCOs with MIC for the first trial.
         trial_ids_bid_blocks (list, optional): Initial bid blocks for the first trial.
         trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from.
@@ -617,6 +623,7 @@ def run_iterative_loop(
                 det_cab_date,
                 capacidad_inter_pt_date,
                 trial_paradox_groups,
+                france_fixed_exchange,
             )
             for trial_paradox_groups in next_trials_paradox_groups
         ]
@@ -666,6 +673,7 @@ def run_iterative_loop(
     best_model, best_model_binary, results = run_model(
         det_cab_date=det_cab_date_scos_filtered,
         capacidad_inter_PT_date=capacidad_inter_pt_date,
+        france_fixed_exchange=france_fixed_exchange,
     )
 
     return trials_df, best_model, best_model_binary
@@ -679,6 +687,7 @@ def clear_OMIE_market(
     uof_zones: pd.DataFrame | None = None,
     trials_count: int = 100,
     starting_trials_df: pd.DataFrame = None,
+    france_fixed_exchange: pd.Series | None = None,
     zones_default_to_spain: bool = False,
     trial_ids_mic_scos: list | None = None,
     trial_ids_bid_blocks: list | None = None,
@@ -701,6 +710,7 @@ def clear_OMIE_market(
         uof_zones (pd.DataFrame | None): DataFrame mapping units to zones.
         trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
         starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
+        france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
         zones_default_to_spain (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
         trial_ids_mic_scos (list | None, optional): List of MIC SCOs for trial. Defaults to None.
         trial_ids_bid_blocks (list | None, optional): List of bid blocks for trial. Defaults to None.
@@ -749,6 +759,7 @@ def clear_OMIE_market(
         trials_df=starting_trials_df,
         trial_ids_mic_scos=trial_ids_mic_scos,
         trial_ids_bid_blocks=trial_ids_bid_blocks,
+        france_fixed_exchange=france_fixed_exchange,
         n_jobs=n_jobs,
     )
 

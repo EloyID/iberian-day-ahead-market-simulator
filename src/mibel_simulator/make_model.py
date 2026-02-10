@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 from mibel_simulator.const import FRANCE_ID_UNIDAD, PORTUGAL_ZONE, SPAIN_ZONE
 import mibel_simulator.columns as cols
 from pyomo.environ import Binary
@@ -29,6 +31,7 @@ EPSILON = 1e-6
 def make_model(
     det_cab_date,
     capacidad_inter_PT_date,
+    france_fixed_exchange: pd.Series | None = None,
 ):
 
     exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
@@ -359,5 +362,43 @@ def make_model(
         <= 1,
         doc="France import and export bids are mutually exclusive in each period",
     )
+
+    if france_fixed_exchange is not None:
+        france_export_fixed = france_fixed_exchange.copy().clip(lower=0)
+        france_import_fixed = france_fixed_exchange.copy().clip(upper=0)
+
+        model.p_France_Export_Exchange_Fixed = Param(
+            model.PERIODS,
+            initialize=france_export_fixed.to_dict(),
+            within=NonNegativeReals,
+            doc="Fixed quantity to be exported from Spain to France in each period (if any)",
+        )
+
+        model.p_France_Import_Exchange_Fixed = Param(
+            model.PERIODS,
+            initialize=france_import_fixed.to_dict(),
+            within=NonPositiveReals,
+            doc="Fixed quantity to be imported from France to Spain in each period (if any)",
+        )
+
+        model.c_France_Export_Fixed = Constraint(
+            model.PERIODS,
+            rule=lambda m, p: sum(
+                m.v_x_FRANCE_EXPORT_BIDS[b] * m.p_quantity_FRANCE_EXPORT_BIDS[b]
+                for b in m.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, SPAIN_ZONE]
+            )
+            == m.p_France_Export_Exchange_Fixed[p],
+            doc="If there is a fixed quantity to be exported from Spain to France, it must be met",
+        )
+
+        model.c_France_Import_Fixed = Constraint(
+            model.PERIODS,
+            rule=lambda m, p: sum(
+                m.v_x_FRANCE_IMPORT_BIDS[b] * m.p_quantity_FRANCE_IMPORT_BIDS[b]
+                for b in m.FRANCE_IMPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, SPAIN_ZONE]
+            )
+            == -m.p_France_Import_Exchange_Fixed[p],
+            doc="If there is a fixed quantity to be imported from France to Spain, it must be met",
+        )
 
     return model
