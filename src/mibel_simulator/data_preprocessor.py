@@ -370,7 +370,7 @@ def get_ids_mic_scos(det_cab_date: pd.DataFrame) -> list:
         list: List of order IDs for SCOs with MIC > 0.
     """
     all_mic_scos = (
-        det_cab_date.query(f"{cols.FLOAT_MIC} > 0")[cols.ID_ORDER]
+        det_cab_date.query(f"{cols.FLOAT_MIC} > 0")[cols.ID_SCO]
         .sort_values()
         .unique()
         .tolist()

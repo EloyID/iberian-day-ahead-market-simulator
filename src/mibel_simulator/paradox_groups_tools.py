@@ -39,8 +39,11 @@ def transform_ids_paradox_groups_list_to_dict(
     Returns:
         dict: Dictionary with get_new_paradox_groups_list_adding_and_removingkeys 'ids_mic_scos' and 'ids_bid_blocks' containing respective IDs.
     """
-    ids_mic_scos = [id for id in ids_paradox_groups if "GE" not in str(id)]
+    ids_mic_scos = [id for id in ids_paradox_groups if "SCO" in str(id)]
     ids_bid_blocks = [id for id in ids_paradox_groups if "GE" in str(id)]
+    assert len(ids_mic_scos) + len(ids_bid_blocks) == len(
+        ids_paradox_groups
+    ), "Error: Some paradox group IDs do not contain 'SCO' or 'GE'."
     return {
         cols.IDS_MIC_SCOS: ids_mic_scos,
         cols.IDS_BID_BLOCKS: ids_bid_blocks,

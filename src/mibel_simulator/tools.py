@@ -255,16 +255,21 @@ def get_cat_order_type_column(
 def filter_paradox_groups_from_det_cab(
     det_cab_df: pd.DataFrame,
     paradox_groups_to_keep: dict,
-    id_order_column: str = cols.ID_ORDER,
+    id_sco_column: str = cols.ID_SCO,
     id_block_column: str = cols.ID_BLOCK_ORDER,
     float_mic_column: str = cols.FLOAT_MIC,
     int_num_bloq_column: str = cols.INT_NUM_BLOQ,
 ) -> pd.DataFrame:
     mic_scos_to_keep = paradox_groups_to_keep[cols.IDS_MIC_SCOS]
     bid_blocks_to_keep = paradox_groups_to_keep[cols.IDS_BID_BLOCKS]
-    return det_cab_df.query(
-        f"`{id_order_column}` in @mic_scos_to_keep or `{id_block_column}` in @bid_blocks_to_keep or not (`{float_mic_column}` > 0 or `{int_num_bloq_column}` > 0)"
-    ).copy()
+
+    mics_not_to_keep_mask = (det_cab_df[float_mic_column] > 0) & (
+        ~det_cab_df[id_sco_column].isin(mic_scos_to_keep)
+    )
+    blocks_not_to_keep_mask = (det_cab_df[int_num_bloq_column] > 0) & (
+        ~det_cab_df[id_block_column].isin(bid_blocks_to_keep)
+    )
+    return det_cab_df.loc[~(mics_not_to_keep_mask | blocks_not_to_keep_mask)].copy()
 
 
 def concat_provided_uof_zones_with_existing_data(
