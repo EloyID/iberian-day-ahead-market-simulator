@@ -159,6 +159,13 @@ def get_leftout_paradox_groups_summary(
         pd.DataFrame: DataFrame grouped by order ID with financial results for left-out paradox orders.
     """
 
+    det_cab_date = det_cab_date.copy().merge(
+        clearing_price_df,
+        on=[cols.INT_PERIODO, cols.CAT_PAIS],
+        how="left",
+        validate="many_to_one",
+    )
+
     all_scos = all_paradox_groups[cols.IDS_MIC_SCOS]
     trial_scos = trial_paradox_groups[cols.IDS_MIC_SCOS]
     left_out_scos = set(all_scos) - set(trial_scos)
@@ -166,51 +173,80 @@ def get_leftout_paradox_groups_summary(
     all_bid_blocks = all_paradox_groups[cols.IDS_BID_BLOCKS]
     trial_bid_blocks = trial_paradox_groups[cols.IDS_BID_BLOCKS]
     left_out_bid_blocks = set(all_bid_blocks) - set(trial_bid_blocks)
-    return (
-        det_cab_date.query(
-            f"{cols.ID_ORDER} in @left_out_scos or {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks"
-        )
-        .merge(
-            clearing_price_df,
-            on=[cols.INT_PERIODO, cols.CAT_PAIS],
-            how="left",
-            validate="many_to_one",
-        )
+
+    det_cab_date_scos = (
+        det_cab_date.query(f"{cols.ID_SCO} in @left_out_scos")
         .assign(
             **{
                 cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
                     df[cols.FLOAT_CLEARED_PRICE] >= df[cols.FLOAT_BID_PRICE],
                     df[cols.FLOAT_BID_POWER],
-                    np.where(
-                        df[cols.ID_ORDER].isin(left_out_scos),
-                        df[cols.FLOAT_MAV],
-                        df[cols.FLOAT_MAR] * df[cols.FLOAT_BID_POWER],
-                    ),
-                )
+                    df[cols.FLOAT_MAV],
+                ),
             }
         )
         .eval(
             f"""
+            {cols.FLOAT_FIX_COST} = {cols.FLOAT_MIC}
+            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_BID_PRICE}
+            """
+        )
+    )
+    det_cab_date_bid_blocks = (
+        det_cab_date.query(f" {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks")
+        .assign(
+            **{
+                cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
+                    df[cols.FLOAT_CLEARED_PRICE] >= df[cols.FLOAT_BID_PRICE],
+                    df[cols.FLOAT_BID_POWER],
+                    df[cols.FLOAT_MAR] * df[cols.FLOAT_BID_POWER],
+                ),
+            }
+        )
+        .eval(
+            f"""
+            {cols.FLOAT_FIX_COST} = 0
+            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_BID_PRICE}
+            """
+        )
+    )
+
+    det_cab_date_paradox_groups = (
+        pd.concat(
+            [
+                det_cab_date_scos,
+                det_cab_date_bid_blocks,
+            ],
+            ignore_index=True,
+        )
+        .eval(
+            f"""
             {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_CLEARED_PRICE}
-            {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_BID_PRICE}
+            {cols.FLOAT_TOTAL_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_VARIABLE_COST}
             """
         )
         .groupby([cols.ID_PARADOX_GROUPS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
-                cols.FLOAT_VARIABLE_COST: "sum",
-                cols.FLOAT_MIC: "first",
+                cols.FLOAT_TOTAL_VARIABLE_COST: "sum",
+                cols.FLOAT_FIX_COST: "first",
                 cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: "sum",
             }
         )
         .eval(
             f"""
-            {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
+            {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_TOTAL_VARIABLE_COST} + {cols.FLOAT_FIX_COST} )
             {cols.FLOAT_RATIO_NET_INCOME_BID_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER}
             """
         )
     )
+
+    assert det_cab_date_paradox_groups[cols.FLOAT_NET_INCOME].notna().all()
+    assert (
+        det_cab_date_paradox_groups[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
+    )
+    return det_cab_date_paradox_groups
 
 
 #### ITERATIVE LOOP
