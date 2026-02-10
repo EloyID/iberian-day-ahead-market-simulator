@@ -195,7 +195,7 @@ def get_det_cab_date_id_paradox_group(det_cab_date: pd.DataFrame) -> np.ndarray:
     """
     return np.where(
         det_cab_date[cols.FLOAT_MIC] > 0,
-        det_cab_date[cols.ID_ORDER],
+        det_cab_date[cols.ID_SCO],
         np.where(
             det_cab_date[cols.INT_NUM_BLOQ] > 0,
             det_cab_date[cols.ID_BLOCK_ORDER],
