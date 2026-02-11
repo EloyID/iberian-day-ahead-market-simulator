@@ -13,8 +13,8 @@ FRANCE_CODIGOUNIDAD = "MIEU"
 FRONTIER_MAPPING = {
     2: "PT",
     3: "FR",
-    4: "MA",  # MOROCCO
-    5: "AD",  # ANDORRA
+    4: "AD",  # ANDORRA
+    5: "MA",  # MOROCCO
 }
 
 FRONTIER_MAPPING_REVERSE = {v: k for k, v in FRONTIER_MAPPING.items()}
