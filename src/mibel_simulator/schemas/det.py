@@ -27,6 +27,11 @@ multiple_tramos_only_scos = pa.Check(
     error=f"{cols.INT_NUM_TRAMO} > 1 block offers cannot have NumTramo > 1",
 )
 
+mav_only_in_tramo_1 = pa.Check(
+    lambda df: (df[cols.INT_NUM_TRAMO] == 1) | (df[cols.FLOAT_MAV] == 0),
+    element_wise=True,
+    error=f"{cols.FLOAT_MAV} > 0 only for {cols.INT_NUM_TRAMO} == 1",
+)
 
 # fmt: off
 
@@ -48,6 +53,7 @@ DETSchema = pa.DataFrameSchema(
         mar_only_in_block_offers,
         mav_only_in_scos,
         multiple_tramos_only_scos,
+        mav_only_in_tramo_1,
 
     ],
 
