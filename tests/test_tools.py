@@ -224,7 +224,7 @@ class TestFilterParadoxGroupsFromDetCab:
     def test_filter_paradox_groups(self, full_simplified_det_cab_dataframe):
         """Test filtering paradox groups from DET/CAB."""
         paradox_groups = {
-            "ids_mic_scos": ["ID_SCO_MIC"],
+            "ids_mic_scos": ["ID_SCO_MIC_SCO"],
             "ids_bid_blocks": [
                 "ID_BLOCK_B_1_GE_0",
                 "ID_BLOCK_B_2_GE_0",
@@ -257,7 +257,7 @@ class TestFilterParadoxGroupsFromDetCab:
     ):
         """Test filtering paradox groups from DET/CAB."""
         paradox_groups = {
-            "ids_mic_scos": ["ID_SCO_MIC"],
+            "ids_mic_scos": ["ID_SCO_MIC_SCO"],
             "ids_bid_blocks": [],
         }  # Order 1 is a MIC SCO
         result = tools.filter_paradox_groups_from_det_cab(
