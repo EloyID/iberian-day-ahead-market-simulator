@@ -92,6 +92,8 @@ def make_model(
     simple_seller_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_V_simple   .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
     block_order_bids_by_block_fnc =                  lambda bloque_id:         det_cab_date_V_bloque   .query(f"{cols.ID_BLOCK_ORDER} == @bloque_id"                                     )[cols.ID_INDIVIDUAL_BID].tolist()
     sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_date_V_sco      .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids_per_sco =                        lambda sco:               det_cab_date_V_sco      .query(f"{cols.ID_SCO} == @sco"                                                   )[cols.ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids_per_sco_and_period_fnc =         lambda sco, period:       det_cab_date_V_sco      .query(f"{cols.ID_SCO} == @sco                 and {cols.INT_PERIODO} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
     block_orders_by_country_fnc =                    lambda country:           det_cab_date_V_bloque   .query(f"{cols.CAT_PAIS} == @country"                                             )[cols.ID_BLOCK_ORDER].unique().tolist()
     france_export_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_C_export_FR.query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
     france_import_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_V_import_FR.query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
@@ -101,6 +103,8 @@ def make_model(
     simple_seller_bids_per_period_and_country = {(period, country):   simple_seller_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
     block_order_bids_by_block =                 {bloque_id:           block_order_bids_by_block_fnc(bloque_id)                        for bloque_id in block_orders}
     sco_seller_bids_per_period_and_country =    {(period, country):   sco_seller_bids_per_period_and_country_fnc(period, country)     for period in periods           for country in countries}
+    sco_seller_bids_per_sco =                   {sco:                 sco_seller_bids_per_sco(sco)                                    for sco in sco_orders}
+    sco_seller_bids_per_sco_and_period =        {(sco, period):       sco_seller_bids_per_sco_and_period_fnc(sco, period)             for sco in sco_orders           for period in periods}
     block_orders_by_country =                   {country:             block_orders_by_country_fnc(country)                                                            for country in countries}
     france_export_bids_per_period_and_country = {(period, country):   france_export_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
     france_import_bids_per_period_and_country = {(period, country):   france_import_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
@@ -108,6 +112,8 @@ def make_model(
     model.BUYER_BIDS_PER_PERIOD_AND_COUNTRY =           Set(model.PERIODS,      model.COUNTRIES, initialize=buyer_bids_per_period_and_country,          doc="Buyer individual bid ids per peri        od and country")
     model.SIMPLE_SELLER_BIDS_PER_PERIOD_AND_COUNTRY =   Set(model.PERIODS,      model.COUNTRIES, initialize=simple_seller_bids_per_period_and_country,  doc="Simple seller individual bids per period and country")
     model.SCO_SELLER_BIDS_PER_PERIOD_AND_COUNTRY =      Set(model.PERIODS,      model.COUNTRIES, initialize=sco_seller_bids_per_period_and_country,     doc="SCO seller individual bids per period and country")
+    model.SCO_SELLER_BIDS_PER_SCO =                     Set(model.SCO_ORDERS,                    initialize=sco_seller_bids_per_sco,                    doc="SCO seller individual bids per SCO order")
+    model.SCO_SELLER_BIDS_PER_SCO_AND_PERIOD =          Set(model.SCO_ORDERS,   model.PERIODS,   initialize=sco_seller_bids_per_sco_and_period,         doc="SCO seller individual bids per SCO and period")
     model.BLOCK_ORDER_BIDS_BY_BLOCK_AND_PERIOD =        Set(model.BLOCK_ORDERS, model.PERIODS,   initialize=block_order_bids_by_block_and_period,       doc="Block order individual bids per block order and period")
     model.BLOCK_ORDER_BIDS_BY_BLOCK =                   Set(model.BLOCK_ORDERS,                  initialize=block_order_bids_by_block,                  doc="Block order individual bids per block order")
     model.BLOCK_ORDERS_BY_COUNTRY =                     Set(model.COUNTRIES,                     initialize=block_orders_by_country,                    doc="Block orders per country")
@@ -118,6 +124,10 @@ def make_model(
     model.EXCLUSIVE_BLOCK_ORDERS_GROUPED =  Set(initialize=exclusive_block_orders_grouped_joined,  doc="Groups of exclusive block orders, a list of block_ids joined by $")
 
     ##### Parameters #####
+
+    def p_mav_fnc(sco, period): 
+        p_mav_query = det_cab_date_V_sco.query(f"{cols.ID_SCO} == @sco and {cols.INT_PERIODO} == @period and {cols.FLOAT_MAV} > 0")
+        return p_mav_query[cols.FLOAT_MAV].iloc[0] if len(p_mav_query) > 0 else 0
     
     p_price_min_SIMPLE_SELLERS_BIDS =           det_cab_date_V_simple    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
     p_price_min_BLOCK_ORDERS =                  det_cab_date_V_bloque    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_BID_PRICE].to_dict()
@@ -134,9 +144,10 @@ def make_model(
     p_congestion_spain_portugal_exportacion =   capacidad_inter_PT_date  .set_index(cols.INT_PERIODO)            [cols.FLOAT_EXPORT_CAPACITY].to_dict()
     p_congestion_spain_portugal_importacion =   capacidad_inter_PT_date  .set_index(cols.INT_PERIODO)            [cols.FLOAT_IMPORT_CAPACITY].to_dict()
     p_MAR =                                     det_cab_date_V_bloque    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_MAR].to_dict()
-    p_MAV =                                     det_cab_date_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_MAV].to_dict()
     p_MIC =                                     det_cab_date_V_sco       .drop_duplicates(cols.ID_SCO).set_index(cols.ID_SCO)[cols.FLOAT_MIC].to_dict()
     p_SCO_ORDER_PER_BID =                       det_cab_date_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.ID_SCO].to_dict()
+    
+    p_MAV =                                     {(sco, period): p_mav_fnc(sco, period) for sco in sco_orders for period in periods}
 
     model.p_price_min_SIMPLE_SELLERS_BIDS =          Param(model.SIMPLE_SELLER_BIDS,  initialize=p_price_min_SIMPLE_SELLERS_BIDS,                                   doc="Minimum price of each generator - simple bids")
     model.p_price_min_BLOCK_ORDERS =                 Param(model.BLOCK_ORDERS,        initialize=p_price_min_BLOCK_ORDERS,                                          doc="Minimum price of each generator - block orders")
@@ -153,9 +164,10 @@ def make_model(
     model.p_congestion_spain_portugal_exportacion =  Param(model.PERIODS,             initialize=p_congestion_spain_portugal_exportacion,  within=NonNegativeReals, doc="Maximum capacity Spain export to Portugal")
     model.p_congestion_spain_portugal_importacion =  Param(model.PERIODS,             initialize=p_congestion_spain_portugal_importacion,  within=NonPositiveReals, doc="Maximum capacity Spain import from Portugal (negative value)")
     model.p_MAR =                                    Param(model.BLOCK_ORDERS,        initialize=p_MAR,                                    within=NonNegativeReals, doc="Minimum acceptance ratio (MAR) of each block order")
-    model.p_MAV =                                    Param(model.SCO_SELLER_BIDS,     initialize=p_MAV,                                    within=NonNegativeReals, doc="Minimum acceptance volume (MAV) of each SCO seller bid")
     model.p_MIC =                                    Param(model.SCO_ORDERS,          initialize=p_MIC,                                    within=NonNegativeReals, doc="Minimum Income Condition (MIC) of each SCO seller bid")
     model.p_SCO_ORDER_PER_BID =                      Param(model.SCO_SELLER_BIDS,     initialize=p_SCO_ORDER_PER_BID,                      within=Any,              doc="Order identifier for each SCO bid")
+    # FIXME: we are assigning a MAV restriction to each SCO bid and period, but some not all periods have MAV, and some SCOs have no MAV
+    model.p_MAV =                                    Param(model.SCO_ORDERS * model.PERIODS, initialize=p_MAV,                        within=NonNegativeReals, doc="Minimum Acceptance Volume (MAV) of each SCO order in each period")
 
     ##### Variables #####
 
@@ -307,12 +319,23 @@ def make_model(
         doc="If any bid in the SCO order is accepted, the whole order must be accepted",
     )
 
+    model.c_SCO_Orders_Quantity_Degeneration = Constraint(
+        model.SCO_ORDERS,
+        rule=lambda m, sco: sum(
+            m.v_x_SCO_SELLER_BIDS[s] for s in m.SCO_SELLER_BIDS_PER_SCO[sco]
+        )
+        >= EPSILON * m.v_u_activated_SCO_ORDERS[sco],
+        doc="If a SCO order is activated, at least a small quantity must be accepted (MAV = 0 case)",
+    )
+
     model.c_MAV_SCO_Quantity = Constraint(
-        model.SCO_SELLER_BIDS,
-        rule=lambda m, s: m.v_x_SCO_SELLER_BIDS[s]
-        >= (m.p_MAV[s] / m.p_quantity_SCO_SELLER_BIDS[s])
-        * m.v_u_activated_SCO_ORDERS[m.p_SCO_ORDER_PER_BID[s]],
-        doc="If a SCO order is activated, the minimum acceptance volume (MAV) must be met in each bid",
+        model.SCO_ORDERS * model.PERIODS,
+        rule=lambda m, sco, p: sum(
+            m.v_x_SCO_SELLER_BIDS[s] * m.p_quantity_SCO_SELLER_BIDS[s]
+            for s in m.SCO_SELLER_BIDS_PER_SCO_AND_PERIOD[sco, p]
+        )
+        >= m.p_MAV[sco, p] * m.v_u_activated_SCO_ORDERS[sco],
+        doc="If a SCO order is activated, the minimum acceptance volume (MAV) must be met in each period",
     )
 
     model.c_Exclusive_Block_Orders = Constraint(
