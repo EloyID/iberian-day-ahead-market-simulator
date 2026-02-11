@@ -573,8 +573,8 @@ def check_if_success_at_first_trial(
     return success_at_first_trial
 
 
-@pa.check_input(DETCABSchema, "det_cab_date")
-@pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pt_date")
+@pa.check_input(DETCABSchema, "det_cab_date", lazy=True)
+@pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pt_date", lazy=True)
 def run_iterative_loop(
     det_cab_date: DataFrame,
     capacidad_inter_pt_date: DataFrame,
@@ -765,9 +765,9 @@ def clear_OMIE_market(
     if isinstance(capacidad_inter_date, str):
         capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
 
-    DETSchema.validate(det_date)
-    CABSchema.validate(cab_date)
-    CapacidadInterPTSchema.validate(capacidad_inter_date)
+    DETSchema.validate(det_date, lazy=True)
+    CABSchema.validate(cab_date, lazy=True)
+    CapacidadInterPTSchema.validate(capacidad_inter_date, lazy=True)
 
     if isinstance(uof_zones, pd.DataFrame):
         uof_zones = concat_provided_uof_zones_with_existing_data(uof_zones)

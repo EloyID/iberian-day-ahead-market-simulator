@@ -98,7 +98,7 @@ def generate_residual_demand_det_cab_and_uof_zone(
     return rdc_det, rdc_cab, uof_zone
 
 
-@pa.check_output(SellProfilesSchema)
+@pa.check_output(SellProfilesSchema, lazy=True)
 def create_homothetic_sell_profiles(
     profile: list[float], scaling_factors: list[float]
 ) -> pd.DataFrame:
@@ -153,8 +153,8 @@ def get_clearing_prices_dict(results: dict, sell_country: str) -> dict:
     return clearing_prices_dict
 
 
-@pa.check_input(SellProfilesSchema, "sell_profiles")
-@pa.check_output(ResidualDemandCurvesSchema)
+@pa.check_input(SellProfilesSchema, "sell_profiles", lazy=True)
+@pa.check_output(ResidualDemandCurvesSchema, lazy=True)
 def calculate_residual_demand_curves(
     sell_profiles: pd.DataFrame,
     det_date: pd.DataFrame | str,
