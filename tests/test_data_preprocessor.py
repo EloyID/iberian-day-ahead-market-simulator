@@ -185,14 +185,14 @@ class TestGetDetCabDateForSimulation:
         self,
         full_simplified_cab_dataframe,
         full_simplified_det_dataframe,
-        full_det_cab_uof_zones_dataframe,
+        full_det_cab_participants_bidding_zones_dataframe,
         full_simplified_det_cab_fr_dataframe,
         full_simplified_det_cab_dataframe,
     ):
         det_cab = get_det_cab_for_simulation(
             full_simplified_det_dataframe,
             full_simplified_cab_dataframe,
-            full_det_cab_uof_zones_dataframe,
+            full_det_cab_participants_bidding_zones_dataframe,
             det_cab_fr_date=full_simplified_det_cab_fr_dataframe,
         ).sort_index()
 

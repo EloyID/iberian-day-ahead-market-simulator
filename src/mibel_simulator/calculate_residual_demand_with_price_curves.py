@@ -13,7 +13,7 @@ from mibel_simulator.const import (
     SPAIN_ZONE,
 )
 from mibel_simulator.data_preprocessor import get_det_cab_for_simulation
-from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
+from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
 from mibel_simulator.parse_omie_files import (
     parse_cab_file,
     parse_capacidad_inter_file,
@@ -22,7 +22,9 @@ from mibel_simulator.parse_omie_files import (
 from mibel_simulator.schemas.cab import CABSchema
 from mibel_simulator.schemas.capacidad_inter_pt import CapacidadInterPTSchema
 from mibel_simulator.schemas.det import DETSchema
-from mibel_simulator.tools import concat_provided_uof_zones_with_existing_data
+from mibel_simulator.tools import (
+    concat_provided_participants_bidding_zones_with_existing_data,
+)
 import mibel_simulator.columns as cols
 
 
@@ -155,7 +157,7 @@ def calculate_residual_demand_with_price_curves(
     det: pd.DataFrame | str,
     cab: pd.DataFrame | str,
     capacidad_inter_pbc: pd.DataFrame | str,
-    uof_zones: pd.DataFrame | None = None,
+    participants_bidding_zones: pd.DataFrame | None = None,
     zones_default_to_spain: bool = False,
 ) -> dict:
 
@@ -172,10 +174,14 @@ def calculate_residual_demand_with_price_curves(
     CABSchema.validate(cab)
     CapacidadInterPTSchema.validate(capacidad_inter_pbc)
 
-    if isinstance(uof_zones, pd.DataFrame):
-        uof_zones = concat_provided_uof_zones_with_existing_data(uof_zones)
+    if isinstance(participants_bidding_zones, pd.DataFrame):
+        participants_bidding_zones = (
+            concat_provided_participants_bidding_zones_with_existing_data(
+                participants_bidding_zones
+            )
+        )
     else:
-        uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
+        participants_bidding_zones = pd.read_csv(PARTICIPANTS_BIDDING_ZONES_FILEPATH)
 
     capacidad_inter_PT_date = capacidad_inter_pbc.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
@@ -184,7 +190,7 @@ def calculate_residual_demand_with_price_curves(
     det_cab = get_det_cab_for_simulation(
         det=det,
         cab=cab,
-        uof_zones=uof_zones,
+        participants_bidding_zones=participants_bidding_zones,
         zones_default_to_spain=zones_default_to_spain,
     )
 

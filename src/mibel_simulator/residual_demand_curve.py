@@ -27,7 +27,7 @@ from mibel_simulator.schemas.sell_profiles import SellProfilesSchema
 logger = logging.getLogger(__name__)
 
 
-def generate_residual_demand_det_cab_and_uof_zone(
+def generate_residual_demand_det_cab_and_participants_bidding_zone(
     rdc: pd.Series, date_sesion: pd.Timestamp, sell_country: str
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Generate residual demand DET, CAB, and UOF zone dataframes.
@@ -88,14 +88,14 @@ def generate_residual_demand_det_cab_and_uof_zone(
         f"{cols.ID_ORDER} in {rdc_det[cols.ID_ORDER].unique().tolist()}"
     )
 
-    uof_zone = pd.DataFrame(
+    participants_bidding_zone = pd.DataFrame(
         {
             cols.ID_UNIDAD: uof_ids,
             cols.CAT_PAIS: sell_country,
         }
     )
 
-    return rdc_det, rdc_cab, uof_zone
+    return rdc_det, rdc_cab, participants_bidding_zone
 
 
 @pa.check_output(SellProfilesSchema, lazy=True)
@@ -161,7 +161,7 @@ def calculate_residual_demand_curves(
     cab: pd.DataFrame | str,
     capacidad_inter_pbc: pd.DataFrame | str,
     france_day_ahead_prices: pd.DataFrame,
-    uof_zones: pd.DataFrame | None = None,
+    participants_bidding_zones: pd.DataFrame | None = None,
     sell_country: str = "ES",
     trials_count: int = 100,
     zones_default_to_spain: bool = True,
@@ -176,7 +176,7 @@ def calculate_residual_demand_curves(
         cab (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
         capacidad_inter_pbc (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
         france_day_ahead_prices (pd.DataFrame): DataFrame with France price information.
-        uof_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_pais within ('ES', 'PT').
+        participants_bidding_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_pais within ('ES', 'PT').
         sell_country (str, optional): Country code for the selling side. Defaults to "ES".
         trials_count (int, optional): Number of trials for the market clearing simulation. Defaults to 100.
         zones_default_to_spain (bool, optional): If True, zones default to Spain. Defaults to True.
@@ -208,11 +208,13 @@ def calculate_residual_demand_curves(
         # Here you would modify the det and cab based on the profile
         # For simplicity, we will just pass them as is
 
-        rdc_det, rdc_cab, rdc_uof_zone = generate_residual_demand_det_cab_and_uof_zone(
-            profile, det[cols.DATE_SESION].iloc[0], sell_country
+        rdc_det, rdc_cab, rdc_participants_bidding_zone = (
+            generate_residual_demand_det_cab_and_participants_bidding_zone(
+                profile, det[cols.DATE_SESION].iloc[0], sell_country
+            )
         )
 
-        if rdc_det.empty or rdc_cab.empty or rdc_uof_zone.empty:
+        if rdc_det.empty or rdc_cab.empty or rdc_participants_bidding_zone.empty:
             logger.warning(
                 f"Profile {idx} has empty residual demand, the results are similar to a normal clearing of the market."
             )
@@ -220,18 +222,21 @@ def calculate_residual_demand_curves(
         det_modified = pd.concat([det, rdc_det], ignore_index=True)
         cab_modified = pd.concat([cab, rdc_cab], ignore_index=True)
 
-        if isinstance(uof_zones, pd.DataFrame):
-            uof_zones_modified = pd.concat([uof_zones, rdc_uof_zone], ignore_index=True)
-        elif not rdc_uof_zone.empty:
-            uof_zones_modified = rdc_uof_zone
+        if isinstance(participants_bidding_zones, pd.DataFrame):
+            participants_bidding_zones_modified = pd.concat(
+                [participants_bidding_zones, rdc_participants_bidding_zone],
+                ignore_index=True,
+            )
+        elif not rdc_participants_bidding_zone.empty:
+            participants_bidding_zones_modified = rdc_participants_bidding_zone
         else:
-            uof_zones_modified = None
+            participants_bidding_zones_modified = None
 
         results = run_mibel_simulator(
             det=det_modified,
             cab=cab_modified,
             capacidad_inter_pbc=capacidad_inter_pbc,
-            uof_zones=uof_zones_modified,
+            participants_bidding_zones=participants_bidding_zones_modified,
             france_day_ahead_prices=france_day_ahead_prices,
             trials_count=trials_count,
             zones_default_to_spain=zones_default_to_spain,

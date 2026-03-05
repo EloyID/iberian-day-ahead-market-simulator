@@ -141,7 +141,7 @@ def full_simplified_det_dataframe():
 
 
 @pytest.fixture
-def full_det_cab_uof_zones_dataframe():
+def full_det_cab_participants_bidding_zones_dataframe():
     """Provide a full simplified UOF zones DataFrame for testing."""
     return pd.DataFrame(
         {

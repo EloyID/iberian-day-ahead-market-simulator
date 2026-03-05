@@ -116,7 +116,7 @@ PRICE_FRANCE_TYPING = {
 
 CURVA_PBC_UOF_COLUMNS = list(CURVA_PBC_UOF_RENAMING.values())
 CAPACIDAD_INTER_COLUMNS = list(CAPACIDAD_INTER_RENAMING.values())
-UOF_ZONES_COLUMNS = [cols.CAT_PAIS, cols.ID_UNIDAD]
+PARTICIPANTS_BIDDING_ZONES_COLUMNS = [cols.CAT_PAIS, cols.ID_UNIDAD]
 DET_COLUMNS = list(DET_RENAMING.values())
 CAB_COLUMNS = list(CAB_RENAMING.values())
 PRICE_FRANCE_COLUMNS = list(PRICE_FRANCE_TYPING.keys())
@@ -476,15 +476,16 @@ def price_france_from_entsoe_file_to_parquet(
     return price_france
 
 
-def generate_uof_zones_parquet_from_uof_files(
-    curva_pbc_uof_parquet: str | pd.DataFrame, output_path: str = "uof_zones.parquet"
+def generate_participants_bidding_zones_parquet_from_uof_files(
+    curva_pbc_uof_parquet: str | pd.DataFrame,
+    output_path: str = "participants_bidding_zones.parquet",
 ):
     """
     Generates a parquet file containing unique unit IDs and their corresponding zones from the curva_pbc_uof data.
 
     Args:
         curva_pbc_uof_parquet (str|pd.DataFrame): Path to the curva_pbc_uof parquet file or a DataFrame.
-        output_path (str, optional): Path to save the uof zones parquet file. Defaults to "uof_zones.parquet".
+        output_path (str, optional): Path to save the uof zones parquet file. Defaults to "participants_bidding_zones.parquet".
 
     Returns:
         pd.DataFrame: DataFrame containing unique unit IDs and their zones.
@@ -509,7 +510,7 @@ def generate_uof_zones_parquet_from_uof_files(
 
     curva_pbc_uof_unidad_pais = curva_pbc_uof_split.drop_duplicates(
         subset=[cols.ID_UNIDAD], keep="last"
-    )[UOF_ZONES_COLUMNS]
+    )[PARTICIPANTS_BIDDING_ZONES_COLUMNS]
 
     logger.info("Saving UOF zones to parquet at %s", output_path)
     curva_pbc_uof_unidad_pais.to_parquet(output_path, index=False)

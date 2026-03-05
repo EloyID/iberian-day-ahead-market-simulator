@@ -19,7 +19,7 @@ from mibel_simulator.data_preprocessor import (
     get_det_cab_for_simulation,
     get_france_det_cab_from_price,
 )
-from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
+from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
 from mibel_simulator.paradox_groups_tools import (
     check_are_paradox_groups_tested,
     transform_ids_paradox_groups_list_to_dict,
@@ -50,7 +50,7 @@ from mibel_simulator.schemas.spain_portugal_transmissions import (
     SpainPortugaLTransmissionsSchema,
 )
 from mibel_simulator.tools import (
-    concat_provided_uof_zones_with_existing_data,
+    concat_provided_participants_bidding_zones_with_existing_data,
     filter_paradox_groups_from_det_cab,
 )
 import pyomo.environ as pyo
@@ -718,7 +718,7 @@ def run_mibel_simulator(
     cab: pd.DataFrame | str,
     capacidad_inter_pbc: pd.DataFrame | str,
     france_day_ahead_prices: pd.DataFrame,
-    uof_zones: pd.DataFrame | None = None,
+    participants_bidding_zones: pd.DataFrame | None = None,
     trials_count: int = 100,
     starting_trials_df: pd.DataFrame = None,
     france_fixed_exchange: pd.Series | None = None,
@@ -741,7 +741,7 @@ def run_mibel_simulator(
         cab (pd.DataFrame | str): CAB DataFrame for the studied day or path to CAB file.
         capacidad_inter_pbc (pd.DataFrame | str): DataFrame of interconnection capacities for the studied day or path to file.
         france_day_ahead_prices (pd.DataFrame): DataFrame of France prices for the studied day.
-        uof_zones (pd.DataFrame | None): DataFrame mapping units to zones.
+        participants_bidding_zones (pd.DataFrame | None): DataFrame mapping units to zones.
         trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
         starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
         france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
@@ -767,10 +767,14 @@ def run_mibel_simulator(
     CABSchema.validate(cab, lazy=True)
     CapacidadInterPTSchema.validate(capacidad_inter_pbc, lazy=True)
 
-    if isinstance(uof_zones, pd.DataFrame):
-        uof_zones = concat_provided_uof_zones_with_existing_data(uof_zones)
+    if isinstance(participants_bidding_zones, pd.DataFrame):
+        participants_bidding_zones = (
+            concat_provided_participants_bidding_zones_with_existing_data(
+                participants_bidding_zones
+            )
+        )
     else:
-        uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
+        participants_bidding_zones = pd.read_csv(PARTICIPANTS_BIDDING_ZONES_FILEPATH)
 
     capacidad_inter_pt_date = capacidad_inter_pbc.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
@@ -781,7 +785,7 @@ def run_mibel_simulator(
     det_cab = get_det_cab_for_simulation(
         det=det,
         cab=cab,
-        uof_zones=uof_zones,
+        participants_bidding_zones=participants_bidding_zones,
         det_cab_fr_date=det_cab_fr_date,
         zones_default_to_spain=zones_default_to_spain,
     )

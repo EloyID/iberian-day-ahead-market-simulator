@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from mibel_simulator import columns as cols
 from mibel_simulator import tools
-from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
+from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
 
 
 class TestGetFloatBidPowerCumsum:
@@ -140,10 +140,10 @@ class TestGetIsSCO:
         assert np.array_equal(result.values, expected_result.values)
 
 
-class TestConcatProvidedUOFZonesWithExistingData:
-    """Test suite for concat_provided_uof_zones_with_existing_data function."""
+class TestConcatProvidedParticipantBiddingZonesWithExistingData:
+    """Test suite for concat_provided_participants_bidding_zones_with_existing_data function."""
 
-    def test_concat_new_uof_zones(self):
+    def test_concat_new_participants_bidding_zones(self):
         """Test concatenating new UOF zones with existing data."""
         new_df = pd.DataFrame(
             {
@@ -152,7 +152,9 @@ class TestConcatProvidedUOFZonesWithExistingData:
             }
         )
 
-        result = tools.concat_provided_uof_zones_with_existing_data(new_df)
+        result = tools.concat_provided_participants_bidding_zones_with_existing_data(
+            new_df
+        )
 
         # Should contain the new units
         assert "UNIT3" in result[cols.ID_UNIDAD].values
@@ -161,8 +163,10 @@ class TestConcatProvidedUOFZonesWithExistingData:
     def test_concat_overlapping_units(self):
         """Test concatenating with overlapping unit IDs."""
 
-        existing_uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
-        example_unit = existing_uof_zones.iloc[0][cols.ID_UNIDAD]
+        existing_participants_bidding_zones = pd.read_csv(
+            PARTICIPANTS_BIDDING_ZONES_FILEPATH
+        )
+        example_unit = existing_participants_bidding_zones.iloc[0][cols.ID_UNIDAD]
 
         # We don't know the country of the existing unit, so just use "ES" for test
         example_country = "ES"
@@ -173,7 +177,9 @@ class TestConcatProvidedUOFZonesWithExistingData:
             }
         )
 
-        result = tools.concat_provided_uof_zones_with_existing_data(new_df)
+        result = tools.concat_provided_participants_bidding_zones_with_existing_data(
+            new_df
+        )
 
         # Should handle overlapping units
         assert "UNIT3" in result[cols.ID_UNIDAD].values
@@ -191,7 +197,9 @@ class TestConcatProvidedUOFZonesWithExistingData:
             }
         )
 
-        result = tools.concat_provided_uof_zones_with_existing_data(new_df)
+        result = tools.concat_provided_participants_bidding_zones_with_existing_data(
+            new_df
+        )
 
         # Should handle overlapping units
         assert "UNIT3" in result[cols.ID_UNIDAD].values
@@ -209,7 +217,9 @@ class TestConcatProvidedUOFZonesWithExistingData:
             }
         )
 
-        result = tools.concat_provided_uof_zones_with_existing_data(new_df)
+        result = tools.concat_provided_participants_bidding_zones_with_existing_data(
+            new_df
+        )
 
         assert "UNIT5" in result[cols.ID_UNIDAD].values
         assert (

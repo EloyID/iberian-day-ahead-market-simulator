@@ -2,8 +2,10 @@ import numpy as np
 import pandas as pd
 
 import mibel_simulator.columns as cols
-from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
-from mibel_simulator.schemas.uof_zones import UOFZonesSchema
+from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
+from mibel_simulator.schemas.participants_bidding_zones import (
+    ParticipantBiddingZonesSchema,
+)
 
 
 def get_float_bid_power_cumsum(
@@ -272,8 +274,8 @@ def filter_paradox_groups_from_det_cab(
     return det_cab_df.loc[~(mics_not_to_keep_mask | blocks_not_to_keep_mask)].copy()
 
 
-def concat_provided_uof_zones_with_existing_data(
-    user_uof_zones: pd.DataFrame,
+def concat_provided_participants_bidding_zones_with_existing_data(
+    user_participants_bidding_zones: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Merge user-provided UOF zones with the packaged reference list.
@@ -283,26 +285,33 @@ def concat_provided_uof_zones_with_existing_data(
     ready for downstream use (e.g., deduplication or reconciliation).
 
     Args:
-        user_uof_zones: DataFrame with at least the columns `cols.ID_UNIDAD`
+        user_participants_bidding_zones: DataFrame with at least the columns `cols.ID_UNIDAD`
             and `cols.CAT_PAIS` to append to the existing UOF zones list.
 
     Returns:
         A concatenated DataFrame containing existing and user-provided UOF zones.
 
     Raises:
-        SchemaError: If `user_uof_zones` fails validation against `UOFZonesSchema`.
+        SchemaError: If `user_participants_bidding_zones` fails validation against `ParticipantBiddingZonesSchema`.
         FileNotFoundError: If the existing UOF zones CSV cannot be loaded.
     """
-    user_uof_zones = user_uof_zones.copy()[[cols.ID_UNIDAD, cols.CAT_PAIS]]
-    UOFZonesSchema.validate(user_uof_zones)
+    user_participants_bidding_zones = user_participants_bidding_zones.copy()[
+        [cols.ID_UNIDAD, cols.CAT_PAIS]
+    ]
+    ParticipantBiddingZonesSchema.validate(user_participants_bidding_zones)
 
-    existing_uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
+    existing_participants_bidding_zones = pd.read_csv(
+        PARTICIPANTS_BIDDING_ZONES_FILEPATH
+    )
 
-    user_uof_zones["__origin"] = "user"
-    existing_uof_zones["__origin"] = "existing"
+    user_participants_bidding_zones["__origin"] = "user"
+    existing_participants_bidding_zones["__origin"] = "existing"
 
     altered_zones = (
-        pd.concat([existing_uof_zones, user_uof_zones], ignore_index=True)
+        pd.concat(
+            [existing_participants_bidding_zones, user_participants_bidding_zones],
+            ignore_index=True,
+        )
         .groupby([cols.ID_UNIDAD])
         .filter(lambda x: len(x[cols.CAT_PAIS].unique()) > 1)
     )
@@ -313,14 +322,22 @@ def concat_provided_uof_zones_with_existing_data(
             f"Warning: The following UOF zones are different from existing in the package and will use the user-provided values: {altered_zones_list}"
         )
 
-    user_unidades = user_uof_zones[cols.ID_UNIDAD].unique().tolist()
-    existing_uof_zones_filtered = existing_uof_zones.query(
-        f"`{cols.ID_UNIDAD}` not in @user_unidades"
+    user_unidades = user_participants_bidding_zones[cols.ID_UNIDAD].unique().tolist()
+    existing_participants_bidding_zones_filtered = (
+        existing_participants_bidding_zones.query(
+            f"`{cols.ID_UNIDAD}` not in @user_unidades"
+        )
     )
-    combined_uof_zones = (
-        pd.concat([existing_uof_zones_filtered, user_uof_zones], ignore_index=True)
+    combined_participants_bidding_zones = (
+        pd.concat(
+            [
+                existing_participants_bidding_zones_filtered,
+                user_participants_bidding_zones,
+            ],
+            ignore_index=True,
+        )
         .reset_index(drop=True)
         .drop(columns="__origin")
     )
 
-    return combined_uof_zones
+    return combined_participants_bidding_zones

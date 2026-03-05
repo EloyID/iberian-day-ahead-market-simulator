@@ -205,7 +205,7 @@ def get_det_cab_id_paradox_group(det_cab: pd.DataFrame) -> np.ndarray:
 def get_det_cab_for_simulation(
     det: pd.DataFrame,
     cab: pd.DataFrame,
-    uof_zones: pd.DataFrame,
+    participants_bidding_zones: pd.DataFrame,
     det_cab_fr_date: None | pd.DataFrame = None,
     zones_default_to_spain: bool = False,
 ) -> pd.DataFrame:
@@ -220,7 +220,7 @@ def get_det_cab_for_simulation(
         det (pd.DataFrame): DataFrame with DET data for a single day.
         cab (pd.DataFrame): DataFrame with CAB data for a single day.
         det_cab_fr_date (None | pd.DataFrame): DataFrame with France DET/CAB bids for the same day.
-        uof_zones (pd.DataFrame): DataFrame mapping units to zones.
+        participants_bidding_zones (pd.DataFrame): DataFrame mapping units to zones.
         zones_default_to_spain (bool, optional): If True, assign missing units to Spain zone. Defaults to False.
 
     Raises:
@@ -261,7 +261,7 @@ def get_det_cab_for_simulation(
 
     # Merge with UOF zones
     det_cab = det_cab.merge(
-        uof_zones,
+        participants_bidding_zones,
         on=cols.ID_UNIDAD,
         how="left",
         validate="many_to_one",
