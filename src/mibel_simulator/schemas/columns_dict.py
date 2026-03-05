@@ -2,7 +2,7 @@ from mibel_simulator.const import (
     BUY_SELL_OPTIONS,
     CAT_FRONTIER_OPTIONS,
     BIDDING_ZONES_OPTIONS,
-    TIPO_OFERTA_OPTIONS,
+    ORDER_TYPE_OPTIONS,
 )
 import pandera.pandas as pa
 import mibel_simulator.columns as cols
@@ -20,7 +20,7 @@ columns_dict = {
     
     cols.CAT_BUY_SELL:   pa.Column(pa.Category, checks=[pa.Check.isin(BUY_SELL_OPTIONS)],                     coerce=True),
     cols.CAT_BIDDING_ZONE:       pa.Column(pa.Category, checks=[pa.Check.isin(BIDDING_ZONES_OPTIONS)],                         coerce=True),
-    cols.CAT_ORDER_TYPE: pa.Column(pa.Category, checks=[pa.Check.isin(TIPO_OFERTA_OPTIONS)],                  coerce=True),
+    cols.CAT_ORDER_TYPE: pa.Column(pa.Category, checks=[pa.Check.isin(ORDER_TYPE_OPTIONS)],                  coerce=True),
     cols.CAT_FRONTIER:   pa.Column(pa.Category, checks=[pa.Check.isin(CAT_FRONTIER_OPTIONS)], required=False, coerce=True),
     
     cols.INT_PERIOD:         pa.Column(int, checks=[pa.Check.ge(1), pa.Check.le(25)], coerce=True),
