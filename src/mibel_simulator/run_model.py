@@ -1,5 +1,6 @@
 from pyomo.environ import Suffix
 from pyomo.opt import SolverFactory
+import pyomo.environ as pyo
 
 from mibel_simulator.make_model import make_model
 
@@ -20,6 +21,7 @@ def run_model(
 
     model.dual = Suffix(direction=Suffix.IMPORT)
     opt = SolverFactory("gurobi")
+    opt.options["MIPGap"] = 0
     results = opt.solve(model, tee=False)  # True)
     # results.write()
 
