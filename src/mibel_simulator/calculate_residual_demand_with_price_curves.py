@@ -154,7 +154,7 @@ def calculate_residual_demand_with_price_curves(
     price_curves: np.ndarray,
     det: pd.DataFrame | str,
     cab: pd.DataFrame | str,
-    capacidad_inter_date: pd.DataFrame | str,
+    capacidad_inter_pbc: pd.DataFrame | str,
     uof_zones: pd.DataFrame | None = None,
     zones_default_to_spain: bool = False,
 ) -> dict:
@@ -165,19 +165,19 @@ def calculate_residual_demand_with_price_curves(
         det = parse_det_file(det)
     if isinstance(cab, str):
         cab = parse_cab_file(cab)
-    if isinstance(capacidad_inter_date, str):
-        capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
+    if isinstance(capacidad_inter_pbc, str):
+        capacidad_inter_pbc = parse_capacidad_inter_file(capacidad_inter_pbc)
 
     DETSchema.validate(det)
     CABSchema.validate(cab)
-    CapacidadInterPTSchema.validate(capacidad_inter_date)
+    CapacidadInterPTSchema.validate(capacidad_inter_pbc)
 
     if isinstance(uof_zones, pd.DataFrame):
         uof_zones = concat_provided_uof_zones_with_existing_data(uof_zones)
     else:
         uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
 
-    capacidad_inter_PT_date = capacidad_inter_date.query(
+    capacidad_inter_PT_date = capacidad_inter_pbc.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
 

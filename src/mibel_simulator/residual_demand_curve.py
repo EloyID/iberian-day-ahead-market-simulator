@@ -159,7 +159,7 @@ def calculate_residual_demand_curves(
     sell_profiles: pd.DataFrame,
     det: pd.DataFrame | str,
     cab: pd.DataFrame | str,
-    capacidad_inter_date: pd.DataFrame | str,
+    capacidad_inter_pbc: pd.DataFrame | str,
     price_france_date: pd.DataFrame,
     uof_zones: pd.DataFrame | None = None,
     sell_country: str = "ES",
@@ -174,7 +174,7 @@ def calculate_residual_demand_curves(
         sell_profiles (pd.DataFrame): DataFrame with index as profile names and columns as 'energy_1' to 'energy_24' representing hourly energy values.
         det (pd.DataFrame | str): DataFrame or path to DET file containing market offer details.
         cab (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
-        capacidad_inter_date (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
+        capacidad_inter_pbc (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
         price_france_date (pd.DataFrame): DataFrame with France price information.
         uof_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_pais within ('ES', 'PT').
         sell_country (str, optional): Country code for the selling side. Defaults to "ES".
@@ -197,12 +197,12 @@ def calculate_residual_demand_curves(
         det = parse_det_file(det)
     if isinstance(cab, str):
         cab = parse_cab_file(cab)
-    if isinstance(capacidad_inter_date, str):
-        capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
+    if isinstance(capacidad_inter_pbc, str):
+        capacidad_inter_pbc = parse_capacidad_inter_file(capacidad_inter_pbc)
 
     DETSchema.validate(det)
     CABSchema.validate(cab)
-    CapacidadInterPTSchema.validate(capacidad_inter_date)
+    CapacidadInterPTSchema.validate(capacidad_inter_pbc)
 
     for idx, profile in sell_profiles.iterrows():
         # Here you would modify the det and cab based on the profile
@@ -230,7 +230,7 @@ def calculate_residual_demand_curves(
         results = run_mibel_simulator(
             det=det_modified,
             cab=cab_modified,
-            capacidad_inter_date=capacidad_inter_date,
+            capacidad_inter_pbc=capacidad_inter_pbc,
             uof_zones=uof_zones_modified,
             price_france_date=price_france_date,
             trials_count=trials_count,

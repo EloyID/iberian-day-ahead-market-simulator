@@ -3,11 +3,11 @@ import pytest
 from mibel_simulator import columns as cols
 from mibel_simulator.const import CAT_SELL
 from mibel_simulator.data_preprocessor import (
-    get_det_cab_date_id_block_order,
-    get_det_cab_date_id_individual_bid,
-    get_det_cab_date_id_sco,
-    get_france_det_cab_date_from_price,
-    get_det_cab_date_for_simulation,
+    get_det_cab_id_block_order,
+    get_det_cab_id_individual_bid,
+    get_det_cab_id_sco,
+    get_france_det_cab_from_price,
+    get_det_cab_for_simulation,
 )
 from mibel_simulator.tools import get_cat_order_type_column
 
@@ -84,7 +84,7 @@ class TestGetFranceDetCabDateFromPrice:
         price_france = price_france.copy()
         capacidad_inter = capacidad_inter.copy()
         expected_det_cab_fr = expected_det_cab_fr.copy()
-        det_cab = get_france_det_cab_date_from_price(
+        det_cab = get_france_det_cab_from_price(
             price_france, capacidad_inter, date=date_basic
         )
 
@@ -112,7 +112,7 @@ class TestGetFranceDetCabDateFromPrice:
         )
         capacidad_inter[cols.CAT_FRONTIER] = pd.Series([3, 3])
 
-        det_cab = get_france_det_cab_date_from_price(
+        det_cab = get_france_det_cab_from_price(
             price_france, capacidad_inter, date="2025-07-01"
         )
 
@@ -132,7 +132,7 @@ class TestGetFranceDetCabDateFromPrice:
         )  # One row with PT, one with FR
         expected_det_cab_fr = expected_det_cab_fr.iloc[[1, 3]].copy()
 
-        det_cab = get_france_det_cab_date_from_price(
+        det_cab = get_france_det_cab_from_price(
             price_france, capacidad_inter, date="2025-07-01"
         )
         pd.testing.assert_frame_equal(
@@ -152,7 +152,7 @@ class TestGetFranceDetCabDateFromPrice:
         )
 
         with pytest.raises(ValueError):
-            get_france_det_cab_date_from_price(price_france, capacidad_inter)
+            get_france_det_cab_from_price(price_france, capacidad_inter)
 
     def test_no_det_cab_entries_with_0_power(
         self, price_france, capacidad_inter, expected_det_cab_fr, date_basic
@@ -164,7 +164,7 @@ class TestGetFranceDetCabDateFromPrice:
         capacidad_inter.loc[0, cols.FLOAT_IMPORT_CAPACITY] = 0.0
         expected_det_cab_fr = expected_det_cab_fr.drop(index=[0])
 
-        det_cab = get_france_det_cab_date_from_price(
+        det_cab = get_france_det_cab_from_price(
             price_france, capacidad_inter, date=date_basic
         )
 
@@ -175,13 +175,13 @@ class TestGetFranceDetCabDateFromPrice:
 
 
 # ---------------------------------------------------------------------------
-# Tests for get_det_cab_date_for_simulation
+# Tests for get_det_cab_for_simulation
 # ---------------------------------------------------------------------------
 
 
 class TestGetDetCabDateForSimulation:
 
-    def test_get_det_cab_date_for_simulation(
+    def test_get_det_cab_for_simulation(
         self,
         full_simplified_cab_dataframe,
         full_simplified_det_dataframe,
@@ -189,7 +189,7 @@ class TestGetDetCabDateForSimulation:
         full_simplified_det_cab_fr_dataframe,
         full_simplified_det_cab_dataframe,
     ):
-        det_cab = get_det_cab_date_for_simulation(
+        det_cab = get_det_cab_for_simulation(
             full_simplified_det_dataframe,
             full_simplified_cab_dataframe,
             full_det_cab_uof_zones_dataframe,
@@ -215,10 +215,8 @@ class TestGetCatOrderTypeColumn:
 
 
 class TestGetDetCabDateIdIndividualBid:
-    def test_get_det_cab_date_id_individual_bid(
-        self, full_simplified_det_cab_dataframe
-    ):
-        id_individual_bid = get_det_cab_date_id_individual_bid(
+    def test_get_det_cab_id_individual_bid(self, full_simplified_det_cab_dataframe):
+        id_individual_bid = get_det_cab_id_individual_bid(
             full_simplified_det_cab_dataframe
         )
         pd.testing.assert_series_equal(
@@ -229,10 +227,8 @@ class TestGetDetCabDateIdIndividualBid:
 
 class TestGetDetCabDateIdBlockOrder:
 
-    def test_get_det_cab_date_id_block_order(self, full_simplified_det_cab_dataframe):
-        id_block_order = get_det_cab_date_id_block_order(
-            full_simplified_det_cab_dataframe
-        )
+    def test_get_det_cab_id_block_order(self, full_simplified_det_cab_dataframe):
+        id_block_order = get_det_cab_id_block_order(full_simplified_det_cab_dataframe)
         pd.testing.assert_series_equal(
             pd.Series(id_block_order),
             full_simplified_det_cab_dataframe[cols.ID_BLOCK_ORDER],
@@ -243,8 +239,8 @@ class TestGetDetCabDateIdBlockOrder:
 
 class TestGetDetCabDateIdSco:
 
-    def test_get_det_cab_date_id_sco(self, full_simplified_det_cab_dataframe):
-        id_sco = get_det_cab_date_id_sco(full_simplified_det_cab_dataframe)
+    def test_get_det_cab_id_sco(self, full_simplified_det_cab_dataframe):
+        id_sco = get_det_cab_id_sco(full_simplified_det_cab_dataframe)
         pd.testing.assert_series_equal(
             pd.Series(id_sco),
             full_simplified_det_cab_dataframe[cols.ID_SCO],

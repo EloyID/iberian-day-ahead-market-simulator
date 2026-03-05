@@ -716,7 +716,7 @@ def run_iterative_loop(
 def run_mibel_simulator(
     det: pd.DataFrame | str,
     cab: pd.DataFrame | str,
-    capacidad_inter_date: pd.DataFrame | str,
+    capacidad_inter_pbc: pd.DataFrame | str,
     price_france_date: pd.DataFrame,
     uof_zones: pd.DataFrame | None = None,
     trials_count: int = 100,
@@ -739,7 +739,7 @@ def run_mibel_simulator(
     Args:
         det (pd.DataFrame | str): DET DataFrame for the studied day or path to DET file.
         cab (pd.DataFrame | str): CAB DataFrame for the studied day or path to CAB file.
-        capacidad_inter_date (pd.DataFrame | str): DataFrame of interconnection capacities for the studied day or path to file.
+        capacidad_inter_pbc (pd.DataFrame | str): DataFrame of interconnection capacities for the studied day or path to file.
         price_france_date (pd.DataFrame): DataFrame of France prices for the studied day.
         uof_zones (pd.DataFrame | None): DataFrame mapping units to zones.
         trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
@@ -760,23 +760,23 @@ def run_mibel_simulator(
         det = parse_det_file(det)
     if isinstance(cab, str):
         cab = parse_cab_file(cab)
-    if isinstance(capacidad_inter_date, str):
-        capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
+    if isinstance(capacidad_inter_pbc, str):
+        capacidad_inter_pbc = parse_capacidad_inter_file(capacidad_inter_pbc)
 
     DETSchema.validate(det, lazy=True)
     CABSchema.validate(cab, lazy=True)
-    CapacidadInterPTSchema.validate(capacidad_inter_date, lazy=True)
+    CapacidadInterPTSchema.validate(capacidad_inter_pbc, lazy=True)
 
     if isinstance(uof_zones, pd.DataFrame):
         uof_zones = concat_provided_uof_zones_with_existing_data(uof_zones)
     else:
         uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
 
-    capacidad_inter_pt_date = capacidad_inter_date.query(
+    capacidad_inter_pt_date = capacidad_inter_pbc.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
     det_cab_fr_date = get_france_det_cab_from_price(
-        price_france_date, capacidad_inter_date
+        price_france_date, capacidad_inter_pbc
     )
     det_cab = get_det_cab_for_simulation(
         det=det,
