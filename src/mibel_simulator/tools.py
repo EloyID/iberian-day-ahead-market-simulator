@@ -281,12 +281,12 @@ def concat_provided_participants_bidding_zones_with_existing_data(
     Merge user-provided UOF zones with the packaged reference list.
 
     The function copies and schema-validates the user dataframe (only `cols.ID_UNIDAD`
-    and `cols.CAT_PAIS`), loads the bundled UOF zones CSV and returns a combined dataframe
+    and `cols.CAT_BIDDING_ZONE`), loads the bundled UOF zones CSV and returns a combined dataframe
     ready for downstream use (e.g., deduplication or reconciliation).
 
     Args:
         user_participants_bidding_zones: DataFrame with at least the columns `cols.ID_UNIDAD`
-            and `cols.CAT_PAIS` to append to the existing UOF zones list.
+            and `cols.CAT_BIDDING_ZONE` to append to the existing UOF zones list.
 
     Returns:
         A concatenated DataFrame containing existing and user-provided UOF zones.
@@ -296,7 +296,7 @@ def concat_provided_participants_bidding_zones_with_existing_data(
         FileNotFoundError: If the existing UOF zones CSV cannot be loaded.
     """
     user_participants_bidding_zones = user_participants_bidding_zones.copy()[
-        [cols.ID_UNIDAD, cols.CAT_PAIS]
+        [cols.ID_UNIDAD, cols.CAT_BIDDING_ZONE]
     ]
     ParticipantBiddingZonesSchema.validate(user_participants_bidding_zones)
 
@@ -313,7 +313,7 @@ def concat_provided_participants_bidding_zones_with_existing_data(
             ignore_index=True,
         )
         .groupby([cols.ID_UNIDAD])
-        .filter(lambda x: len(x[cols.CAT_PAIS].unique()) > 1)
+        .filter(lambda x: len(x[cols.CAT_BIDDING_ZONE].unique()) > 1)
     )
     if not altered_zones.empty:
         altered_zones_list = altered_zones[cols.ID_UNIDAD].unique().tolist()

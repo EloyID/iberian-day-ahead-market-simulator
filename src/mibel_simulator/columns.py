@@ -9,7 +9,7 @@ INT_NUM_TRAMO_CHILD = "int_num_tramo_child"
 INT_NUM_BLOQ_PARENT = "int_num_bloq_parent"
 INT_NUM_BLOQ_CHILD = "int_num_bloq_child"
 
-CAT_PAIS = "cat_pais"
+CAT_BIDDING_ZONE = "cat_bidding_zone"
 CAT_OFERTADA_CASADA = "cat_ofertada_casada"
 CAT_ORDER_TYPE = "cat_order_type"
 CAT_FRONTIER = "cat_frontier"

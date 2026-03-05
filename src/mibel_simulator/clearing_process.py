@@ -102,7 +102,7 @@ def get_cleared_paradoxal_orders_summary(
         .copy()
         .merge(
             clearing_price_df,
-            on=[cols.INT_PERIOD, cols.CAT_PAIS],
+            on=[cols.INT_PERIOD, cols.CAT_BIDDING_ZONE],
             how="left",
             validate="many_to_one",
             indicator=True,
@@ -161,7 +161,7 @@ def get_leftout_paradoxal_orders_summary(
 
     det_cab = det_cab.copy().merge(
         clearing_price_df,
-        on=[cols.INT_PERIOD, cols.CAT_PAIS],
+        on=[cols.INT_PERIOD, cols.CAT_BIDDING_ZONE],
         how="left",
         validate="many_to_one",
     )

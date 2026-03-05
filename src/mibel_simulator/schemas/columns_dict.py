@@ -1,7 +1,7 @@
 from mibel_simulator.const import (
     BUY_SELL_OPTIONS,
     CAT_FRONTIER_OPTIONS,
-    PAIS_OPTIONS,
+    BIDDING_ZONES_OPTIONS,
     TIPO_OFERTA_OPTIONS,
 )
 import pandera.pandas as pa
@@ -19,7 +19,7 @@ columns_dict = {
     cols.ID_SCO:            pa.Column(str, nullable=True             ),
     
     cols.CAT_BUY_SELL:   pa.Column(pa.Category, checks=[pa.Check.isin(BUY_SELL_OPTIONS)],                     coerce=True),
-    cols.CAT_PAIS:       pa.Column(pa.Category, checks=[pa.Check.isin(PAIS_OPTIONS)],                         coerce=True),
+    cols.CAT_BIDDING_ZONE:       pa.Column(pa.Category, checks=[pa.Check.isin(BIDDING_ZONES_OPTIONS)],                         coerce=True),
     cols.CAT_ORDER_TYPE: pa.Column(pa.Category, checks=[pa.Check.isin(TIPO_OFERTA_OPTIONS)],                  coerce=True),
     cols.CAT_FRONTIER:   pa.Column(pa.Category, checks=[pa.Check.isin(CAT_FRONTIER_OPTIONS)], required=False, coerce=True),
     

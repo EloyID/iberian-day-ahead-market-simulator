@@ -156,7 +156,7 @@ def plot_residual_demand_curves(
 def plot_clearing_prices(
     clearing_prices,
     ax=None,
-    hue=cols.CAT_PAIS,
+    hue=cols.CAT_BIDDING_ZONE,
     title="Clearing Prices by Period",
     ylabel="Cleared Price (€/MWh)",
     xlabel="Hour of the day",
@@ -168,7 +168,7 @@ def plot_clearing_prices(
 ):
     """
     Plot clearing prices DataFrame following ClearingPricesSchema.
-    By default, splits by country (CAT_PAIS).
+    By default, splits by country (CAT_BIDDING_ZONE).
     """
     created_fig = False
     if ax is None:

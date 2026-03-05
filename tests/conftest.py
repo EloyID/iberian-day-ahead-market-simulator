@@ -153,7 +153,7 @@ def full_det_cab_participants_bidding_zones_dataframe():
                 "UNIT_SCO_MAV",
                 "UNIT_BUY",
             ],
-            cols.CAT_PAIS: ["ES", "ES", "PT", "PT", "FR", "ES"],
+            cols.CAT_BIDDING_ZONE: ["ES", "ES", "PT", "PT", "FR", "ES"],
         }
     )
 
@@ -177,7 +177,7 @@ def full_simplified_det_cab_fr_dataframe():
             cols.INT_NUM_BLOQ: [0] * 6,
             cols.INT_NUM_TRAMO: [1] * 6,
             cols.INT_NUM_GRUPO_EXCL: [0] * 6,
-            cols.CAT_PAIS: ["ES"] * 6,
+            cols.CAT_BIDDING_ZONE: ["ES"] * 6,
         }
     )
 
@@ -203,7 +203,7 @@ def full_simplified_det_cab_dataframe():
             'cat_buy_sell': ['V', 'V', 'V', 'V', 'V', 'V', 'C', 'C', 'C', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'C', 'C', 'C', 'V', 'V', 'V'],
             'float_max_power': [200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 350.0, 350.0, 350.0, 150.0, 150.0, 150.0, 150.0, 150.0, 150.0, 300.0, 300.0, 300.0, 250.0, 250.0, 250.0, 100.0, 100.0, 100.0, 99999999.0, 99999999.0, 99999999.0, 99999999.0, 99999999.0, 99999999.0],
             'float_mic': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10000.0, 10000.0, 10000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            'cat_pais': ['PT', 'PT', 'PT', 'PT', 'PT', 'PT', 'ES', 'ES', 'ES', 'PT', 'PT', 'PT', 'PT', 'PT', 'PT', 'FR', 'FR', 'FR', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES'],
+            'cat_bidding_zone': ['PT', 'PT', 'PT', 'PT', 'PT', 'PT', 'ES', 'ES', 'ES', 'PT', 'PT', 'PT', 'PT', 'PT', 'PT', 'FR', 'FR', 'FR', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES', 'ES'],
             'cat_order_type': ['C01', 'C01', 'C01', 'C01', 'C01', 'C01', 'S', 'S', 'S', 'C04', 'C04', 'C04', 'C04', 'C04', 'C04', 'C02', 'C02', 'C02', 'C02', 'C02', 'C02', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S'],
             'float_bid_power_cumsum': [60.0, 70.0, 80.0, 120.0, 140.0, 160.0, 150.0, 160.0, 370.0, 190.0, 220.0, 250.0, 350.0, 300.0, 340.0, 430.0, 490.0, 550.0, 280.0, 400.0, 450.0, 480.0, 550.0, 620.0, 250.0, 310.0, 200.0, 730.0, 850.0, 970.0],
             'id_individual_bid': ['1_V_ID_BLOCK_1_1_0', '2_V_ID_BLOCK_1_1_0', '3_V_ID_BLOCK_1_1_0', '1_V_ID_BLOCK_1_2_0', '2_V_ID_BLOCK_1_2_0', '3_V_ID_BLOCK_1_2_0', '1_C_ID_BUY_1_0_0', '2_C_ID_BUY_1_0_0', '3_C_ID_BUY_1_0_0', '1_V_ID_EXCL_BLOCK_1_1_1', '2_V_ID_EXCL_BLOCK_1_1_1', '3_V_ID_EXCL_BLOCK_1_1_1', '1_V_ID_EXCL_BLOCK_1_2_1', '2_V_ID_EXCL_BLOCK_1_2_1', '3_V_ID_EXCL_BLOCK_1_2_1', '1_V_ID_SCO_MAV_1_0_0', '2_V_ID_SCO_MAV_1_0_0', '3_V_ID_SCO_MAV_1_0_0', '1_V_ID_SCO_MIC_1_0_0', '2_V_ID_SCO_MIC_1_0_0', '3_V_ID_SCO_MIC_1_0_0', '1_V_ID_SIMPLE_1_0_0', '2_V_ID_SIMPLE_1_0_0', '3_V_ID_SIMPLE_1_0_0', '1_C_12345678901234_1_0_0', '2_C_12345678901234_1_0_0', '3_C_12345678901234_1_0_0', '1_V_12345678901234_1_0_0', '2_V_12345678901234_1_0_0', '3_V_12345678901234_1_0_0'],
@@ -227,7 +227,7 @@ def full_simplified_det_cab_dataframe():
             'cat_buy_sell': 'category',
             'float_max_power': 'float64',
             'float_mic': 'float64',
-            'cat_pais': 'category',
+            'cat_bidding_zone': 'category',
             'cat_order_type': 'category',
             'float_bid_power_cumsum': 'float64',
             'id_individual_bid': 'object',
@@ -239,7 +239,7 @@ def full_simplified_det_cab_dataframe():
     # fmt: on
 
 
-# date_sesion        id_order  int_period  int_num_bloq  int_num_tramo  int_num_grupo_excl  float_bid_price  float_bid_power  float_mav  float_mar        id_unidad cat_buy_sell  float_max_power  float_mic cat_pais cat_order_type  float_bid_power_cumsum         id_individual_bid          id_block_order          id_sco  float_bid_power_cumsum_by_country
+# date_sesion        id_order  int_period  int_num_bloq  int_num_tramo  int_num_grupo_excl  float_bid_price  float_bid_power  float_mav  float_mar        id_unidad cat_buy_sell  float_max_power  float_mic cat_bidding_zone cat_order_type  float_bid_power_cumsum         id_individual_bid          id_block_order          id_sco  float_bid_power_cumsum_by_country
 # 0   2025-07-01        ID_BLOCK            1             1              1                   0             33.0             60.0        0.0        0.1       UNIT_BLOCK            V            200.0        0.0       PT            C01                    60.0        1_V_ID_BLOCK_1_1_0       ID_BLOCK_B_1_GE_0            <NA>                               60.0
 # 1   2025-07-01        ID_BLOCK            2             1              1                   0             33.0             70.0        0.0        0.1       UNIT_BLOCK            V            200.0        0.0       PT            C01                    70.0        2_V_ID_BLOCK_1_1_0       ID_BLOCK_B_1_GE_0            <NA>                               70.0
 # 2   2025-07-01        ID_BLOCK            3             1              1                   0             33.0             80.0        0.0        0.1       UNIT_BLOCK            V            200.0        0.0       PT            C01                    80.0        3_V_ID_BLOCK_1_1_0       ID_BLOCK_B_1_GE_0            <NA>                               80.0

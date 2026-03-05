@@ -55,7 +55,7 @@ def expected_det_cab_fr():
             "int_num_grupo_excl": [0, 0, 0, 0],
             "float_mav": [0, 0, 0, 0],
             "float_mar": [0, 0, 0, 0],
-            "cat_pais": ["ES", "ES", "ES", "ES"],
+            "cat_bidding_zone": ["ES", "ES", "ES", "ES"],
             "date_sesion": [
                 pd.Timestamp("2025-07-01 00:00:00"),
                 pd.Timestamp("2025-07-01 00:00:00"),

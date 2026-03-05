@@ -87,16 +87,16 @@ def make_model(
     model.FRANCE_EXPORT_BIDS =  Set(initialize=france_export_bids,  doc="France export individual bid ids")
     model.FRANCE_IMPORT_BIDS =  Set(initialize=france_import_bids,  doc="France import individual bid ids")
 
-    buyer_bids_per_period_and_country_fnc =          lambda period, country:   det_cab_C          .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    buyer_bids_per_period_and_country_fnc =          lambda period, country:   det_cab_C          .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
     block_order_bids_by_block_and_period_fnc =       lambda bloque_id, period: det_cab_V_bloque   .query(f"{cols.ID_BLOCK_ORDER} == @bloque_id   and {cols.INT_PERIOD} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
-    simple_seller_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_V_simple   .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    simple_seller_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_V_simple   .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
     block_order_bids_by_block_fnc =                  lambda bloque_id:         det_cab_V_bloque   .query(f"{cols.ID_BLOCK_ORDER} == @bloque_id"                                     )[cols.ID_INDIVIDUAL_BID].tolist()
-    sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_V_sco      .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_V_sco      .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
     sco_seller_bids_per_sco =                        lambda sco:               det_cab_V_sco      .query(f"{cols.ID_SCO} == @sco"                                                   )[cols.ID_INDIVIDUAL_BID].tolist()
     sco_seller_bids_per_sco_and_period_fnc =         lambda sco, period:       det_cab_V_sco      .query(f"{cols.ID_SCO} == @sco                 and {cols.INT_PERIOD} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_orders_by_country_fnc =                    lambda country:           det_cab_V_bloque   .query(f"{cols.CAT_PAIS} == @country"                                             )[cols.ID_BLOCK_ORDER].unique().tolist()
-    france_export_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_C_export_FR.query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    france_import_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_V_import_FR.query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    block_orders_by_country_fnc =                    lambda country:           det_cab_V_bloque   .query(f"{cols.CAT_BIDDING_ZONE} == @country"                                             )[cols.ID_BLOCK_ORDER].unique().tolist()
+    france_export_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_C_export_FR.query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    france_import_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_V_import_FR.query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
 
     buyer_bids_per_period_and_country =         {(period, country):   buyer_bids_per_period_and_country_fnc(period, country)          for period in periods           for country in countries}
     block_order_bids_by_block_and_period =      {(bloque_id, period): block_order_bids_by_block_and_period_fnc(bloque_id, period)     for bloque_id in block_orders   for period in periods}

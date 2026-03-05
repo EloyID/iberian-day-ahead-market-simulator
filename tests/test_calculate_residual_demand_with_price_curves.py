@@ -222,7 +222,7 @@ def det_cab_two_countries():
         {
             cols.INT_PERIOD: [1, 1, 1, 1, 2, 2, 2, 2],
             cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
-            cols.CAT_PAIS: [
+            cols.CAT_BIDDING_ZONE: [
                 SPAIN_ZONE,
                 SPAIN_ZONE,
                 PORTUGAL_ZONE,
@@ -265,7 +265,7 @@ def det_cab_import_saturated():
         {
             cols.INT_PERIOD: [1, 1, 1, 1, 2, 2, 2, 2],
             cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
-            cols.CAT_PAIS: [
+            cols.CAT_BIDDING_ZONE: [
                 SPAIN_ZONE,
                 SPAIN_ZONE,
                 PORTUGAL_ZONE,
@@ -296,7 +296,7 @@ def det_cab_export_saturated():
         {
             cols.INT_PERIOD: [1, 1, 1, 1, 2, 2, 2, 2],
             cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
-            cols.CAT_PAIS: [
+            cols.CAT_BIDDING_ZONE: [
                 SPAIN_ZONE,
                 SPAIN_ZONE,
                 PORTUGAL_ZONE,

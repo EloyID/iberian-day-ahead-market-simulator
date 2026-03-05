@@ -91,7 +91,7 @@ def generate_residual_demand_det_cab_and_participants_bidding_zone(
     participants_bidding_zone = pd.DataFrame(
         {
             cols.ID_UNIDAD: uof_ids,
-            cols.CAT_PAIS: sell_country,
+            cols.CAT_BIDDING_ZONE: sell_country,
         }
     )
 
@@ -139,7 +139,9 @@ def get_clearing_prices_dict(results: dict, sell_country: str) -> dict:
     """
 
     clearing_prices_country = (
-        results["clearing_prices"].query(f"{cols.CAT_PAIS} == '{sell_country}'").copy()
+        results["clearing_prices"]
+        .query(f"{cols.CAT_BIDDING_ZONE} == '{sell_country}'")
+        .copy()
     )
     clearing_prices_country["price_keys"] = "price_" + clearing_prices_country[
         cols.INT_PERIOD
@@ -176,7 +178,7 @@ def calculate_residual_demand_curves(
         cab (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
         capacidad_inter_pbc (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
         france_day_ahead_prices (pd.DataFrame): DataFrame with France price information.
-        participants_bidding_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_pais within ('ES', 'PT').
+        participants_bidding_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_bidding_zone within ('ES', 'PT').
         sell_country (str, optional): Country code for the selling side. Defaults to "ES".
         iterations_count (int, optional): Number of iterations for the market clearing simulation. Defaults to 100.
         spain_as_default_bidding_zone (bool, optional): If True, zones default to Spain. Defaults to True.

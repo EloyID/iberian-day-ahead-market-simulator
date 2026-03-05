@@ -148,7 +148,7 @@ class TestConcatProvidedParticipantBiddingZonesWithExistingData:
         new_df = pd.DataFrame(
             {
                 cols.ID_UNIDAD: ["UNIT3", "UNIT4"],
-                cols.CAT_PAIS: ["ES", "PT"],
+                cols.CAT_BIDDING_ZONE: ["ES", "PT"],
             }
         )
 
@@ -173,7 +173,7 @@ class TestConcatProvidedParticipantBiddingZonesWithExistingData:
         new_df = pd.DataFrame(
             {
                 cols.ID_UNIDAD: [example_unit, "UNIT3"],
-                cols.CAT_PAIS: [example_country, "ES"],
+                cols.CAT_BIDDING_ZONE: [example_country, "ES"],
             }
         )
 
@@ -184,7 +184,9 @@ class TestConcatProvidedParticipantBiddingZonesWithExistingData:
         # Should handle overlapping units
         assert "UNIT3" in result[cols.ID_UNIDAD].values
         assert (
-            result.loc[result[cols.ID_UNIDAD] == example_unit, cols.CAT_PAIS].values[0]
+            result.loc[
+                result[cols.ID_UNIDAD] == example_unit, cols.CAT_BIDDING_ZONE
+            ].values[0]
             == example_country
         )
 
@@ -193,7 +195,7 @@ class TestConcatProvidedParticipantBiddingZonesWithExistingData:
         new_df = pd.DataFrame(
             {
                 cols.ID_UNIDAD: [example_unit, "UNIT3"],
-                cols.CAT_PAIS: [example_country, "ES"],
+                cols.CAT_BIDDING_ZONE: [example_country, "ES"],
             }
         )
 
@@ -204,7 +206,9 @@ class TestConcatProvidedParticipantBiddingZonesWithExistingData:
         # Should handle overlapping units
         assert "UNIT3" in result[cols.ID_UNIDAD].values
         assert (
-            result.loc[result[cols.ID_UNIDAD] == example_unit, cols.CAT_PAIS].values[0]
+            result.loc[
+                result[cols.ID_UNIDAD] == example_unit, cols.CAT_BIDDING_ZONE
+            ].values[0]
             == example_country
         )
 
@@ -213,7 +217,7 @@ class TestConcatProvidedParticipantBiddingZonesWithExistingData:
         new_df = pd.DataFrame(
             {
                 cols.ID_UNIDAD: ["UNIT5"],
-                cols.CAT_PAIS: ["PT"],
+                cols.CAT_BIDDING_ZONE: ["PT"],
             }
         )
 
@@ -223,7 +227,9 @@ class TestConcatProvidedParticipantBiddingZonesWithExistingData:
 
         assert "UNIT5" in result[cols.ID_UNIDAD].values
         assert (
-            result.loc[result[cols.ID_UNIDAD] == "UNIT5", cols.CAT_PAIS].values[0]
+            result.loc[result[cols.ID_UNIDAD] == "UNIT5", cols.CAT_BIDDING_ZONE].values[
+                0
+            ]
             == "PT"
         )
 

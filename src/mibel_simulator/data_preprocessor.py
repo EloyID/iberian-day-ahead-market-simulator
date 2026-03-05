@@ -7,8 +7,8 @@ from mibel_simulator.tools import get_cat_order_type_column, get_float_bid_power
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
     CAT_BUY,
-    CAT_PAIS_FRANCE,
-    CAT_PAIS_SPAIN,
+    CAT_BIDDING_ZONE_FRANCE,
+    CAT_BIDDING_ZONE_SPAIN,
     CAT_SELL,
     DET_CAB_UNIQUE_IDENTIFIERS,
     FRANCE_ID_ORDER,
@@ -58,7 +58,7 @@ def get_france_det_cab_from_price(
     if cols.CAT_FRONTIER in capacidad_inter.columns:
         capacidad_inter = capacidad_inter[
             capacidad_inter[cols.CAT_FRONTIER]
-            == FRONTIER_MAPPING_REVERSE[CAT_PAIS_FRANCE]
+            == FRONTIER_MAPPING_REVERSE[CAT_BIDDING_ZONE_FRANCE]
         ].copy()
     if cols.DATE_SESION in capacidad_inter.columns:
         if date:
@@ -103,7 +103,7 @@ def get_france_det_cab_from_price(
         cols.INT_NUM_GRUPO_EXCL: 0,
         cols.FLOAT_MAV: 0,
         cols.FLOAT_MAR: 0,
-        cols.CAT_PAIS: CAT_PAIS_SPAIN,  # Spain because it's sold from France to Spain
+        cols.CAT_BIDDING_ZONE: CAT_BIDDING_ZONE_SPAIN,  # Spain because it's sold from France to Spain
     }
     if date:
         det_cab_values[cols.DATE_SESION] = pd.Timestamp(date)
@@ -274,7 +274,7 @@ def get_det_cab_for_simulation(
         if spain_as_default_bidding_zone:
             det_cab.loc[
                 det_cab[cols.ID_UNIDAD].isin(not_merged_unidades),
-                cols.CAT_PAIS,
+                cols.CAT_BIDDING_ZONE,
             ] = SPAIN_ZONE
             logger.warning(
                 f"The following {cols.ID_UNIDAD} in det_cab were not found in unidades_zona and have been assigned to {SPAIN_ZONE}: {not_merged_unidades}"
@@ -309,10 +309,10 @@ def get_det_cab_for_simulation(
     ).copy()
     for country in [SPAIN_ZONE, PORTUGAL_ZONE]:
         det_cab.loc[
-            (det_cab[cols.CAT_PAIS] == country),
+            (det_cab[cols.CAT_BIDDING_ZONE] == country),
             cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY,
         ] = get_float_bid_power_cumsum(
-            det_cab.loc[(det_cab[cols.CAT_PAIS] == country)],
+            det_cab.loc[(det_cab[cols.CAT_BIDDING_ZONE] == country)],
             date_column_name=None,
             cod_ofertada_casada_column_name=None,
         )

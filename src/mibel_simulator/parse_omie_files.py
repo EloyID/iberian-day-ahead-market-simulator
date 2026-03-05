@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 CURVA_PBC_UOF_RENAMING = {
     "Periodo":                   cols.INT_PERIOD,
-    "Pais":                     cols.CAT_PAIS,
+    "Pais":                     cols.CAT_BIDDING_ZONE,
     "Fecha":                    cols.DATE_SESION,
     "Tipo Oferta":              cols.CAT_BUY_SELL,
     "Ofertada (O)/Casada (C)":  cols.CAT_OFERTADA_CASADA,
@@ -23,7 +23,7 @@ CURVA_PBC_UOF_RENAMING = {
 
 CURVA_PBC_UOF_TYPING = {
     cols.INT_PERIOD:            int,
-    cols.CAT_PAIS:               'category',
+    cols.CAT_BIDDING_ZONE:               'category',
     cols.CAT_BUY_SELL:        'category',
     cols.CAT_OFERTADA_CASADA:    'category',
     cols.CAT_ORDER_TYPE:         'category',
@@ -116,7 +116,7 @@ PRICE_FRANCE_TYPING = {
 
 CURVA_PBC_UOF_COLUMNS = list(CURVA_PBC_UOF_RENAMING.values())
 CAPACIDAD_INTER_COLUMNS = list(CAPACIDAD_INTER_RENAMING.values())
-PARTICIPANTS_BIDDING_ZONES_COLUMNS = [cols.CAT_PAIS, cols.ID_UNIDAD]
+PARTICIPANTS_BIDDING_ZONES_COLUMNS = [cols.CAT_BIDDING_ZONE, cols.ID_UNIDAD]
 DET_COLUMNS = list(DET_RENAMING.values())
 CAB_COLUMNS = list(CAB_RENAMING.values())
 PRICE_FRANCE_COLUMNS = list(PRICE_FRANCE_TYPING.keys())
@@ -497,12 +497,12 @@ def generate_participants_bidding_zones_parquet_from_uof_files(
         curva_pbc_uof = curva_pbc_uof_parquet
 
     curva_pbc_uof_split = curva_pbc_uof.query(
-        f"{cols.CAT_PAIS} != 'MI' and {cols.ID_UNIDAD} not in @INTERCONEXION_UOFS"
+        f"{cols.CAT_BIDDING_ZONE} != 'MI' and {cols.ID_UNIDAD} not in @INTERCONEXION_UOFS"
     )
 
     curva_pbc_uof_unidad_pais_count = curva_pbc_uof_split.groupby(
         cols.ID_UNIDAD, observed=True
-    )[cols.CAT_PAIS].nunique()
+    )[cols.CAT_BIDDING_ZONE].nunique()
 
     assert (
         curva_pbc_uof_unidad_pais_count.max() == 1

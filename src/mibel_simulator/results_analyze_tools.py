@@ -737,7 +737,7 @@ def calculate_welfare_from_cleared_det_cab(
     cleared_det_cab = cleared_det_cab.query("float_cleared_power > 0").copy()
     cleared_det_cab = cleared_det_cab.merge(
         omie_clearing_prices,
-        left_on=["int_period", "cat_pais"],
+        left_on=["int_period", "cat_bidding_zone"],
         right_on=["qua_hora", "cod_pais"],
         how="left",
         validate="many_to_one",

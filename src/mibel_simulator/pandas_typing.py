@@ -172,5 +172,5 @@ DET_CAB_DAM_SIMULATOR_TYPING = {
     cols.CAT_ORDER_TYPE: "category",
     cols.ID_BLOCK_ORDER: "string",
     cols.ID_SCO: "string",
-    cols.CAT_PAIS: "category",
+    cols.CAT_BIDDING_ZONE: "category",
 }

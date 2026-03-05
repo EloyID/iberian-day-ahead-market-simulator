@@ -124,7 +124,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
             )
         )
 
-        assert (uof[cols.CAT_PAIS] == "PT").all()
+        assert (uof[cols.CAT_BIDDING_ZONE] == "PT").all()
 
     def test_period_assignment(self):
         """Test that periods 1-24 are correctly assigned."""
@@ -282,7 +282,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         # When both positive and negative values exist, should have both buy and sell units
         assert len(uof) == 2
         assert cols.ID_UNIDAD in uof.columns
-        assert cols.CAT_PAIS in uof.columns
+        assert cols.CAT_BIDDING_ZONE in uof.columns
 
     def test_no_nan_values_in_det(self):
         """Test that DET DataFrame contains no NaN values."""
@@ -329,7 +329,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
                 )
             )
 
-            assert (uof[cols.CAT_PAIS] == country).all()
+            assert (uof[cols.CAT_BIDDING_ZONE] == country).all()
 
     def test_very_small_values(self):
         """Test RDC generation with very small values."""
@@ -369,7 +369,7 @@ class TestGetClearingPricesDict:
         """Test extracting clearing prices for a single country."""
         clearing_prices_df = pd.DataFrame(
             {
-                cols.CAT_PAIS: ["ES", "ES", "PT", "PT"],
+                cols.CAT_BIDDING_ZONE: ["ES", "ES", "PT", "PT"],
                 cols.INT_PERIOD: [1, 2, 1, 2],
                 cols.FLOAT_CLEARED_PRICE: [40.0, 45.0, 38.0, 43.0],
             }
@@ -393,7 +393,7 @@ class TestGetClearingPricesDict:
         """Test extraction when country has no data."""
         clearing_prices_df = pd.DataFrame(
             {
-                cols.CAT_PAIS: ["ES", "PT"],
+                cols.CAT_BIDDING_ZONE: ["ES", "PT"],
                 cols.INT_PERIOD: [1, 1],
                 cols.FLOAT_CLEARED_PRICE: [40.0, 38.0],
             }

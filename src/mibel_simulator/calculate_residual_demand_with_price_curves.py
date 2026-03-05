@@ -64,7 +64,7 @@ def calculate_complex_residual_demand_II_with_market_split(
 
     energy_hourly_cleared_per_country_CV = (
         det_cab.groupby(
-            [cols.CAT_PAIS, cols.CAT_BUY_SELL, cols.INT_PERIOD], observed=False
+            [cols.CAT_BIDDING_ZONE, cols.CAT_BUY_SELL, cols.INT_PERIOD], observed=False
         )[cols.FLOAT_CLEARED_POWER]
         .sum()
         .sort_index()

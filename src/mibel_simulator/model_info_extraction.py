@@ -25,14 +25,14 @@ def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:
         {
             cols.INT_PERIOD: list(range(1, 25)),
             cols.FLOAT_CLEARED_PRICE: spain_clearing_prices,
-            cols.CAT_PAIS: SPAIN_ZONE,
+            cols.CAT_BIDDING_ZONE: SPAIN_ZONE,
         }
     )
     portugal_clearing_price_df = pd.DataFrame(
         {
             cols.INT_PERIOD: list(range(1, 25)),
             cols.FLOAT_CLEARED_PRICE: portugal_clearing_prices,
-            cols.CAT_PAIS: PORTUGAL_ZONE,
+            cols.CAT_BIDDING_ZONE: PORTUGAL_ZONE,
         }
     )
     return pd.concat(
@@ -264,7 +264,7 @@ def get_spain_portugal_transmissions_det_cab_df(
                 cols.FLOAT_BID_PRICE: -500 if spain_portugal_flow < 0 else 3000,
                 cols.FLOAT_BID_POWER: abs(spain_portugal_flow),
                 cols.ID_INDIVIDUAL_BID: f"International_Spain_Portugal_{period}",
-                cols.CAT_PAIS: "ES",
+                cols.CAT_BIDDING_ZONE: "ES",
                 cols.FLOAT_CLEARED_POWER: abs(spain_portugal_flow),
                 cols.FLOAT_BID_POWER_CUMSUM: np.nan,
                 cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY: np.nan,
@@ -278,7 +278,7 @@ def get_spain_portugal_transmissions_det_cab_df(
                 cols.FLOAT_BID_PRICE: -500 if spain_portugal_flow > 0 else 3000,
                 cols.FLOAT_BID_POWER: abs(spain_portugal_flow),
                 cols.ID_INDIVIDUAL_BID: f"International_Portugal_Spain_{period}",
-                cols.CAT_PAIS: "PT",
+                cols.CAT_BIDDING_ZONE: "PT",
                 cols.FLOAT_CLEARED_POWER: abs(spain_portugal_flow),
                 cols.FLOAT_BID_POWER_CUMSUM: np.nan,
                 cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY: np.nan,
@@ -343,10 +343,10 @@ def get_det_cab_results(
 
     for country in [SPAIN_ZONE, PORTUGAL_ZONE]:
         det_cab_results.loc[
-            (det_cab_results[cols.CAT_PAIS] == country),
+            (det_cab_results[cols.CAT_BIDDING_ZONE] == country),
             cols.FLOAT_CLEARED_POWER_CUMSUM_BY_COUNTRY,
         ] = get_float_bid_power_cumsum(
-            det_cab_results.loc[(det_cab_results[cols.CAT_PAIS] == country)],
+            det_cab_results.loc[(det_cab_results[cols.CAT_BIDDING_ZONE] == country)],
             date_column_name="dat_sesion",
             hour_column_name=cols.INT_PERIOD,
             cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
