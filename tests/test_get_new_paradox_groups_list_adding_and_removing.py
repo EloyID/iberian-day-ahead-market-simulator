@@ -89,11 +89,15 @@ class TestGetNewParadoxGroupsListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5]},
             index=["9708010_SCO"],
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
         starting = transform_ids_paradox_groups_list_to_dict(["9708010_SCO"])
 
         result = get_new_paradox_groups_list_adding_and_removing(
-            leftout, cleared, trials_df, starting, paradox_groups_combinations_count=2
+            leftout,
+            cleared,
+            iterations_df,
+            starting,
+            paradox_groups_combinations_count=2,
         )
 
         assert isinstance(result, list)
@@ -118,11 +122,15 @@ class TestGetNewParadoxGroupsListAddingAndRemoving:
         tested_combo = transform_ids_paradox_groups_list_to_dict(
             ["9708010_SCO", "9706994_SCO"]
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [tested_combo]})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [tested_combo]})
         starting = transform_ids_paradox_groups_list_to_dict(["9708010_SCO"])
 
         result = get_new_paradox_groups_list_adding_and_removing(
-            leftout, cleared, trials_df, starting, paradox_groups_combinations_count=5
+            leftout,
+            cleared,
+            iterations_df,
+            starting,
+            paradox_groups_combinations_count=5,
         )
 
         # Should not return the already tested combination
@@ -140,11 +148,15 @@ class TestGetNewParadoxGroupsListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5]},  # Low (negative) merit
             index=["9708010_SCO"],
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
         starting = transform_ids_paradox_groups_list_to_dict(["9708010_SCO"])
 
         result = get_new_paradox_groups_list_adding_and_removing(
-            leftout, cleared, trials_df, starting, paradox_groups_combinations_count=5
+            leftout,
+            cleared,
+            iterations_df,
+            starting,
+            paradox_groups_combinations_count=5,
         )
 
         # Should propose swapping out low-merit cleared for high-merit leftout
@@ -158,13 +170,13 @@ class TestGetNewParadoxGroupsListAddingAndRemoving:
         """Test with empty leftout and cleared DataFrames."""
         empty_leftout = pd.DataFrame({cols.FLOAT_RATIO_NET_INCOME_BID_POWER: []})
         empty_cleared = pd.DataFrame({cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: []})
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
         starting = transform_ids_paradox_groups_list_to_dict([])
 
         result = get_new_paradox_groups_list_adding_and_removing(
             empty_leftout,
             empty_cleared,
-            trials_df,
+            iterations_df,
             starting,
             paradox_groups_combinations_count=1,
         )
@@ -181,11 +193,15 @@ class TestGetNewParadoxGroupsListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5]},
             index=["C1_SCO"],
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
         starting = transform_ids_paradox_groups_list_to_dict(["C1_SCO"])
 
         result = get_new_paradox_groups_list_adding_and_removing(
-            leftout, cleared, trials_df, starting, paradox_groups_combinations_count=3
+            leftout,
+            cleared,
+            iterations_df,
+            starting,
+            paradox_groups_combinations_count=3,
         )
 
         assert len(result) <= 3
@@ -200,13 +216,17 @@ class TestGetNewParadoxGroupsListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5, 8]},
             index=["9708010_SCO", "9707925_B_1_GE_0"],
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
         starting = transform_ids_paradox_groups_list_to_dict(
             ["9708010_SCO", "9707925_B_1_GE_0"]
         )
 
         result = get_new_paradox_groups_list_adding_and_removing(
-            leftout, cleared, trials_df, starting, paradox_groups_combinations_count=3
+            leftout,
+            cleared,
+            iterations_df,
+            starting,
+            paradox_groups_combinations_count=3,
         )
 
         assert len(result) > 0
@@ -225,11 +245,15 @@ class TestGetNewParadoxGroupsListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5, 6]},
             index=["C1_SCO", "C2_SCO"],
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
         starting = transform_ids_paradox_groups_list_to_dict(["C1_SCO", "C2_SCO"])
 
         result = get_new_paradox_groups_list_adding_and_removing(
-            leftout, cleared, trials_df, starting, paradox_groups_combinations_count=10
+            leftout,
+            cleared,
+            iterations_df,
+            starting,
+            paradox_groups_combinations_count=10,
         )
 
         # Should include combinations that swap multiple groups

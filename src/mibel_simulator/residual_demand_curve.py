@@ -163,7 +163,7 @@ def calculate_residual_demand_curves(
     france_day_ahead_prices: pd.DataFrame,
     participants_bidding_zones: pd.DataFrame | None = None,
     sell_country: str = "ES",
-    trials_count: int = 100,
+    iterations_count: int = 100,
     zones_default_to_spain: bool = True,
     n_jobs: int = 1,
 ) -> pd.DataFrame:
@@ -178,7 +178,7 @@ def calculate_residual_demand_curves(
         france_day_ahead_prices (pd.DataFrame): DataFrame with France price information.
         participants_bidding_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_pais within ('ES', 'PT').
         sell_country (str, optional): Country code for the selling side. Defaults to "ES".
-        trials_count (int, optional): Number of trials for the market clearing simulation. Defaults to 100.
+        iterations_count (int, optional): Number of iterations for the market clearing simulation. Defaults to 100.
         zones_default_to_spain (bool, optional): If True, zones default to Spain. Defaults to True.
         n_jobs (int, optional): Number of parallel jobs for simulation. Defaults to 1.
 
@@ -238,7 +238,7 @@ def calculate_residual_demand_curves(
             capacidad_inter_pbc=capacidad_inter_pbc,
             participants_bidding_zones=participants_bidding_zones_modified,
             france_day_ahead_prices=france_day_ahead_prices,
-            trials_count=trials_count,
+            iterations_count=iterations_count,
             zones_default_to_spain=zones_default_to_spain,
             n_jobs=n_jobs,
         )

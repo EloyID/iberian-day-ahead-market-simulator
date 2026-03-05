@@ -46,7 +46,7 @@ def get_paradox_groups_combinations(
 def get_new_paradox_groups_list_adding_and_removing(
     leftout_paradox_groups_summary: pd.DataFrame,
     cleared_paradox_groups_summary: pd.DataFrame,
-    trials_df: pd.DataFrame,
+    iterations_df: pd.DataFrame,
     starting_paradox_groups: dict,
     paradox_groups_combinations_count: int = 1,
 ) -> list[dict]:
@@ -60,12 +60,12 @@ def get_new_paradox_groups_list_adding_and_removing(
 
     Args:
         leftout_paradox_groups_summary (pd.DataFrame): Summary DataFrame of left-out paradox orders with financial metrics.
-        trials_df (pd.DataFrame): DataFrame of all previous trial results.
-        starting_paradox_groups (dict): Dictionary of paradox order IDs with MIC in the current trial.
+        iterations_df (pd.DataFrame): DataFrame of all previous iteration results.
+        starting_paradox_groups (dict): Dictionary of paradox order IDs with MIC in the current iteration.
         paradox_groups_combinations_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
 
     Returns:
-        pd.Series: Series of new paradox order combinations (as lists) to try in the next trials.
+        pd.Series: Series of new paradox order combinations (as lists) to try in the next iterations.
     """
 
     paradox_groups_summary_sorted = pd.concat(
@@ -110,27 +110,27 @@ def get_new_paradox_groups_list_adding_and_removing(
             for (
                 paradox_groups_ids
             ) in paradox_groups_ids_combinations_to_switch_generator:
-                new_trial_ids_paradox_groups = (
+                new_iteration_ids_paradox_groups = (
                     transform_paradox_groups_dict_to_ids_list(
                         starting_paradox_groups
                     ).copy()
                 )
                 for id_paradox_group in paradox_groups_ids:
                     if id_paradox_group in leftout_paradox_groups_summary.index:
-                        new_trial_ids_paradox_groups.append(id_paradox_group)
+                        new_iteration_ids_paradox_groups.append(id_paradox_group)
                     else:
-                        new_trial_ids_paradox_groups.remove(id_paradox_group)
+                        new_iteration_ids_paradox_groups.remove(id_paradox_group)
 
                 are_paradox_groups_tested = check_are_paradox_groups_tested(
-                    trials_df, new_trial_ids_paradox_groups
+                    iterations_df, new_iteration_ids_paradox_groups
                 )
                 if not are_paradox_groups_tested:
-                    new_trial_paradox_groups = (
+                    new_iteration_paradox_groups = (
                         transform_ids_paradox_groups_list_to_dict(
-                            new_trial_ids_paradox_groups
+                            new_iteration_ids_paradox_groups
                         )
                     )
-                    new_paradox_groups.append(new_trial_paradox_groups)
+                    new_paradox_groups.append(new_iteration_paradox_groups)
                     created_combinations_count += 1
                     if created_combinations_count >= paradox_groups_combinations_count:
                         keep_creating_combinations = False

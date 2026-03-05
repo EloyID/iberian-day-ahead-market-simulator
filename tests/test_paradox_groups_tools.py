@@ -111,13 +111,13 @@ class TestCheckAreParadoxGroupsTested:
         combo2 = transform_ids_paradox_groups_list_to_dict(
             ["9707198_SCO", "9707925_B_1_GE_0"]
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo1, combo2]})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo1, combo2]})
 
         assert check_are_paradox_groups_tested(
-            trials_df, ["9706994_SCO", "9707582_B_2_GE_0"]
+            iterations_df, ["9706994_SCO", "9707582_B_2_GE_0"]
         )
         assert check_are_paradox_groups_tested(
-            trials_df, ["9707198_SCO", "9707925_B_1_GE_0"]
+            iterations_df, ["9707198_SCO", "9707925_B_1_GE_0"]
         )
 
     def test_order_independence(self):
@@ -125,17 +125,17 @@ class TestCheckAreParadoxGroupsTested:
         combo = transform_ids_paradox_groups_list_to_dict(
             ["9706994_SCO", "9707198_SCO", "9707582_B_2_GE_0"]
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
 
         # Different orderings should all match
         assert check_are_paradox_groups_tested(
-            trials_df, ["9706994_SCO", "9707198_SCO", "9707582_B_2_GE_0"]
+            iterations_df, ["9706994_SCO", "9707198_SCO", "9707582_B_2_GE_0"]
         )
         assert check_are_paradox_groups_tested(
-            trials_df, ["9707198_SCO", "9706994_SCO", "9707582_B_2_GE_0"]
+            iterations_df, ["9707198_SCO", "9706994_SCO", "9707582_B_2_GE_0"]
         )
         assert check_are_paradox_groups_tested(
-            trials_df, ["9707582_B_2_GE_0", "9706994_SCO", "9707198_SCO"]
+            iterations_df, ["9707582_B_2_GE_0", "9706994_SCO", "9707198_SCO"]
         )
 
     def test_no_match_different_ids(self):
@@ -143,13 +143,13 @@ class TestCheckAreParadoxGroupsTested:
         combo = transform_ids_paradox_groups_list_to_dict(
             ["9706994_SCO", "9707198_SCO"]
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
 
         assert not check_are_paradox_groups_tested(
-            trials_df, ["9706994_SCO", "9708010_SCO"]
+            iterations_df, ["9706994_SCO", "9708010_SCO"]
         )
         assert not check_are_paradox_groups_tested(
-            trials_df, ["9707582_B_2_GE_0", "9707925_B_1_GE_0"]
+            iterations_df, ["9707582_B_2_GE_0", "9707925_B_1_GE_0"]
         )
 
     def test_subset_not_matched(self):
@@ -157,50 +157,50 @@ class TestCheckAreParadoxGroupsTested:
         combo = transform_ids_paradox_groups_list_to_dict(
             ["9706994_SCO", "9707198_SCO", "9708010_SCO"]
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
 
         assert not check_are_paradox_groups_tested(
-            trials_df, ["9706994_SCO", "9707198_SCO"]
+            iterations_df, ["9706994_SCO", "9707198_SCO"]
         )
-        assert not check_are_paradox_groups_tested(trials_df, ["9706994_SCO"])
+        assert not check_are_paradox_groups_tested(iterations_df, ["9706994_SCO"])
 
     def test_superset_not_matched(self):
         """Test that supersets of tested combinations are not matched."""
         combo = transform_ids_paradox_groups_list_to_dict(
             ["9706994_SCO", "9707198_SCO"]
         )
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
 
         assert not check_are_paradox_groups_tested(
-            trials_df, ["9706994_SCO", "9707198_SCO", "9708010_SCO"]
+            iterations_df, ["9706994_SCO", "9707198_SCO", "9708010_SCO"]
         )
 
-    def test_empty_trials_df(self):
-        """Test with empty trials DataFrame."""
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
+    def test_empty_iterations_df(self):
+        """Test with empty iterations DataFrame."""
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: []})
 
-        assert not check_are_paradox_groups_tested(trials_df, ["9706994_SCO"])
-        assert not check_are_paradox_groups_tested(trials_df, [])
+        assert not check_are_paradox_groups_tested(iterations_df, ["9706994_SCO"])
+        assert not check_are_paradox_groups_tested(iterations_df, [])
 
     def test_empty_combination(self):
         """Test checking for an empty combination."""
         combo = transform_ids_paradox_groups_list_to_dict([])
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: [combo]})
 
-        assert check_are_paradox_groups_tested(trials_df, [])
+        assert check_are_paradox_groups_tested(iterations_df, [])
 
-    def test_multiple_trials(self):
-        """Test with multiple trials in the DataFrame."""
+    def test_multiple_iterations(self):
+        """Test with multiple iterations in the DataFrame."""
         combos = [
             transform_ids_paradox_groups_list_to_dict(["9706994_SCO"]),
             transform_ids_paradox_groups_list_to_dict(["9707198_SCO", "9708010_SCO"]),
             transform_ids_paradox_groups_list_to_dict(["9707582_B_2_GE_0"]),
         ]
-        trials_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: combos})
+        iterations_df = pd.DataFrame({cols.PARADOX_GROUPS_COLUMN: combos})
 
-        assert check_are_paradox_groups_tested(trials_df, ["9706994_SCO"])
+        assert check_are_paradox_groups_tested(iterations_df, ["9706994_SCO"])
         assert check_are_paradox_groups_tested(
-            trials_df, ["9707198_SCO", "9708010_SCO"]
+            iterations_df, ["9707198_SCO", "9708010_SCO"]
         )
-        assert check_are_paradox_groups_tested(trials_df, ["9707582_B_2_GE_0"])
-        assert not check_are_paradox_groups_tested(trials_df, ["9706993_SCO"])
+        assert check_are_paradox_groups_tested(iterations_df, ["9707582_B_2_GE_0"])
+        assert not check_are_paradox_groups_tested(iterations_df, ["9706993_SCO"])

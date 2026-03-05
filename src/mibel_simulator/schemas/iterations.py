@@ -4,7 +4,7 @@ from .columns_dict import columns_dict
 
 # fmt: off
 
-TrialsSchema = pa.DataFrameSchema(
+IterationsSchema = pa.DataFrameSchema(
     {
         cols.IDS_MIC_SCOS:                         columns_dict[cols.IDS_MIC_SCOS],
         cols.IDS_BID_BLOCKS:                       columns_dict[cols.IDS_BID_BLOCKS],

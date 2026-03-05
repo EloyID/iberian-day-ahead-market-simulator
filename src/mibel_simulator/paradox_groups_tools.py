@@ -3,23 +3,23 @@ from mibel_simulator import columns as cols
 
 
 def check_are_paradox_groups_tested(
-    trials_df: pd.DataFrame, ids_paradox_groups_combination: list
+    iterations_df: pd.DataFrame, ids_paradox_groups_combination: list
 ) -> bool:
     """
-    Checks if a given combination of paradox orders has already been tested in previous trials.
+    Checks if a given combination of paradox orders has already been tested in previous iterations.
 
-    Compares the provided combination against all combinations stored in the trials DataFrame,
+    Compares the provided combination against all combinations stored in the iterations DataFrame,
     returning True if an identical combination has already been tried, and False otherwise.
 
     Args:
-        trials_df (pd.DataFrame): DataFrame containing results of previous trials, including tested paradox order combinations.
+        iterations_df (pd.DataFrame): DataFrame containing results of previous iterations, including tested paradox order combinations.
         ids_paradox_groups_combination (list): List of paradox order IDs representing the combination to check.
 
     Returns:
         bool: True if the combination has already been tested, False otherwise.
     """
 
-    for paradox_groups_tried in trials_df[cols.PARADOX_GROUPS_COLUMN]:
+    for paradox_groups_tried in iterations_df[cols.PARADOX_GROUPS_COLUMN]:
         ids_paradox_groups_tried = transform_paradox_groups_dict_to_ids_list(
             paradox_groups_tried
         )
