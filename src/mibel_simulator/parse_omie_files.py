@@ -78,7 +78,7 @@ DET_RENAMING = {
     cols.DATE_SESION:   cols.DATE_SESION,
     "CodOferta":        cols.ID_ORDER,
     "Periodo":          cols.INT_PERIOD,
-    "NumBloq":          cols.INT_NUM_BLOQ,
+    "NumBloq":          cols.INT_NUM_BLOCK,
     "NumTramo":         cols.INT_NUM_TRAMO,
     "NumGrupoExcl":     cols.INT_NUM_EXCL_GROUP,
     "PrecEuro":         cols.FLOAT_BID_PRICE,

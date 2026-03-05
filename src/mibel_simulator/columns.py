@@ -1,13 +1,13 @@
 ##### COLUMNS NAMES FOR DATAFRAMES #####
 INT_PERIOD = "int_period"
-INT_NUM_BLOQ = "int_num_bloq"
+INT_NUM_BLOCK = "int_num_block"
 INT_NUM_TRAMO = "int_num_tramo"
 INT_NUM_EXCL_GROUP = "int_num_excl_group"
 
 INT_NUM_TRAMO_PARENT = "int_num_tramo_parent"
 INT_NUM_TRAMO_CHILD = "int_num_tramo_child"
-INT_NUM_BLOQ_PARENT = "int_num_bloq_parent"
-INT_NUM_BLOQ_CHILD = "int_num_bloq_child"
+INT_NUM_BLOCK_PARENT = "int_num_block_parent"
+INT_NUM_BLOCK_CHILD = "int_num_block_child"
 
 CAT_BIDDING_ZONE = "cat_bidding_zone"
 CAT_OFERTADA_CASADA = "cat_ofertada_casada"

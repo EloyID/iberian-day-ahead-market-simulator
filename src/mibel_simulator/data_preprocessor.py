@@ -98,7 +98,7 @@ def get_france_det_cab_from_price(
         cols.ID_UNIDAD: FRANCE_ID_UNIDAD,
         cols.FLOAT_MIC: 0,
         cols.FLOAT_MAX_POWER: 99999999,  # High value to avoid issues
-        cols.INT_NUM_BLOQ: 0,
+        cols.INT_NUM_BLOCK: 0,
         cols.INT_NUM_TRAMO: 1,
         cols.INT_NUM_EXCL_GROUP: 0,
         cols.FLOAT_MAV: 0,
@@ -153,7 +153,7 @@ def get_det_cab_id_block_order(det_cab: pd.DataFrame) -> np.ndarray:
         det_cab[cols.CAT_ORDER_TYPE].isin(["C01", "C04"]),
         det_cab[cols.ID_ORDER].astype(str)
         + "_B_"
-        + det_cab[cols.INT_NUM_BLOQ].astype(str)
+        + det_cab[cols.INT_NUM_BLOCK].astype(str)
         + "_GE_"
         + det_cab[cols.INT_NUM_EXCL_GROUP].astype(str),
         np.nan,
@@ -195,7 +195,7 @@ def get_det_cab_id_paradoxal_order(det_cab: pd.DataFrame) -> np.ndarray:
         det_cab[cols.FLOAT_MIC] > 0,
         det_cab[cols.ID_SCO],
         np.where(
-            det_cab[cols.INT_NUM_BLOQ] > 0,
+            det_cab[cols.INT_NUM_BLOCK] > 0,
             det_cab[cols.ID_BLOCK_ORDER],
             np.nan,
         ),
@@ -339,7 +339,7 @@ def get_exclusive_block_orders_grouped(det_cab: pd.DataFrame) -> pd.Series:
     """
     exclusive_block_orders_grouped = (
         det_cab.query(f"{cols.INT_NUM_EXCL_GROUP} > 0")
-        .drop_duplicates([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP, cols.INT_NUM_BLOQ])
+        .drop_duplicates([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP, cols.INT_NUM_BLOCK])
         .groupby([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], observed=True)[
             cols.ID_BLOCK_ORDER
         ]
@@ -378,7 +378,7 @@ def get_ids_bid_blocks(det_cab: pd.DataFrame) -> list:
         list: List of block order IDs for all block bids.
     """
     all_bid_blocks = (
-        det_cab.query(f"{cols.INT_NUM_BLOQ} > 0")[cols.ID_BLOCK_ORDER]
+        det_cab.query(f"{cols.INT_NUM_BLOCK} > 0")[cols.ID_BLOCK_ORDER]
         .sort_values()
         .unique()
         .tolist()

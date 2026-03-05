@@ -239,7 +239,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
             cols.DATE_SESION,
             cols.ID_ORDER,
             cols.INT_PERIOD,
-            cols.INT_NUM_BLOQ,
+            cols.INT_NUM_BLOCK,
             cols.INT_NUM_TRAMO,
             cols.INT_NUM_EXCL_GROUP,
             cols.FLOAT_BID_PRICE,

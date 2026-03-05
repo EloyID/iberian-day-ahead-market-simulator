@@ -70,7 +70,7 @@ TIPO_OFERTA_OPTIONS = [
 
 BLOCK_UNIQUE_IDENTIFIERS = [
     cols.ID_ORDER,
-    cols.INT_NUM_BLOQ,
+    cols.INT_NUM_BLOCK,
 ]
 
 DET_CAB_UNIQUE_IDENTIFIERS = [
@@ -78,7 +78,7 @@ DET_CAB_UNIQUE_IDENTIFIERS = [
     cols.CAT_BUY_SELL,
     cols.ID_ORDER,
     cols.INT_NUM_TRAMO,
-    cols.INT_NUM_BLOQ,
+    cols.INT_NUM_BLOCK,
     cols.INT_NUM_EXCL_GROUP,
 ]
 

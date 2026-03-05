@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from mibel_simulator.columns import INT_NUM_BLOQ
+from mibel_simulator.columns import INT_NUM_BLOCK
 from mibel_simulator.const import FRANCE_ID_UNIDAD
 from mibel_simulator.schemas import det_cab
 import mibel_simulator.columns as cols
@@ -443,14 +443,14 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
     for name, groups in curva_pbc_uof_C_V_C04.groupby(["id_unidad"]):
         id_unidad = name
         det_cab_C04_unidad = det_cab_C04.query("id_unidad == @id_unidad")
-        int_num_bloq_cats = det_cab_C04_unidad[INT_NUM_BLOQ].unique().tolist()
-        for int_num_bloq_cat in int_num_bloq_cats:
-            det_cab_C04_unidad_bloq = det_cab_C04_unidad.query(
-                "@INT_NUM_BLOQ == @int_num_bloq_cat"
+        int_num_block_cats = det_cab_C04_unidad[INT_NUM_BLOCK].unique().tolist()
+        for int_num_block_cat in int_num_block_cats:
+            det_cab_C04_unidad_block = det_cab_C04_unidad.query(
+                "@INT_NUM_BLOCK == @int_num_block_cat"
             )
-            if len(det_cab_C04_unidad_bloq) != len(groups):
+            if len(det_cab_C04_unidad_block) != len(groups):
                 continue
-            if set(det_cab_C04_unidad_bloq["int_period"]) != set(groups["qua_hora"]):
+            if set(det_cab_C04_unidad_block["int_period"]) != set(groups["qua_hora"]):
                 continue
 
             best_cost = np.nan
@@ -458,7 +458,7 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
             cost = 0
             for index, row in groups.iterrows():
                 int_period = row["qua_hora"]
-                matching_det_cab_row = det_cab_C04_unidad_bloq.query(
+                matching_det_cab_row = det_cab_C04_unidad_block.query(
                     "int_period == @int_period"
                 ).iloc[0]
                 if matching_det_cab_row.qua_energia < row.qua_energia:
@@ -467,7 +467,7 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
                 cost += row.qua_energia * matching_det_cab_row.float_bid_price.values[0]
             if energy_matches and cost < best_cost or np.isnan(best_cost):
                 best_cost = cost
-                best_int_num_bloq_cat = int_num_bloq_cat
+                best_int_num_block_cat = int_num_block_cat
 
         if np.isnan(best_cost):
             raise ValueError(
@@ -477,7 +477,7 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
         for index, row in groups.iterrows():
             int_period = row["qua_hora"]
             matching_det_cab_row = det_cab_C04_unidad.query(
-                f"@INT_NUM_BLOQ == @best_int_num_bloq_cat and int_period == @int_period"
+                f"@INT_NUM_BLOCK == @best_int_num_block_cat and int_period == @int_period"
             ).iloc[0]
             curva_pbc_uof_C_V_C04.at[index, "qua_precio"] = (
                 matching_det_cab_row.float_bid_price.values[0]

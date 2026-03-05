@@ -43,7 +43,7 @@ def full_simplified_det_dataframe():
             cols.DATE_SESION:      [STANDARD_TESTING_DATE] * 3,
             cols.ID_ORDER:         ["ID_SIMPLE"] * 3,
             cols.INT_PERIOD:      [1, 2, 3],
-            cols.INT_NUM_BLOQ:     [0] * 3,
+            cols.INT_NUM_BLOCK:     [0] * 3,
             cols.INT_NUM_TRAMO:    [1] * 3,
             cols.INT_NUM_EXCL_GROUP: [0] * 3,
             cols.FLOAT_BID_PRICE:  [40.0, 42.0, 44.0],
@@ -57,7 +57,7 @@ def full_simplified_det_dataframe():
             cols.DATE_SESION:      [STANDARD_TESTING_DATE] * 3,
             cols.ID_ORDER:         ["ID_SCO_MAV"] * 3,
             cols.INT_PERIOD:      [1, 2, 3],
-            cols.INT_NUM_BLOQ:     [0] * 3,
+            cols.INT_NUM_BLOCK:     [0] * 3,
             cols.INT_NUM_TRAMO:    [1] * 3,
             cols.INT_NUM_EXCL_GROUP: [0] * 3,
             cols.FLOAT_BID_PRICE:  [38.0, 39.0, 40.0],
@@ -71,7 +71,7 @@ def full_simplified_det_dataframe():
             cols.DATE_SESION:      [STANDARD_TESTING_DATE] * 3,
             cols.ID_ORDER:         ["ID_SCO_MIC"] * 3,
             cols.INT_PERIOD:      [1, 2, 3],
-            cols.INT_NUM_BLOQ:     [0] * 3,
+            cols.INT_NUM_BLOCK:     [0] * 3,
             cols.INT_NUM_TRAMO:    [1] * 3,
             cols.INT_NUM_EXCL_GROUP: [0] * 3,
             cols.FLOAT_BID_PRICE:  [36.0, 37.0, 38.0],
@@ -85,7 +85,7 @@ def full_simplified_det_dataframe():
             cols.DATE_SESION:      [STANDARD_TESTING_DATE] * 6,
             cols.ID_ORDER:         ["ID_EXCL_BLOCK"] * 6,
             cols.INT_PERIOD:      [1, 2, 3, 1, 2, 3],
-            cols.INT_NUM_BLOQ:     [1] * 3 + [2] * 3,
+            cols.INT_NUM_BLOCK:     [1] * 3 + [2] * 3,
             cols.INT_NUM_TRAMO:    [1] * 6,
             cols.INT_NUM_EXCL_GROUP: [1] * 6,
             cols.FLOAT_BID_PRICE:  [35.0, 35.0, 35.0, 37.0, 37.0, 37.0],
@@ -101,7 +101,7 @@ def full_simplified_det_dataframe():
             cols.DATE_SESION:      [STANDARD_TESTING_DATE] * 6,
             cols.ID_ORDER:         ["ID_BLOCK"] * 6,
             cols.INT_PERIOD:      [1, 2, 3, 1, 2, 3],
-            cols.INT_NUM_BLOQ:     [1] * 3 + [2] * 3,
+            cols.INT_NUM_BLOCK:     [1] * 3 + [2] * 3,
             cols.INT_NUM_TRAMO:    [1] * 6,
             cols.INT_NUM_EXCL_GROUP: [0] * 6,
             cols.FLOAT_BID_PRICE:  [33.0, 33.0, 33.0, 34.0, 34.0, 34.0],
@@ -116,7 +116,7 @@ def full_simplified_det_dataframe():
             cols.DATE_SESION:      [STANDARD_TESTING_DATE] * 3,
             cols.ID_ORDER:         ["ID_BUY"] * 3,
             cols.INT_PERIOD:      [1, 2, 3],
-            cols.INT_NUM_BLOQ:     [0] * 3,
+            cols.INT_NUM_BLOCK:     [0] * 3,
             cols.INT_NUM_TRAMO:    [1] * 3,
             cols.INT_NUM_EXCL_GROUP: [0] * 3,
             cols.FLOAT_BID_PRICE:  [55.0, 57.0, 59.0],
@@ -174,7 +174,7 @@ def full_simplified_det_cab_fr_dataframe():
             cols.FLOAT_MAR: [0.0] * 6,
             cols.FLOAT_MIC: [0.0] * 6,
             cols.FLOAT_MAX_POWER: [99999999] * 6,
-            cols.INT_NUM_BLOQ: [0] * 6,
+            cols.INT_NUM_BLOCK: [0] * 6,
             cols.INT_NUM_TRAMO: [1] * 6,
             cols.INT_NUM_EXCL_GROUP: [0] * 6,
             cols.CAT_BIDDING_ZONE: ["ES"] * 6,
@@ -192,7 +192,7 @@ def full_simplified_det_cab_dataframe():
             'date_sesion': ['2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01', '2025-07-01'],
             'id_order': ['ID_BLOCK', 'ID_BLOCK', 'ID_BLOCK', 'ID_BLOCK', 'ID_BLOCK', 'ID_BLOCK', 'ID_BUY', 'ID_BUY', 'ID_BUY', 'ID_EXCL_BLOCK', 'ID_EXCL_BLOCK', 'ID_EXCL_BLOCK', 'ID_EXCL_BLOCK', 'ID_EXCL_BLOCK', 'ID_EXCL_BLOCK', 'ID_SCO_MAV', 'ID_SCO_MAV', 'ID_SCO_MAV', 'ID_SCO_MIC', 'ID_SCO_MIC', 'ID_SCO_MIC', 'ID_SIMPLE', 'ID_SIMPLE', 'ID_SIMPLE', '12345678901234', '12345678901234', '12345678901234', '12345678901234', '12345678901234', '12345678901234'],
             'int_period': [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3],
-            'int_num_bloq': [1, 1, 1, 2, 2, 2, 0, 0, 0, 1, 1, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            'int_num_block': [1, 1, 1, 2, 2, 2, 0, 0, 0, 1, 1, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             'int_num_tramo': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             'int_num_excl_group': [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             'float_bid_price': [33.0, 33.0, 33.0, 34.0, 34.0, 34.0, 55.0, 57.0, 59.0, 35.0, 35.0, 35.0, 37.0, 37.0, 37.0, 38.0, 39.0, 40.0, 36.0, 37.0, 38.0, 40.0, 42.0, 44.0, 50.0, 55.0, 60.0, 50.0, 55.0, 60.0],
@@ -216,7 +216,7 @@ def full_simplified_det_cab_dataframe():
             'date_sesion': 'object',
             'id_order': 'string',
             'int_period': 'int8',
-            'int_num_bloq': 'int8',
+            'int_num_block': 'int8',
             'int_num_tramo': 'int8',
             'int_num_excl_group': 'int8',
             'float_bid_price': 'float64',
@@ -239,7 +239,7 @@ def full_simplified_det_cab_dataframe():
     # fmt: on
 
 
-# date_sesion        id_order  int_period  int_num_bloq  int_num_tramo  int_num_excl_group  float_bid_price  float_bid_power  float_mav  float_mar        id_unidad cat_buy_sell  float_max_power  float_mic cat_bidding_zone cat_order_type  float_bid_power_cumsum         id_individual_bid          id_block_order          id_sco  float_bid_power_cumsum_by_country
+# date_sesion        id_order  int_period  int_num_block  int_num_tramo  int_num_excl_group  float_bid_price  float_bid_power  float_mav  float_mar        id_unidad cat_buy_sell  float_max_power  float_mic cat_bidding_zone cat_order_type  float_bid_power_cumsum         id_individual_bid          id_block_order          id_sco  float_bid_power_cumsum_by_country
 # 0   2025-07-01        ID_BLOCK            1             1              1                   0             33.0             60.0        0.0        0.1       UNIT_BLOCK            V            200.0        0.0       PT            C01                    60.0        1_V_ID_BLOCK_1_1_0       ID_BLOCK_B_1_GE_0            <NA>                               60.0
 # 1   2025-07-01        ID_BLOCK            2             1              1                   0             33.0             70.0        0.0        0.1       UNIT_BLOCK            V            200.0        0.0       PT            C01                    70.0        2_V_ID_BLOCK_1_1_0       ID_BLOCK_B_1_GE_0            <NA>                               70.0
 # 2   2025-07-01        ID_BLOCK            3             1              1                   0             33.0             80.0        0.0        0.1       UNIT_BLOCK            V            200.0        0.0       PT            C01                    80.0        3_V_ID_BLOCK_1_1_0       ID_BLOCK_B_1_GE_0            <NA>                               80.0

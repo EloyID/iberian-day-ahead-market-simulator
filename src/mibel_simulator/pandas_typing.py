@@ -163,7 +163,7 @@ CURVAS_OFERTAS_AFRR_COLUMNS = CURVAS_OFERTAS_AFRR_TYPING.keys()
 
 DET_CAB_DAM_SIMULATOR_TYPING = {
     cols.INT_PERIOD: "int8",
-    cols.INT_NUM_BLOQ: "int8",
+    cols.INT_NUM_BLOCK: "int8",
     cols.INT_NUM_TRAMO: "int8",
     cols.INT_NUM_EXCL_GROUP: "int8",
     cols.ID_ORDER: "string",

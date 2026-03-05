@@ -50,7 +50,7 @@ def expected_det_cab_fr():
             "id_unidad": ["MIEU", "MIEU", "MIEU", "MIEU"],
             "float_mic": [0, 0, 0, 0],
             "float_max_power": [99999999, 99999999, 99999999, 99999999],
-            "int_num_bloq": [0, 0, 0, 0],
+            "int_num_block": [0, 0, 0, 0],
             "int_num_tramo": [1, 1, 1, 1],
             "int_num_excl_group": [0, 0, 0, 0],
             "float_mav": [0, 0, 0, 0],

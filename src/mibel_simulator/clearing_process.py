@@ -97,7 +97,7 @@ def get_cleared_paradoxal_orders_summary(
 
     cleared_paradoxal_orders_df = (
         cleared_det_cab.query(
-            f"({cols.FLOAT_MIC} > 0 or {cols.INT_NUM_BLOQ} > 0) and {cols.FLOAT_CLEARED_POWER} > 0"
+            f"({cols.FLOAT_MIC} > 0 or {cols.INT_NUM_BLOCK} > 0) and {cols.FLOAT_CLEARED_POWER} > 0"
         )
         .copy()
         .merge(

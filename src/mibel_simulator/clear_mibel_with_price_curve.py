@@ -22,23 +22,25 @@ def get_cleared_energy_from_exclusive_block_order_group(df):
     df = df.copy()
     assert df[cols.ID_ORDER].nunique() == 1, "DataFrame must be for a single offer"
     df[cols.FLOAT_CLEARED_POWER] = (
-        df.groupby([cols.INT_NUM_BLOQ], observed=True)
+        df.groupby([cols.INT_NUM_BLOCK], observed=True)
         .apply(
             lambda group: pd.DataFrame(
                 get_cleared_energy_from_non_exclusive_block_order(group)
             ),  # making a df and then taking the series bc of https://stackoverflow.com/a/69232413
             include_groups=True,
         )
-        .reset_index(level=[cols.INT_NUM_BLOQ], drop=True)
+        .reset_index(level=[cols.INT_NUM_BLOCK], drop=True)
     )[cols.FLOAT_CLEARED_POWER]
     if (df[cols.FLOAT_CLEARED_POWER] == 0).all():
         return df[cols.FLOAT_CLEARED_POWER]
     df["welfare"] = df[cols.FLOAT_CLEARED_POWER] * (
         df[cols.FLOAT_CLEARED_PRICE] - df[cols.FLOAT_BID_PRICE]
     )
-    max_welfare = df.groupby(cols.INT_NUM_BLOQ, observed=True)["welfare"].sum().idxmax()
+    max_welfare = (
+        df.groupby(cols.INT_NUM_BLOCK, observed=True)["welfare"].sum().idxmax()
+    )
     df[cols.FLOAT_CLEARED_POWER] = np.where(
-        df[cols.INT_NUM_BLOQ] == max_welfare, df[cols.FLOAT_CLEARED_POWER], 0
+        df[cols.INT_NUM_BLOCK] == max_welfare, df[cols.FLOAT_CLEARED_POWER], 0
     )
     return df[cols.FLOAT_CLEARED_POWER]
 
@@ -57,7 +59,7 @@ def calculate_cleared_energy_from_non_exclusive_block_orders(df):
     df = df.copy()
     assert get_is_not_exclusive_block(df).all()
     df[cols.FLOAT_CLEARED_POWER] = (
-        df.groupby([cols.ID_ORDER, cols.INT_NUM_BLOQ], observed=True)
+        df.groupby([cols.ID_ORDER, cols.INT_NUM_BLOCK], observed=True)
         .apply(lambda x: get_cleared_energy_from_non_exclusive_block_order(x))
         .reset_index(level=[0, 1], drop=True)
     )

@@ -71,7 +71,7 @@ def get_float_bid_power_cumsum(
 def get_is_simple_bid(
     det_cab: pd.DataFrame,
     id_order_column: str = cols.ID_ORDER,
-    num_bloq_column: str = cols.INT_NUM_BLOQ,
+    num_block_column: str = cols.INT_NUM_BLOCK,
     num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
     mav_column: str = cols.FLOAT_MAV,
     mar_column: str = cols.FLOAT_MAR,
@@ -89,7 +89,7 @@ def get_is_simple_bid(
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
         id_order_column (str, optional): Name of the order ID column. Defaults to cols.ID_ORDER.
-        num_bloq_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOQ.
+        num_block_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOCK.
         num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
         mav_column (str, optional): Name of the MAV column. Defaults to cols.FLOAT_MAV.
         mar_column (str, optional): Name of the MAR column. Defaults to cols.FLOAT_MAR.
@@ -100,7 +100,7 @@ def get_is_simple_bid(
     """
     is_SCO_ = get_is_SCO(det_cab, id_order_column, mav_column, fijoeuro_column)
     return (
-        (det_cab[num_bloq_column] == 0)
+        (det_cab[num_block_column] == 0)
         & (det_cab[num_excl_group_column] == 0)
         & (det_cab[mar_column] == 0)
         & (~is_SCO_)
@@ -138,7 +138,7 @@ def get_is_SCO(
 
 def get_is_not_exclusive_block(
     det_cab: pd.DataFrame,
-    num_bloq_column: str = cols.INT_NUM_BLOQ,
+    num_block_column: str = cols.INT_NUM_BLOCK,
     num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
 ) -> pd.Series:
     """
@@ -148,13 +148,13 @@ def get_is_not_exclusive_block(
 
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
-        num_bloq_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOQ.
+        num_block_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOCK.
         num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
 
     Returns:
         pd.Series: Boolean Series indicating which bids are non-exclusive block bids.
     """
-    return (det_cab[num_bloq_column] > 0) & (det_cab[num_excl_group_column] == 0)
+    return (det_cab[num_block_column] > 0) & (det_cab[num_excl_group_column] == 0)
 
 
 def get_is_exclusive_block_group(
@@ -180,7 +180,7 @@ def get_is_exclusive_block_group(
 def get_cat_order_type_column(
     det_cab: pd.DataFrame,
     id_order_column: str = cols.ID_ORDER,
-    num_bloq_column: str = cols.INT_NUM_BLOQ,
+    num_block_column: str = cols.INT_NUM_BLOCK,
     num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
     mav_column: str = cols.FLOAT_MAV,
     mar_column: str = cols.FLOAT_MAR,
@@ -194,7 +194,7 @@ def get_cat_order_type_column(
 
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
-        num_bloq_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOQ.
+        num_block_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOCK.
         num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
         mav_column (str, optional): Name of the mav column. Defaults to cols.FLOAT_MAV.
         mar_column (str, optional): Name of the mar column. Defaults to cols.FLOAT_MAR.
@@ -209,7 +209,7 @@ def get_cat_order_type_column(
     det_cab[cols.BOOL_IS_SIMPLE_BID] = get_is_simple_bid(
         det_cab,
         id_order_column,
-        num_bloq_column,
+        num_block_column,
         num_excl_group_column,
         mav_column,
         mar_column,
@@ -219,7 +219,7 @@ def get_cat_order_type_column(
         det_cab, id_order_column, mav_column, fijoeuro_column
     )
     det_cab[cols.BOOL_IS_NOT_EXCLUSIVE_GROUP] = get_is_not_exclusive_block(
-        det_cab, num_bloq_column, num_excl_group_column
+        det_cab, num_block_column, num_excl_group_column
     )
     det_cab[cols.BOOL_IS_EXCLUSIVE_GROUP] = get_is_exclusive_block_group(
         det_cab, num_excl_group_column
@@ -260,7 +260,7 @@ def filter_paradoxal_orders_from_det_cab(
     id_sco_column: str = cols.ID_SCO,
     id_block_column: str = cols.ID_BLOCK_ORDER,
     float_mic_column: str = cols.FLOAT_MIC,
-    int_num_bloq_column: str = cols.INT_NUM_BLOQ,
+    int_num_block_column: str = cols.INT_NUM_BLOCK,
 ) -> pd.DataFrame:
     mic_scos_to_keep = paradoxal_orders_to_keep[cols.IDS_MIC_SCOS]
     bid_blocks_to_keep = paradoxal_orders_to_keep[cols.IDS_BID_BLOCKS]
@@ -268,7 +268,7 @@ def filter_paradoxal_orders_from_det_cab(
     mics_not_to_keep_mask = (det_cab_df[float_mic_column] > 0) & (
         ~det_cab_df[id_sco_column].isin(mic_scos_to_keep)
     )
-    blocks_not_to_keep_mask = (det_cab_df[int_num_bloq_column] > 0) & (
+    blocks_not_to_keep_mask = (det_cab_df[int_num_block_column] > 0) & (
         ~det_cab_df[id_block_column].isin(bid_blocks_to_keep)
     )
     return det_cab_df.loc[~(mics_not_to_keep_mask | blocks_not_to_keep_mask)].copy()
