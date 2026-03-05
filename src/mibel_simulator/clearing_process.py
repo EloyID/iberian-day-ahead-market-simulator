@@ -6,8 +6,8 @@ import logging
 import multiprocessing
 import numpy as np
 import pandas as pd
-from mibel_simulator.get_new_paradox_groups_list_adding_and_removing import (
-    get_new_paradox_groups_list_adding_and_removing,
+from mibel_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
+    get_new_paradoxal_orders_list_adding_and_removing,
 )
 import mibel_simulator.columns as cols
 import pandera.pandas as pa
@@ -15,15 +15,15 @@ import warnings
 
 from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, ITERATIONS_DF_COLUMNS
 from mibel_simulator.data_preprocessor import (
-    get_all_paradox_groups,
+    get_all_paradoxal_orders,
     get_det_cab_for_simulation,
     get_france_det_cab_from_price,
 )
 from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
-from mibel_simulator.paradox_groups_tools import (
-    check_are_paradox_groups_tested,
-    transform_ids_paradox_groups_list_to_dict,
-    transform_paradox_groups_dict_to_ids_list,
+from mibel_simulator.paradoxal_orders_tools import (
+    check_are_paradoxal_orders_tested,
+    transform_ids_paradoxal_orders_list_to_dict,
+    transform_paradoxal_orders_dict_to_ids_list,
 )
 from mibel_simulator.schemas import (
     CABSchema,
@@ -51,7 +51,7 @@ from mibel_simulator.schemas.spain_portugal_transmissions import (
 )
 from mibel_simulator.tools import (
     concat_provided_participants_bidding_zones_with_existing_data,
-    filter_paradox_groups_from_det_cab,
+    filter_paradoxal_orders_from_det_cab,
 )
 import pyomo.environ as pyo
 from pandera.typing import DataFrame, Series
@@ -59,8 +59,8 @@ from pandera.typing import DataFrame, Series
 logger = logging.getLogger(__name__)
 
 
-def get_cleared_paradox_groups_summary(
-    det_cab_paradox_groups_filtered: pd.DataFrame,
+def get_cleared_paradoxal_orders_summary(
+    det_cab_paradoxal_orders_filtered: pd.DataFrame,
     cleared_energy_df: pd.DataFrame,
     clearing_price_df: pd.DataFrame,
 ) -> pd.DataFrame:
@@ -70,7 +70,7 @@ def get_cleared_paradox_groups_summary(
     Merges DET/CAB data with cleared energy and clearing prices, computes financial metrics, and groups by order ID.
 
     Args:
-        det_cab_paradox_groups_filtered (pd.DataFrame): DET/CAB DataFrame for paradox orders in the iteration.
+        det_cab_paradoxal_orders_filtered (pd.DataFrame): DET/CAB DataFrame for paradox orders in the iteration.
         cleared_energy_df (pd.DataFrame): DataFrame of cleared energy per bid.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
@@ -79,7 +79,7 @@ def get_cleared_paradox_groups_summary(
     """
 
     cleared_det_cab = (
-        det_cab_paradox_groups_filtered.merge(
+        det_cab_paradoxal_orders_filtered.merge(
             cleared_energy_df,
             left_on=cols.ID_INDIVIDUAL_BID,
             right_index=True,
@@ -95,7 +95,7 @@ def get_cleared_paradox_groups_summary(
     assert cleared_det_cab._merge.isin(["both", "left_only"]).all()
     cleared_det_cab = cleared_det_cab.drop(columns="_merge")
 
-    cleared_paradox_groups_df = (
+    cleared_paradoxal_orders_df = (
         cleared_det_cab.query(
             f"({cols.FLOAT_MIC} > 0 or {cols.INT_NUM_BLOQ} > 0) and {cols.FLOAT_CLEARED_POWER} > 0"
         )
@@ -108,17 +108,17 @@ def get_cleared_paradox_groups_summary(
             indicator=True,
         )
     )
-    assert cleared_paradox_groups_df._merge.isin(["both"]).all()
-    cleared_paradox_groups_df = cleared_paradox_groups_df.drop(columns="_merge")
+    assert cleared_paradoxal_orders_df._merge.isin(["both"]).all()
+    cleared_paradoxal_orders_df = cleared_paradoxal_orders_df.drop(columns="_merge")
 
-    cleared_paradox_groups_df = cleared_paradox_groups_df.eval(
+    cleared_paradoxal_orders_df = cleared_paradoxal_orders_df.eval(
         f"""
         {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_CLEARED_PRICE}
         {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_BID_PRICE}
         """
     )
-    cleared_paradox_groups_df_grouped = (
-        cleared_paradox_groups_df.groupby([cols.ID_PARADOX_GROUPS], observed=True)
+    cleared_paradoxal_orders_df_grouped = (
+        cleared_paradoxal_orders_df.groupby([cols.ID_PARADOXAL_ORDERS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
@@ -135,13 +135,13 @@ def get_cleared_paradox_groups_summary(
         )
     )
 
-    return cleared_paradox_groups_df_grouped
+    return cleared_paradoxal_orders_df_grouped
 
 
-def get_leftout_paradox_groups_summary(
+def get_leftout_paradoxal_orders_summary(
     det_cab: pd.DataFrame,
-    all_paradox_groups: dict,
-    iteration_paradox_groups: dict,
+    all_paradoxal_orders: dict,
+    iteration_paradoxal_orders: dict,
     clearing_price_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
@@ -151,8 +151,8 @@ def get_leftout_paradox_groups_summary(
 
     Args:
         det_cab (pd.DataFrame): Full DET/CAB DataFrame.
-        all_paradox_groups (dict): Dictionary of all paradox order IDs.
-        iteration_paradox_groups (dict): Dictionary of paradox order IDs included in the iteration.
+        all_paradoxal_orders (dict): Dictionary of all paradox order IDs.
+        iteration_paradoxal_orders (dict): Dictionary of paradox order IDs included in the iteration.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
     Returns:
@@ -166,12 +166,12 @@ def get_leftout_paradox_groups_summary(
         validate="many_to_one",
     )
 
-    all_scos = all_paradox_groups[cols.IDS_MIC_SCOS]
-    iteration_scos = iteration_paradox_groups[cols.IDS_MIC_SCOS]
+    all_scos = all_paradoxal_orders[cols.IDS_MIC_SCOS]
+    iteration_scos = iteration_paradoxal_orders[cols.IDS_MIC_SCOS]
     left_out_scos = set(all_scos) - set(iteration_scos)
 
-    all_bid_blocks = all_paradox_groups[cols.IDS_BID_BLOCKS]
-    iteration_bid_blocks = iteration_paradox_groups[cols.IDS_BID_BLOCKS]
+    all_bid_blocks = all_paradoxal_orders[cols.IDS_BID_BLOCKS]
+    iteration_bid_blocks = iteration_paradoxal_orders[cols.IDS_BID_BLOCKS]
     left_out_bid_blocks = set(all_bid_blocks) - set(iteration_bid_blocks)
 
     det_cab_scos = (
@@ -211,7 +211,7 @@ def get_leftout_paradox_groups_summary(
         )
     )
 
-    det_cab_paradox_groups = (
+    det_cab_paradoxal_orders = (
         pd.concat(
             [
                 det_cab_scos,
@@ -225,7 +225,7 @@ def get_leftout_paradox_groups_summary(
             {cols.FLOAT_TOTAL_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_VARIABLE_COST}
             """
         )
-        .groupby([cols.ID_PARADOX_GROUPS], observed=True)
+        .groupby([cols.ID_PARADOXAL_ORDERS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
@@ -242,9 +242,9 @@ def get_leftout_paradox_groups_summary(
         )
     )
 
-    assert det_cab_paradox_groups[cols.FLOAT_NET_INCOME].notna().all()
-    assert det_cab_paradox_groups[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
-    return det_cab_paradox_groups
+    assert det_cab_paradoxal_orders[cols.FLOAT_NET_INCOME].notna().all()
+    assert det_cab_paradoxal_orders[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
+    return det_cab_paradoxal_orders
 
 
 #### ITERATIVE LOOP
@@ -273,13 +273,13 @@ def sort_iterations_df_by_most_promising(iterations_df: pd.DataFrame) -> pd.Data
             iterations_df_status_true.sort_values(
                 by=[
                     cols.FLOAT_OBJECTIVE_VALUE,
-                    cols.INT_PARADOX_GROUPS_COUNT,
+                    cols.INT_PARADOXAL_ORDERS_COUNT,
                 ],
                 ascending=[False, True],
             ),
             iterations_df_status_false.sort_values(
                 by=[
-                    cols.INT_PARADOX_GROUPS_COUNT,
+                    cols.INT_PARADOXAL_ORDERS_COUNT,
                     cols.FLOAT_OBJECTIVE_VALUE,
                 ],
                 ascending=[True, False],
@@ -315,77 +315,82 @@ def get_best_iteration(
     return sorted_iterations_df.iloc[0]
 
 
-def get_new_paradox_groups_list_by_removing_underperforming_ones(
-    iteration_cleared_paradox_groups_summary: pd.DataFrame,
+def get_new_paradoxal_orders_list_by_removing_underperforming_ones(
+    iteration_cleared_paradoxal_orders_summary: pd.DataFrame,
     iterations_df: pd.DataFrame,
-    paradox_groups_combination: dict,
-    int_paradox_groups_count: int = 1,
+    paradoxal_orders_combination: dict,
+    int_paradoxal_orders_count: int = 1,
 ) -> pd.Series:
     """
     Proposes new paradox order combinations by removing underperforming paradox orders from the current combination.
 
     This function identifies paradox orders with negative net income per cleared power, removes them one by one from the current combination,
-    and checks if the resulting combinations have already been tested. Returns up to int_paradox_groups_count new combinations that have not been tested yet.
+    and checks if the resulting combinations have already been tested. Returns up to int_paradoxal_orders_count new combinations that have not been tested yet.
 
     Args:
-        iteration_cleared_paradox_groups_summary (pd.DataFrame): Summary DataFrame of cleared paradox orders for the current iteration.
+        iteration_cleared_paradoxal_orders_summary (pd.DataFrame): Summary DataFrame of cleared paradox orders for the current iteration.
         iterations_df (pd.DataFrame): DataFrame of all previous iteration results.
-        paradox_groups_combination (dict): Dictionary of paradox orders in the current iteration.
-        int_paradox_groups_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
+        paradoxal_orders_combination (dict): Dictionary of paradox orders in the current iteration.
+        int_paradoxal_orders_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
 
     Returns:
         pd.Series: Series of new paradox order combinations (as lists) to try in the next iterations.
     """
-    iteration_cleared_paradox_groups_summary = (
-        iteration_cleared_paradox_groups_summary.query(
+    iteration_cleared_paradoxal_orders_summary = (
+        iteration_cleared_paradoxal_orders_summary.query(
             f"{cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} < 0"
         ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER, ascending=True)
     )
-    new_paradox_groups_df = pd.DataFrame(
+    new_paradoxal_orders_df = pd.DataFrame(
         {
-            cols.PARADOX_GROUPS_COLUMN: np.nan,
-            cols.BOOL_ARE_PARADOX_GROUPS_TESTED: np.nan,
+            cols.PARADOXAL_ORDERS_COLUMN: np.nan,
+            cols.BOOL_ARE_PARADOXAL_ORDERS_TESTED: np.nan,
         },
-        index=iteration_cleared_paradox_groups_summary.index,
+        index=iteration_cleared_paradoxal_orders_summary.index,
     ).astype(
-        {cols.PARADOX_GROUPS_COLUMN: object, cols.BOOL_ARE_PARADOX_GROUPS_TESTED: bool}
+        {
+            cols.PARADOXAL_ORDERS_COLUMN: object,
+            cols.BOOL_ARE_PARADOXAL_ORDERS_TESTED: bool,
+        }
     )
 
-    paradox_group_ids_left = transform_paradox_groups_dict_to_ids_list(
-        paradox_groups_combination
+    paradoxal_order_ids_left = transform_paradoxal_orders_dict_to_ids_list(
+        paradoxal_orders_combination
     )
 
-    for index, row in new_paradox_groups_df.iterrows():
-        new_iteration_paradox_groups = list(set(paradox_group_ids_left) - set([index]))
-        are_paradox_groups_tested = check_are_paradox_groups_tested(
-            iterations_df, new_iteration_paradox_groups
+    for index, row in new_paradoxal_orders_df.iterrows():
+        new_iteration_paradoxal_orders = list(
+            set(paradoxal_order_ids_left) - set([index])
+        )
+        are_paradoxal_orders_tested = check_are_paradoxal_orders_tested(
+            iterations_df, new_iteration_paradoxal_orders
         )
 
-        new_paradox_groups_df.at[index, cols.PARADOX_GROUPS_COLUMN] = (
-            new_iteration_paradox_groups
+        new_paradoxal_orders_df.at[index, cols.PARADOXAL_ORDERS_COLUMN] = (
+            new_iteration_paradoxal_orders
         )
-        new_paradox_groups_df.at[index, cols.BOOL_ARE_PARADOX_GROUPS_TESTED] = (
-            are_paradox_groups_tested
+        new_paradoxal_orders_df.at[index, cols.BOOL_ARE_PARADOXAL_ORDERS_TESTED] = (
+            are_paradoxal_orders_tested
         )
 
-        paradox_group_ids_left = new_iteration_paradox_groups
+        paradoxal_order_ids_left = new_iteration_paradoxal_orders
 
-    new_paradox_groups_df = new_paradox_groups_df.query(
-        f"{cols.BOOL_ARE_PARADOX_GROUPS_TESTED} == False"
-    ).head(int_paradox_groups_count)
+    new_paradoxal_orders_df = new_paradoxal_orders_df.query(
+        f"{cols.BOOL_ARE_PARADOXAL_ORDERS_TESTED} == False"
+    ).head(int_paradoxal_orders_count)
 
     return (
-        new_paradox_groups_df[cols.PARADOX_GROUPS_COLUMN]
-        .apply(transform_ids_paradox_groups_list_to_dict)
+        new_paradoxal_orders_df[cols.PARADOXAL_ORDERS_COLUMN]
+        .apply(transform_ids_paradoxal_orders_list_to_dict)
         .tolist()
     )
 
 
-def define_new_paradox_groups_list(
+def define_new_paradoxal_orders_list(
     iterations_df: pd.DataFrame,
     det_cab: pd.DataFrame,
-    all_paradox_groups: dict,
-    int_paradox_groups_count: int = 1,
+    all_paradoxal_orders: dict,
+    int_paradoxal_orders_count: int = 1,
 ) -> list[dict]:
     """
     Defines a new combination of paradox groups with MIC to try in the next iteration.
@@ -395,8 +400,8 @@ def define_new_paradox_groups_list(
     Args:
         iterations_df (pd.DataFrame): DataFrame of previous iteration results.
         det_cab (pd.DataFrame): Full DET/CAB DataFrame.
-        all_paradox_groups (dict): Dictionary of all paradox groups with MIC.
-        int_paradox_groups_count (int, optional): Maximum number of MIC paradox group combinations to propose. Defaults to 1.
+        all_paradoxal_orders (dict): Dictionary of all paradox groups with MIC.
+        int_paradoxal_orders_count (int, optional): Maximum number of MIC paradox group combinations to propose. Defaults to 1.
 
     Returns:
         list[dict]: List of paradox groups for the next iteration.
@@ -404,71 +409,71 @@ def define_new_paradox_groups_list(
 
     # Get the most promising iteration
     sorted_promising_iterations_df = sort_iterations_df_by_most_promising(iterations_df)
-    int_paradox_groups_count_start = int_paradox_groups_count
-    new_paradox_groups_list = []
+    int_paradoxal_orders_count_start = int_paradoxal_orders_count
+    new_paradoxal_orders_list = []
     for index, row in sorted_promising_iterations_df.iterrows():
 
         logger.info(
-            f"--ALGORITHM--: Most promising combination: {row[cols.PARADOX_GROUPS_COLUMN]}"
+            f"--ALGORITHM--: Most promising combination: {row[cols.PARADOXAL_ORDERS_COLUMN]}"
         )
 
         cleared_energy = row[cols.CLEARED_ENERGY_COLUMN]
         clearing_prices = row[cols.CLEARING_PRICES_COLUMN]
-        paradox_groups = row[cols.PARADOX_GROUPS_COLUMN]
+        paradoxal_orders = row[cols.PARADOXAL_ORDERS_COLUMN]
         is_expected_income_respected = row[cols.BOOL_IS_EXPECTED_INCOME_RESPECTED]
 
         if is_expected_income_respected:
             logger.info("--ALGORITHM--: MIC is respected")
-            leftout_paradox_groups_summary = get_leftout_paradox_groups_summary(
-                det_cab, all_paradox_groups, paradox_groups, clearing_prices
+            leftout_paradoxal_orders_summary = get_leftout_paradoxal_orders_summary(
+                det_cab, all_paradoxal_orders, paradoxal_orders, clearing_prices
             ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
-            det_cab_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
-                det_cab, paradox_groups
+            det_cab_paradoxal_orders_filtered = filter_paradoxal_orders_from_det_cab(
+                det_cab, paradoxal_orders
             )
-            iteration_cleared_paradox_groups_summary = (
-                get_cleared_paradox_groups_summary(
-                    det_cab_paradox_groups_filtered,
+            iteration_cleared_paradoxal_orders_summary = (
+                get_cleared_paradoxal_orders_summary(
+                    det_cab_paradoxal_orders_filtered,
                     cleared_energy,
                     clearing_prices,
                 )
             )
-            new_paradox_groups_list.extend(
-                get_new_paradox_groups_list_adding_and_removing(
-                    leftout_paradox_groups_summary,
-                    iteration_cleared_paradox_groups_summary,
+            new_paradoxal_orders_list.extend(
+                get_new_paradoxal_orders_list_adding_and_removing(
+                    leftout_paradoxal_orders_summary,
+                    iteration_cleared_paradoxal_orders_summary,
                     iterations_df,
-                    paradox_groups,
-                    int_paradox_groups_count,
+                    paradoxal_orders,
+                    int_paradoxal_orders_count,
                 )
             )
 
         else:
-            det_cab_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
-                det_cab, paradox_groups
+            det_cab_paradoxal_orders_filtered = filter_paradoxal_orders_from_det_cab(
+                det_cab, paradoxal_orders
             )
-            iteration_cleared_paradox_groups_summary = (
-                get_cleared_paradox_groups_summary(
-                    det_cab_paradox_groups_filtered,
+            iteration_cleared_paradoxal_orders_summary = (
+                get_cleared_paradoxal_orders_summary(
+                    det_cab_paradoxal_orders_filtered,
                     cleared_energy,
                     clearing_prices,
                 )
             )
-            new_paradox_groups_list.extend(
-                get_new_paradox_groups_list_by_removing_underperforming_ones(
-                    iteration_cleared_paradox_groups_summary,
+            new_paradoxal_orders_list.extend(
+                get_new_paradoxal_orders_list_by_removing_underperforming_ones(
+                    iteration_cleared_paradoxal_orders_summary,
                     iterations_df,
-                    paradox_groups,
-                    int_paradox_groups_count,
+                    paradoxal_orders,
+                    int_paradoxal_orders_count,
                 )
             )
 
-        int_paradox_groups_count = int_paradox_groups_count_start - len(
-            new_paradox_groups_list
+        int_paradoxal_orders_count = int_paradoxal_orders_count_start - len(
+            new_paradoxal_orders_list
         )
-        if int_paradox_groups_count <= 0:
+        if int_paradoxal_orders_count <= 0:
             break
 
-    return new_paradox_groups_list
+    return new_paradoxal_orders_list
 
 
 def iterative_function(
@@ -489,7 +494,7 @@ def iterative_function(
         args (tuple): Tuple containing:
             - det_cab (pd.DataFrame): Full DET/CAB DataFrame.
             - capacidad_inter_PBC_pt (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
-            - paradox_groups (list): List of SCO order IDs with MIC for this iteration.
+            - paradoxal_orders (list): List of SCO order IDs with MIC for this iteration.
             - france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
 
     Returns:
@@ -499,18 +504,18 @@ def iterative_function(
     (
         det_cab,
         capacidad_inter_PBC_pt,
-        paradox_groups,
+        paradoxal_orders,
         france_fixed_exchange,
     ) = args
 
     # Keep only SCOs in the current iteration
-    det_cab_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
-        det_cab, paradox_groups
+    det_cab_paradoxal_orders_filtered = filter_paradoxal_orders_from_det_cab(
+        det_cab, paradoxal_orders
     )
 
     # Run market model
     model, _, results = run_model(
-        det_cab_paradox_groups_filtered,
+        det_cab_paradoxal_orders_filtered,
         capacidad_inter_PBC_pt,
         france_fixed_exchange,
     )
@@ -518,29 +523,29 @@ def iterative_function(
     # Extract information from the model
     cleared_energy = get_cleared_energy_series(model)
     clearing_prices = get_clearing_prices_df(model)
-    cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
-        det_cab_paradox_groups_filtered, cleared_energy, clearing_prices
+    cleared_paradoxal_orders_summary = get_cleared_paradoxal_orders_summary(
+        det_cab_paradoxal_orders_filtered, cleared_energy, clearing_prices
     )
     welfare = pyo.value(model.OBJ)
     bool_is_expected_income_respected = (
-        cleared_paradox_groups_summary[cols.FLOAT_NET_INCOME] >= 0
+        cleared_paradoxal_orders_summary[cols.FLOAT_NET_INCOME] >= 0
     ).all()
 
-    ids_mic_scos = paradox_groups[cols.IDS_MIC_SCOS]
-    ids_bid_blocks = paradox_groups[cols.IDS_BID_BLOCKS]
+    ids_mic_scos = paradoxal_orders[cols.IDS_MIC_SCOS]
+    ids_bid_blocks = paradoxal_orders[cols.IDS_BID_BLOCKS]
 
     # Update iterations_df with current iteration results
     iteration_df_entry = {
-        cols.PARADOX_GROUPS_COLUMN: [paradox_groups],
+        cols.PARADOXAL_ORDERS_COLUMN: [paradoxal_orders],
         cols.IDS_MIC_SCOS: [ids_mic_scos],
         cols.IDS_BID_BLOCKS: [ids_bid_blocks],
-        cols.IDS_PARADOX_GROUPS: [ids_mic_scos + ids_bid_blocks],
+        cols.IDS_PARADOXAL_ORDERS: [ids_mic_scos + ids_bid_blocks],
         cols.FLOAT_OBJECTIVE_VALUE: [welfare],
         cols.BOOL_IS_EXPECTED_INCOME_RESPECTED: [bool_is_expected_income_respected],
         cols.SOLVER_RESULTS_COLUMN: [results],
         cols.INT_MIC_SCOS_COUNT: [len(ids_mic_scos)],
         cols.INT_BID_BLOCKS_COUNT: [len(ids_bid_blocks)],
-        cols.INT_PARADOX_GROUPS_COUNT: [len(ids_mic_scos) + len(ids_bid_blocks)],
+        cols.INT_PARADOXAL_ORDERS_COUNT: [len(ids_mic_scos) + len(ids_bid_blocks)],
         cols.CLEARED_ENERGY_COLUMN: [cleared_energy],
         cols.CLEARING_PRICES_COLUMN: [clearing_prices],
         cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [
@@ -554,7 +559,7 @@ def iterative_function(
 def check_if_success_at_first_iteration(
     first_iteration_df: pd.Series,
     is_iterations_df_provided: bool,
-    is_iteration_paradox_groups_provided: bool,
+    is_iteration_paradoxal_orders_provided: bool,
 ) -> bool:
     """
     Checks if the first iteration was successful, i.e., all SCOs with MIC were correctly cleared on the first attempt.
@@ -562,14 +567,14 @@ def check_if_success_at_first_iteration(
     Args:
         results (list): List of DataFrames with iteration results, where each DataFrame contains the results of a single iteration.
         is_iterations_df_provided (bool): Indicates if a previous iterations DataFrame was provided (i.e., not the first run).
-        is_iteration_paradox_groups_provided (bool): Indicates if an initial paradox orders combination was provided.
+        is_iteration_paradoxal_orders_provided (bool): Indicates if an initial paradox orders combination was provided.
 
     Returns:
         bool: True if the first iteration was successful and it was the initial run (no previous iterations or initial combination provided), False otherwise.
     """
     success_at_first_iteration = (
         not is_iterations_df_provided
-        and not is_iteration_paradox_groups_provided
+        and not is_iteration_paradoxal_orders_provided
         and first_iteration_df[cols.BOOL_IS_EXPECTED_INCOME_RESPECTED]
     )
     if success_at_first_iteration:
@@ -618,11 +623,11 @@ def run_iterative_loop(
         raise ValueError(
             "Both iteration_ids_mic_scos and iteration_ids_bid_blocks must be provided together or none at all."
         )
-    are_iteration_ids_paradox_groups_provided = (
+    are_iteration_ids_paradoxal_orders_provided = (
         is_iteration_ids_mic_scos_provided and is_iteration_ids_bid_blocks_provided
     )
 
-    all_paradox_groups = get_all_paradox_groups(det_cab)
+    all_paradoxal_orders = get_all_paradoxal_orders(det_cab)
 
     if iterations_count // n_jobs < 5 and not is_iterations_df_provided:
         logger.warning(
@@ -634,9 +639,9 @@ def run_iterative_loop(
     if iterations_df is None:
         iterations_df = pd.DataFrame(columns=ITERATIONS_DF_COLUMNS)
 
-    # If iteration_paradox_groups is provided, start with that combination
-    if are_iteration_ids_paradox_groups_provided:
-        next_iterations_paradox_groups = [
+    # If iteration_paradoxal_orders is provided, start with that combination
+    if are_iteration_ids_paradoxal_orders_provided:
+        next_iterations_paradoxal_orders = [
             {
                 cols.IDS_MIC_SCOS: iteration_ids_mic_scos,
                 cols.IDS_BID_BLOCKS: iteration_ids_bid_blocks,
@@ -644,15 +649,15 @@ def run_iterative_loop(
         ]
     # If iterations_df is defined, define a new combination based on previous iterations
     elif not iterations_df.empty:
-        next_iterations_paradox_groups = define_new_paradox_groups_list(
-            iterations_df, det_cab, all_paradox_groups, min(n_jobs, iterations_count)
+        next_iterations_paradoxal_orders = define_new_paradoxal_orders_list(
+            iterations_df, det_cab, all_paradoxal_orders, min(n_jobs, iterations_count)
         )
-        if next_iterations_paradox_groups is False:
+        if next_iterations_paradoxal_orders is False:
             logger.info("--ALGORITHM--: All combinations tried, finishing")
             return iterations_df
     # Otherwise start with all paradox orders
     else:
-        next_iterations_paradox_groups = [all_paradox_groups]
+        next_iterations_paradoxal_orders = [all_paradoxal_orders]
 
     #### ITERATIVE LOOP ####
 
@@ -664,10 +669,10 @@ def run_iterative_loop(
             (
                 det_cab,
                 capacidad_inter_pbc_pt,
-                iteration_paradox_groups,
+                iteration_paradoxal_orders,
                 france_fixed_exchange,
             )
-            for iteration_paradox_groups in next_iterations_paradox_groups
+            for iteration_paradoxal_orders in next_iterations_paradoxal_orders
         ]
         with multiprocessing.Pool(processes=n_jobs) as pool:
             results = pool.map(iterative_function, args_list)
@@ -677,27 +682,27 @@ def run_iterative_loop(
             if check_if_success_at_first_iteration(
                 iterations_df.iloc[0],
                 is_iterations_df_provided,
-                are_iteration_ids_paradox_groups_provided,
+                are_iteration_ids_paradoxal_orders_provided,
             ):
                 logger.info("--ALGORITHM--: Success at first iteration, finishing")
                 break
 
             ### hasta aqui
-        new_iteration_int_paradox_groups_count = min(
+        new_iteration_int_paradoxal_orders_count = min(
             n_jobs, iterations_count - completed_iterations
         )
         logger.info(
             f"--ALGORITHM--: Completed iterations: {completed_iterations}/{iterations_count}"
         )
-        next_iterations_paradox_groups = define_new_paradox_groups_list(
+        next_iterations_paradoxal_orders = define_new_paradoxal_orders_list(
             iterations_df,
             det_cab,
-            all_paradox_groups,
-            new_iteration_int_paradox_groups_count,
+            all_paradoxal_orders,
+            new_iteration_int_paradoxal_orders_count,
         )
         # TODO: this is a quickfix so the loop ends when no new combinations are found
         # but it should iterate with other options too
-        if len(next_iterations_paradox_groups) == 0:
+        if len(next_iterations_paradoxal_orders) == 0:
             break
 
     try:
@@ -707,8 +712,8 @@ def run_iterative_loop(
 
     best_iteration = get_best_iteration(iterations_df, mic_respected_only=False)
 
-    det_cab_scos_filtered = filter_paradox_groups_from_det_cab(
-        det_cab, best_iteration[cols.PARADOX_GROUPS_COLUMN]
+    det_cab_scos_filtered = filter_paradoxal_orders_from_det_cab(
+        det_cab, best_iteration[cols.PARADOXAL_ORDERS_COLUMN]
     )
 
     # Run market model

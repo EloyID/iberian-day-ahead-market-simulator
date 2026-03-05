@@ -254,16 +254,16 @@ def get_cat_order_type_column(
     return det_cab[cols.CAT_ORDER_TYPE]
 
 
-def filter_paradox_groups_from_det_cab(
+def filter_paradoxal_orders_from_det_cab(
     det_cab_df: pd.DataFrame,
-    paradox_groups_to_keep: dict,
+    paradoxal_orders_to_keep: dict,
     id_sco_column: str = cols.ID_SCO,
     id_block_column: str = cols.ID_BLOCK_ORDER,
     float_mic_column: str = cols.FLOAT_MIC,
     int_num_bloq_column: str = cols.INT_NUM_BLOQ,
 ) -> pd.DataFrame:
-    mic_scos_to_keep = paradox_groups_to_keep[cols.IDS_MIC_SCOS]
-    bid_blocks_to_keep = paradox_groups_to_keep[cols.IDS_BID_BLOCKS]
+    mic_scos_to_keep = paradoxal_orders_to_keep[cols.IDS_MIC_SCOS]
+    bid_blocks_to_keep = paradoxal_orders_to_keep[cols.IDS_BID_BLOCKS]
 
     mics_not_to_keep_mask = (det_cab_df[float_mic_column] > 0) & (
         ~det_cab_df[id_sco_column].isin(mic_scos_to_keep)

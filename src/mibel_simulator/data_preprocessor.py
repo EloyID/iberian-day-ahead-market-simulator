@@ -179,7 +179,7 @@ def get_det_cab_id_sco(det_cab: pd.DataFrame) -> np.ndarray:
     )
 
 
-def get_det_cab_id_paradox_group(det_cab: pd.DataFrame) -> np.ndarray:
+def get_det_cab_id_paradoxal_order(det_cab: pd.DataFrame) -> np.ndarray:
     """
     It is a unique identifier for paradox orders in the DET/CAB DataFrame based on order type.
     For MIC SCOs, it uses the order ID; for bid blocks, it uses the block order ID.
@@ -297,7 +297,7 @@ def get_det_cab_for_simulation(
     det_cab[cols.ID_INDIVIDUAL_BID] = get_det_cab_id_individual_bid(det_cab)
     det_cab[cols.ID_BLOCK_ORDER] = get_det_cab_id_block_order(det_cab)
     det_cab[cols.ID_SCO] = get_det_cab_id_sco(det_cab)
-    det_cab[cols.ID_PARADOX_GROUPS] = get_det_cab_id_paradox_group(det_cab)
+    det_cab[cols.ID_PARADOXAL_ORDERS] = get_det_cab_id_paradoxal_order(det_cab)
 
     # If date is not consistent drop the column
     if cols.DATE_SESION in det_cab.columns and det_cab[cols.DATE_SESION].isna().any():
@@ -386,7 +386,7 @@ def get_ids_bid_blocks(det_cab: pd.DataFrame) -> list:
     return all_bid_blocks
 
 
-def get_all_paradox_groups(det_cab: pd.DataFrame) -> dict:
+def get_all_paradoxal_orders(det_cab: pd.DataFrame) -> dict:
     """
     Returns a dict with lists of SCOs with MIC > 0 and block orders from the DET/CAB DataFrame.
 

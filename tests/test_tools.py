@@ -228,12 +228,12 @@ class TestConcatProvidedParticipantBiddingZonesWithExistingData:
         )
 
 
-class TestFilterParadoxGroupsFromDetCab:
-    """Test suite for filter_paradox_groups_from_det_cab function."""
+class TestFilterParadoxalOrdersFromDetCab:
+    """Test suite for filter_paradoxal_orders_from_det_cab function."""
 
-    def test_filter_paradox_groups(self, full_simplified_det_cab_dataframe):
+    def test_filter_paradoxal_orders(self, full_simplified_det_cab_dataframe):
         """Test filtering paradox groups from DET/CAB."""
-        paradox_groups = {
+        paradoxal_orders = {
             "ids_mic_scos": ["ID_SCO_MIC_SCO"],
             "ids_bid_blocks": [
                 "ID_BLOCK_B_1_GE_0",
@@ -242,44 +242,46 @@ class TestFilterParadoxGroupsFromDetCab:
                 "ID_EXCL_BLOCK_B_2_GE_1",
             ],
         }  # Order 1 is a MIC SCO
-        result = tools.filter_paradox_groups_from_det_cab(
-            full_simplified_det_cab_dataframe, paradox_groups
+        result = tools.filter_paradoxal_orders_from_det_cab(
+            full_simplified_det_cab_dataframe, paradoxal_orders
         )
 
-        # Should include rows where ID_ORDER is in paradox_groups OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradoxal_orders OR where FLOAT_MIC is not > 0
         assert len(result) == 30
 
-    def test_filter_out_all_paradox_groups(self, full_simplified_det_cab_dataframe):
+    def test_filter_out_all_paradoxal_orders(self, full_simplified_det_cab_dataframe):
         """Test filtering paradox groups from DET/CAB."""
-        paradox_groups = {
+        paradoxal_orders = {
             "ids_mic_scos": [],
             "ids_bid_blocks": [],
         }  # Order 1 is a MIC SCO
-        result = tools.filter_paradox_groups_from_det_cab(
-            full_simplified_det_cab_dataframe, paradox_groups
+        result = tools.filter_paradoxal_orders_from_det_cab(
+            full_simplified_det_cab_dataframe, paradoxal_orders
         )
 
-        # Should include rows where ID_ORDER is in paradox_groups  OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradoxal_orders  OR where FLOAT_MIC is not > 0
         assert len(result) == 15
 
-    def test_filter_out_bid_blocks_paradox_groups(
+    def test_filter_out_bid_blocks_paradoxal_orders(
         self, full_simplified_det_cab_dataframe
     ):
         """Test filtering paradox groups from DET/CAB."""
-        paradox_groups = {
+        paradoxal_orders = {
             "ids_mic_scos": ["ID_SCO_MIC_SCO"],
             "ids_bid_blocks": [],
         }  # Order 1 is a MIC SCO
-        result = tools.filter_paradox_groups_from_det_cab(
-            full_simplified_det_cab_dataframe, paradox_groups
+        result = tools.filter_paradoxal_orders_from_det_cab(
+            full_simplified_det_cab_dataframe, paradoxal_orders
         )
 
-        # Should include rows where ID_ORDER is in paradox_groups  OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradoxal_orders  OR where FLOAT_MIC is not > 0
         assert len(result) == 18
 
-    def test_filter_out_mic_sco_paradox_groups(self, full_simplified_det_cab_dataframe):
+    def test_filter_out_mic_sco_paradoxal_orders(
+        self, full_simplified_det_cab_dataframe
+    ):
         """Test filtering paradox groups from DET/CAB."""
-        paradox_groups = {
+        paradoxal_orders = {
             "ids_mic_scos": [],
             "ids_bid_blocks": [
                 "ID_BLOCK_B_1_GE_0",
@@ -288,9 +290,9 @@ class TestFilterParadoxGroupsFromDetCab:
                 "ID_EXCL_BLOCK_B_2_GE_1",
             ],
         }  # Order 1 is a MIC SCO
-        result = tools.filter_paradox_groups_from_det_cab(
-            full_simplified_det_cab_dataframe, paradox_groups
+        result = tools.filter_paradoxal_orders_from_det_cab(
+            full_simplified_det_cab_dataframe, paradoxal_orders
         )
 
-        # Should include rows where ID_ORDER is in paradox_groups  OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradoxal_orders  OR where FLOAT_MIC is not > 0
         assert len(result) == 27

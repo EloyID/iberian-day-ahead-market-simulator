@@ -52,14 +52,14 @@ IDS_MIC_SCOS = "ids_mic_scos"
 INT_MIC_SCOS_COUNT = "int_mic_scos_count"
 IDS_BID_BLOCKS = "ids_bid_blocks"
 INT_BID_BLOCKS_COUNT = "int_bid_blocks_count"
-BOOL_ARE_PARADOX_GROUPS_TESTED = "bool_are_paradox_groups_tested"
+BOOL_ARE_PARADOXAL_ORDERS_TESTED = "bool_are_paradoxal_orders_tested"
 BOOL_IS_EXPECTED_INCOME_RESPECTED = "bool_is_expected_income_respected"
-ID_PARADOX_GROUPS = "id_paradox_groups"
-PARADOX_GROUPS_COLUMN = "paradox_groups"
-IDS_PARADOX_GROUPS = (
-    "ids_paradox_groups"  # id_order if mic_sco, id_block_order if bid_block
+ID_PARADOXAL_ORDERS = "id_paradoxal_orders"
+PARADOXAL_ORDERS_COLUMN = "paradoxal_orders"
+IDS_PARADOXAL_ORDERS = (
+    "ids_paradoxal_orders"  # id_order if mic_sco, id_block_order if bid_block
 )
-INT_PARADOX_GROUPS_COUNT = "int_paradox_groups_count"
+INT_PARADOXAL_ORDERS_COUNT = "int_paradoxal_orders_count"
 
 FLOAT_VARIABLE_COST = "float_variable_cost"
 FLOAT_TOTAL_VARIABLE_COST = "float_total_variable_cost"
