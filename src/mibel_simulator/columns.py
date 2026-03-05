@@ -1,11 +1,11 @@
 ##### COLUMNS NAMES FOR DATAFRAMES #####
 INT_PERIOD = "int_period"
 INT_NUM_BLOCK = "int_num_block"
-INT_NUM_TRAMO = "int_num_tramo"
+INT_NUM_SUBORDER = "int_num_suborder"
 INT_NUM_EXCL_GROUP = "int_num_excl_group"
 
-INT_NUM_TRAMO_PARENT = "int_num_tramo_parent"
-INT_NUM_TRAMO_CHILD = "int_num_tramo_child"
+INT_NUM_SUBORDER_PARENT = "int_num_suborder_parent"
+INT_NUM_SUBORDER_CHILD = "int_num_suborder_child"
 INT_NUM_BLOCK_PARENT = "int_num_block_parent"
 INT_NUM_BLOCK_CHILD = "int_num_block_child"
 

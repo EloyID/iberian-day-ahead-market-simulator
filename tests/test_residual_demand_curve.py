@@ -240,7 +240,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
             cols.ID_ORDER,
             cols.INT_PERIOD,
             cols.INT_NUM_BLOCK,
-            cols.INT_NUM_TRAMO,
+            cols.INT_NUM_SUBORDER,
             cols.INT_NUM_EXCL_GROUP,
             cols.FLOAT_BID_PRICE,
             cols.FLOAT_BID_POWER,

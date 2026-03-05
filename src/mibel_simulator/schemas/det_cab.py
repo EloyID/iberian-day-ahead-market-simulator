@@ -12,7 +12,7 @@ from .det import (
     exclusive_group_must_be_block_offer,
     mar_only_in_block_offers,
     mav_only_in_scos,
-    multiple_tramos_only_scos,
+    multiple_suborders_only_scos,
 )
 
 
@@ -133,7 +133,7 @@ DETCABSchema = pa.DataFrameSchema(
         mar_only_in_block_offers,
         mav_only_in_scos,
         mic_only_in_scos,
-        multiple_tramos_only_scos,
+        multiple_suborders_only_scos,
         buy_bids_cannot_have_scos,
         buy_bids_cannot_have_mar,
         buy_bids_exclusive_block_offers,

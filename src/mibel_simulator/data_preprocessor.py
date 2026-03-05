@@ -99,7 +99,7 @@ def get_france_det_cab_from_price(
         cols.FLOAT_MIC: 0,
         cols.FLOAT_MAX_POWER: 99999999,  # High value to avoid issues
         cols.INT_NUM_BLOCK: 0,
-        cols.INT_NUM_TRAMO: 1,
+        cols.INT_NUM_SUBORDER: 1,
         cols.INT_NUM_EXCL_GROUP: 0,
         cols.FLOAT_MAV: 0,
         cols.FLOAT_MAR: 0,
@@ -162,7 +162,7 @@ def get_det_cab_id_block_order(det_cab: pd.DataFrame) -> np.ndarray:
 
 def get_det_cab_id_sco(det_cab: pd.DataFrame) -> np.ndarray:
     """
-    Generates a unique identifier for SCO orders in the DET/CAB DataFrame based on order type, order ID, and tramo number.
+    Generates a unique identifier for SCO orders in the DET/CAB DataFrame based on order type, order ID, and suborder number.
 
     Returns NaN for non-SCO orders.
 
