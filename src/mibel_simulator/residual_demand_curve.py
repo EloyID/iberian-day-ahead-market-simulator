@@ -160,7 +160,7 @@ def calculate_residual_demand_curves(
     det: pd.DataFrame | str,
     cab: pd.DataFrame | str,
     capacidad_inter_pbc: pd.DataFrame | str,
-    price_france_date: pd.DataFrame,
+    france_day_ahead_prices: pd.DataFrame,
     uof_zones: pd.DataFrame | None = None,
     sell_country: str = "ES",
     trials_count: int = 100,
@@ -175,7 +175,7 @@ def calculate_residual_demand_curves(
         det (pd.DataFrame | str): DataFrame or path to DET file containing market offer details.
         cab (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
         capacidad_inter_pbc (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
-        price_france_date (pd.DataFrame): DataFrame with France price information.
+        france_day_ahead_prices (pd.DataFrame): DataFrame with France price information.
         uof_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_pais within ('ES', 'PT').
         sell_country (str, optional): Country code for the selling side. Defaults to "ES".
         trials_count (int, optional): Number of trials for the market clearing simulation. Defaults to 100.
@@ -232,7 +232,7 @@ def calculate_residual_demand_curves(
             cab=cab_modified,
             capacidad_inter_pbc=capacidad_inter_pbc,
             uof_zones=uof_zones_modified,
-            price_france_date=price_france_date,
+            france_day_ahead_prices=france_day_ahead_prices,
             trials_count=trials_count,
             zones_default_to_spain=zones_default_to_spain,
             n_jobs=n_jobs,
