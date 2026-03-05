@@ -205,7 +205,7 @@ def get_det_cab_date_id_paradox_group(det_cab_date: pd.DataFrame) -> np.ndarray:
 
 
 def get_det_cab_date_for_simulation(
-    det_date: pd.DataFrame,
+    det: pd.DataFrame,
     cab_date: pd.DataFrame,
     uof_zones: pd.DataFrame,
     det_cab_fr_date: None | pd.DataFrame = None,
@@ -219,7 +219,7 @@ def get_det_cab_date_for_simulation(
     It also handles missing units and assigns default zones if specified.
 
     Args:
-        det_date (pd.DataFrame): DataFrame with DET data for a single day.
+        det (pd.DataFrame): DataFrame with DET data for a single day.
         cab_date (pd.DataFrame): DataFrame with CAB data for a single day.
         det_cab_fr_date (None | pd.DataFrame): DataFrame with France DET/CAB bids for the same day.
         uof_zones (pd.DataFrame): DataFrame mapping units to zones.
@@ -233,10 +233,10 @@ def get_det_cab_date_for_simulation(
     """
 
     # Validate input data contains a single day
-    if cols.DATE_SESION in det_date.columns:
+    if cols.DATE_SESION in det.columns:
         assert (
-            det_date[cols.DATE_SESION].nunique() == 1
-        ), "det_date must contain data for a single day"
+            det[cols.DATE_SESION].nunique() == 1
+        ), "det must contain data for a single day"
 
     if cols.DATE_SESION in cab_date.columns:
         assert (
@@ -250,7 +250,7 @@ def get_det_cab_date_for_simulation(
 
     # Merge DET and CAB data for the day
     det_cab_date = pd.merge(
-        det_date,
+        det,
         cab_date,
         how="outer",
         on=[cols.DATE_SESION, cols.ID_ORDER],

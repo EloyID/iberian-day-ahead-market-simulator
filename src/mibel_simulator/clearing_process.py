@@ -716,7 +716,7 @@ def run_iterative_loop(
 
 
 def run_mibel_simulator(
-    det_date: pd.DataFrame | str,
+    det: pd.DataFrame | str,
     cab_date: pd.DataFrame | str,
     capacidad_inter_date: pd.DataFrame | str,
     price_france_date: pd.DataFrame,
@@ -739,7 +739,7 @@ def run_mibel_simulator(
     with MIC, and returns the results and best models.
 
     Args:
-        det_date (pd.DataFrame | str): DET DataFrame for the studied day or path to DET file.
+        det (pd.DataFrame | str): DET DataFrame for the studied day or path to DET file.
         cab_date (pd.DataFrame | str): CAB DataFrame for the studied day or path to CAB file.
         capacidad_inter_date (pd.DataFrame | str): DataFrame of interconnection capacities for the studied day or path to file.
         price_france_date (pd.DataFrame): DataFrame of France prices for the studied day.
@@ -758,14 +758,14 @@ def run_mibel_simulator(
             best_model_binary (pyo.ConcreteModel): Pyomo model object for the best trial (binary version).
     """
 
-    if isinstance(det_date, str):
-        det_date = parse_det_file(det_date)
+    if isinstance(det, str):
+        det = parse_det_file(det)
     if isinstance(cab_date, str):
         cab_date = parse_cab_file(cab_date)
     if isinstance(capacidad_inter_date, str):
         capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
 
-    DETSchema.validate(det_date, lazy=True)
+    DETSchema.validate(det, lazy=True)
     CABSchema.validate(cab_date, lazy=True)
     CapacidadInterPTSchema.validate(capacidad_inter_date, lazy=True)
 
@@ -781,7 +781,7 @@ def run_mibel_simulator(
         price_france_date, capacidad_inter_date
     )
     det_cab_date = get_det_cab_date_for_simulation(
-        det_date=det_date,
+        det=det,
         cab_date=cab_date,
         uof_zones=uof_zones,
         det_cab_fr_date=det_cab_fr_date,

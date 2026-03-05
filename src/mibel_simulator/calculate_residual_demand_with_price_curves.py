@@ -158,7 +158,7 @@ def calculate_submitted_relaxed_residual_demand(det_cab_date):
 
 def calculate_residual_demand_with_price_curves(
     price_curves: np.ndarray,
-    det_date: pd.DataFrame | str,
+    det: pd.DataFrame | str,
     cab_date: pd.DataFrame | str,
     capacidad_inter_date: pd.DataFrame | str,
     uof_zones: pd.DataFrame | None = None,
@@ -167,14 +167,14 @@ def calculate_residual_demand_with_price_curves(
 
     price_curves = format_price_curves(price_curves)
 
-    if isinstance(det_date, str):
-        det_date = parse_det_file(det_date)
+    if isinstance(det, str):
+        det = parse_det_file(det)
     if isinstance(cab_date, str):
         cab_date = parse_cab_file(cab_date)
     if isinstance(capacidad_inter_date, str):
         capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
 
-    DETSchema.validate(det_date)
+    DETSchema.validate(det)
     CABSchema.validate(cab_date)
     CapacidadInterPTSchema.validate(capacidad_inter_date)
 
@@ -188,7 +188,7 @@ def calculate_residual_demand_with_price_curves(
     )
 
     det_cab_date = get_det_cab_date_for_simulation(
-        det_date=det_date,
+        det=det,
         cab_date=cab_date,
         uof_zones=uof_zones,
         zones_default_to_spain=zones_default_to_spain,
