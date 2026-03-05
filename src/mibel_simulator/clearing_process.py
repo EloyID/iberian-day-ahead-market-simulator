@@ -88,7 +88,7 @@ def get_cleared_paradoxal_orders_summary(
             indicator=True,
         )
         .sort_values(
-            by=[cols.INT_PERIODO, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
+            by=[cols.INT_PERIOD, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
         )
         .copy()
     )
@@ -102,7 +102,7 @@ def get_cleared_paradoxal_orders_summary(
         .copy()
         .merge(
             clearing_price_df,
-            on=[cols.INT_PERIODO, cols.CAT_PAIS],
+            on=[cols.INT_PERIOD, cols.CAT_PAIS],
             how="left",
             validate="many_to_one",
             indicator=True,
@@ -161,7 +161,7 @@ def get_leftout_paradoxal_orders_summary(
 
     det_cab = det_cab.copy().merge(
         clearing_price_df,
-        on=[cols.INT_PERIODO, cols.CAT_PAIS],
+        on=[cols.INT_PERIOD, cols.CAT_PAIS],
         how="left",
         validate="many_to_one",
     )

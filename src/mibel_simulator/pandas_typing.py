@@ -6,7 +6,7 @@ DET_TYPING = {
     "dat_sesion": dtype("<M8[ns]"),
     "CodOferta": "string",
     "Version": dtype("int8"),
-    "Periodo": dtype("int8"),
+    "Period": dtype("int8"),
     "NumBloq": dtype("int8"),
     "NumTramo": dtype("int8"),
     "NumGrupoExcl": dtype("int8"),
@@ -25,7 +25,7 @@ DET_CATEGORIES_DICT = {column: "category" for column in DET_CATEGORIES}
 DET_MAIN_COLUMNS = [
     "dat_sesion",
     "CodOferta",
-    "Periodo",
+    "Period",
     "NumBloq",
     "NumTramo",
     "NumGrupoExcl",
@@ -87,7 +87,7 @@ CAPACIDAD_INTER_PT_MAIN_COLUMNS = [
     "Capacidad exportación",
 ]
 CAPACIDAD_INTER_PT_RENAMING = {
-    "qua_hora": "Periodo",
+    "qua_hora": "Period",
 }
 
 UNIDADES_TYPING = {
@@ -130,7 +130,7 @@ CURVA_PBC_UOF_MAIN_COLUMNS = [
     "cod_simple_block_orders",
 ]
 CURVA_PBC_UOF_RENAMING = {
-    "qua_hora": "Periodo",
+    "qua_hora": "Period",
     "qua_energia": "Potencia",
     "qua_precio": "PrecEuro",
     "cod_tipo_oferta": "CV",
@@ -151,7 +151,7 @@ CURVAS_OFERTAS_AFRR_CATEGORIES = [
 ]
 
 CURVAS_OFERTAS_AFRR_RENAMING = {
-    "Cuarto de Hora del dia": "Periodo",
+    "Cuarto de Hora del dia": "Period",
     "Precio (€/MW)": "PrecEuro",
     "Potencia ofertada (MW)": "Potencia",
 }
@@ -162,7 +162,7 @@ CURVAS_OFERTAS_AFRR_COLUMNS = CURVAS_OFERTAS_AFRR_TYPING.keys()
 
 
 DET_CAB_DAM_SIMULATOR_TYPING = {
-    cols.INT_PERIODO: "int8",
+    cols.INT_PERIOD: "int8",
     cols.INT_NUM_BLOQ: "int8",
     cols.INT_NUM_TRAMO: "int8",
     cols.INT_NUM_GRUPO_EXCL: "int8",

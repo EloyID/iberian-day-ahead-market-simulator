@@ -30,7 +30,7 @@ class TestGetFloatBidPowerCumsum:
         """Test that function returns a Series."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 1],
+                cols.INT_PERIOD: [1, 1, 1],
                 cols.CAT_BUY_SELL: ["V", "V", "V"],
                 cols.CAT_OFERTADA_CASADA: [None, None, None],
                 cols.DATE_SESION: [pd.Timestamp("2024-01-01")] * 3,
@@ -48,7 +48,7 @@ class TestGetFloatBidPowerCumsum:
         """Test that cumulative sum doesn't produce negative values."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 1],
+                cols.INT_PERIOD: [1, 1, 1],
                 cols.CAT_BUY_SELL: ["V", "V", "V"],
                 cols.CAT_OFERTADA_CASADA: [None, None, None],
                 cols.DATE_SESION: [pd.Timestamp("2024-01-01")] * 3,
@@ -66,7 +66,7 @@ class TestGetFloatBidPowerCumsum:
         """Test that mixed buy/sell are processed separately."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 1, 1],
+                cols.INT_PERIOD: [1, 1, 1, 1],
                 cols.CAT_BUY_SELL: ["V", "V", "C", "C"],
                 cols.CAT_OFERTADA_CASADA: [None, None, None, None],
                 cols.DATE_SESION: [pd.Timestamp("2024-01-01")] * 4,
@@ -84,7 +84,7 @@ class TestGetFloatBidPowerCumsum:
         """Test function handles empty dataframe."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [],
+                cols.INT_PERIOD: [],
                 cols.CAT_BUY_SELL: [],
                 cols.CAT_OFERTADA_CASADA: [],
                 cols.DATE_SESION: [],
@@ -100,7 +100,7 @@ class TestGetFloatBidPowerCumsum:
         """Test function with single row."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1],
+                cols.INT_PERIOD: [1],
                 cols.CAT_BUY_SELL: ["V"],
                 cols.CAT_OFERTADA_CASADA: [None],
                 cols.DATE_SESION: [pd.Timestamp("2024-01-01")],

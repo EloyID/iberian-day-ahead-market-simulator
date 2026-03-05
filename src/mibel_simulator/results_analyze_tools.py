@@ -124,7 +124,7 @@ def compare_det_cab_and_curva_pbc_uof(
 
     det_cab_energy_cleared_by_hour_and_unidad = (
         det_cab.query("float_cleared_power > 0 and cat_order_type != 'S'")
-        .groupby(["id_unidad", "int_periodo"])["float_cleared_power"]
+        .groupby(["id_unidad", "int_period"])["float_cleared_power"]
         .sum()
     ).unstack()
 
@@ -399,7 +399,7 @@ def compare_det_cab_and_curva_pbc_uof(
 
     MIEU_calculated = (
         det_cab.query("float_cleared_power > 0 and id_unidad == 'MIEU'")
-        .groupby(["cat_buy_sell", "int_periodo"])["float_cleared_power"]
+        .groupby(["cat_buy_sell", "int_period"])["float_cleared_power"]
         .sum()
     ).unstack(level=0)
     MIEU_reference = (
@@ -412,13 +412,13 @@ def compare_det_cab_and_curva_pbc_uof(
         pd.merge(
             MIEU_calculated.reset_index(),
             MIEU_reference.reset_index(),
-            left_on="int_periodo",
+            left_on="int_period",
             right_on="qua_hora",
             suffixes=("_calculated", "_reference"),
             how="outer",
         )
         .fillna(0)
-        .set_index("int_periodo")
+        .set_index("int_period")
     )
     MIEU_cleared_energy_merged_columns_sorted = sorted(
         MIEU_cleared_energy_merged.columns
@@ -450,16 +450,16 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
             )
             if len(det_cab_C04_unidad_bloq) != len(groups):
                 continue
-            if set(det_cab_C04_unidad_bloq["int_periodo"]) != set(groups["qua_hora"]):
+            if set(det_cab_C04_unidad_bloq["int_period"]) != set(groups["qua_hora"]):
                 continue
 
             best_cost = np.nan
             energy_matches = True
             cost = 0
             for index, row in groups.iterrows():
-                int_periodo = row["qua_hora"]
+                int_period = row["qua_hora"]
                 matching_det_cab_row = det_cab_C04_unidad_bloq.query(
-                    "int_periodo == @int_periodo"
+                    "int_period == @int_period"
                 ).iloc[0]
                 if matching_det_cab_row.qua_energia < row.qua_energia:
                     energy_matches = False
@@ -475,9 +475,9 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
             )
 
         for index, row in groups.iterrows():
-            int_periodo = row["qua_hora"]
+            int_period = row["qua_hora"]
             matching_det_cab_row = det_cab_C04_unidad.query(
-                f"@INT_NUM_BLOQ == @best_int_num_bloq_cat and int_periodo == @int_periodo"
+                f"@INT_NUM_BLOQ == @best_int_num_bloq_cat and int_period == @int_period"
             ).iloc[0]
             curva_pbc_uof_C_V_C04.at[index, "qua_precio"] = (
                 matching_det_cab_row.float_bid_price.values[0]
@@ -737,7 +737,7 @@ def calculate_welfare_from_cleared_det_cab(
     cleared_det_cab = cleared_det_cab.query("float_cleared_power > 0").copy()
     cleared_det_cab = cleared_det_cab.merge(
         omie_clearing_prices,
-        left_on=["int_periodo", "cat_pais"],
+        left_on=["int_period", "cat_pais"],
         right_on=["qua_hora", "cod_pais"],
         how="left",
         validate="many_to_one",

@@ -11,7 +11,7 @@ from mibel_simulator.schemas.participants_bidding_zones import (
 def get_float_bid_power_cumsum(
     curva_pbc_df,
     date_column_name=cols.DATE_SESION,
-    hour_column_name=cols.INT_PERIODO,
+    hour_column_name=cols.INT_PERIOD,
     cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
     cod_ofertada_casada_column_name=cols.CAT_OFERTADA_CASADA,
     qua_energia_column_name=cols.FLOAT_BID_POWER,

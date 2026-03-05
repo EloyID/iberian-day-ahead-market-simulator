@@ -76,7 +76,7 @@ class TestCalculateOnlySimpleSubmittedRelaxedResidualDemand:
         """Fixture with simple bids only."""
         return pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 2, 2],
+                cols.INT_PERIOD: [1, 1, 2, 2],
                 cols.CAT_BUY_SELL: ["C", "V", "C", "V"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "S", "S"],
                 cols.ID_UNIDAD: ["UNIT1", "UNIT2", "UNIT1", "UNIT2"],
@@ -90,7 +90,7 @@ class TestCalculateOnlySimpleSubmittedRelaxedResidualDemand:
         """Fixture with simple and complex bids."""
         return pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 1, 2, 2],
+                cols.INT_PERIOD: [1, 1, 1, 2, 2],
                 cols.CAT_BUY_SELL: ["C", "V", "V", "C", "V"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "C01", "S", "C01"],
                 cols.ID_UNIDAD: ["UNIT1", "UNIT2", "UNIT3", "UNIT1", "UNIT3"],
@@ -105,7 +105,7 @@ class TestCalculateOnlySimpleSubmittedRelaxedResidualDemand:
         return pd.DataFrame(
             {
                 # fmt: off
-                cols.INT_PERIODO: [1, 1, 1, 2, 2, 2],
+                cols.INT_PERIOD: [1, 1, 1, 2, 2, 2],
                 cols.CAT_BUY_SELL: ["C", "V", "V", "C", "V", "C"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "S", "S", "S", "S"],
                 cols.ID_UNIDAD: ["UNIT1", "UNIT2", "MIEU", "UNIT1", "UNIT2", "MIEU"],
@@ -161,7 +161,7 @@ class TestCalculateSubmittedRelaxedResidualDemand:
         return pd.DataFrame(
             {
                 # fmt: off
-                cols.INT_PERIODO: [1, 1, 1, 2, 2, 2],
+                cols.INT_PERIOD: [1, 1, 1, 2, 2, 2],
                 cols.CAT_BUY_SELL: ["C", "V", "V", "C", "V", "V"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "C01", "S", "S", "C01"],
                 cols.ID_UNIDAD: ["UNIT1", "UNIT2", "UNIT3", "UNIT1", "UNIT2", "UNIT3"],
@@ -177,7 +177,7 @@ class TestCalculateSubmittedRelaxedResidualDemand:
         return pd.DataFrame(
             {
                 # fmt: off
-                cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2],
+                cols.INT_PERIOD: [1, 1, 1, 1, 2, 2, 2],
                 cols.CAT_BUY_SELL: ["C", "V", "V", "V", "C", "V", "C"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "C01", "S", "S", "C01", "S"],
                 cols.ID_UNIDAD: [
@@ -220,7 +220,7 @@ def det_cab_two_countries():
     """Fixture with Spain and Portugal bids."""
     return pd.DataFrame(
         {
-            cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2, 2],
+            cols.INT_PERIOD: [1, 1, 1, 1, 2, 2, 2, 2],
             cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
             cols.CAT_PAIS: [
                 SPAIN_ZONE,
@@ -251,7 +251,7 @@ def capacidad_inter_pt():
     """Fixture with PT interconnection capacities."""
     return pd.DataFrame(
         {
-            cols.INT_PERIODO: [1, 2],
+            cols.INT_PERIOD: [1, 2],
             cols.FLOAT_IMPORT_CAPACITY: [100.0, 100.0],
             cols.FLOAT_EXPORT_CAPACITY: [150.0, 150.0],
         }
@@ -263,7 +263,7 @@ def det_cab_import_saturated():
     """Fixture with import saturation scenario."""
     return pd.DataFrame(
         {
-            cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2, 2],
+            cols.INT_PERIOD: [1, 1, 1, 1, 2, 2, 2, 2],
             cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
             cols.CAT_PAIS: [
                 SPAIN_ZONE,
@@ -294,7 +294,7 @@ def det_cab_export_saturated():
     """Fixture with export saturation scenario."""
     return pd.DataFrame(
         {
-            cols.INT_PERIODO: [1, 1, 1, 1, 2, 2, 2, 2],
+            cols.INT_PERIOD: [1, 1, 1, 1, 2, 2, 2, 2],
             cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
             cols.CAT_PAIS: [
                 SPAIN_ZONE,

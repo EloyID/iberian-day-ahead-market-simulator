@@ -74,7 +74,7 @@ BLOCK_UNIQUE_IDENTIFIERS = [
 ]
 
 DET_CAB_UNIQUE_IDENTIFIERS = [
-    cols.INT_PERIODO,
+    cols.INT_PERIOD,
     cols.CAT_BUY_SELL,
     cols.ID_ORDER,
     cols.INT_NUM_TRAMO,

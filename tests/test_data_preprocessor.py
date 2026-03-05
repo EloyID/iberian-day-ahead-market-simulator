@@ -16,7 +16,7 @@ from mibel_simulator.tools import get_cat_order_type_column
 def price_france():
     return pd.DataFrame(
         {
-            cols.INT_PERIODO: [1, 2],
+            cols.INT_PERIOD: [1, 2],
             cols.FLOAT_PRICE_FR: [50.0, 60.0],
         }
     )
@@ -26,7 +26,7 @@ def price_france():
 def capacidad_inter():
     return pd.DataFrame(
         {
-            cols.INT_PERIODO: [1, 2],
+            cols.INT_PERIOD: [1, 2],
             cols.FLOAT_IMPORT_CAPACITY: [100.0, 200.0],
             cols.FLOAT_EXPORT_CAPACITY: [110.0, 210.0],
         }
@@ -37,7 +37,7 @@ def capacidad_inter():
 def expected_det_cab_fr():
     return pd.DataFrame(
         {
-            "int_periodo": [1, 2, 1, 2],
+            "int_period": [1, 2, 1, 2],
             "float_bid_price": [50.0, 60.0, 50.0, 60.0],
             "cat_buy_sell": ["V", "V", "C", "C"],
             "float_bid_power": [100.0, 200.0, 110.0, 210.0],

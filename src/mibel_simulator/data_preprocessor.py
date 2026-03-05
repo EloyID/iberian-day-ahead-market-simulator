@@ -72,10 +72,10 @@ def get_france_det_cab_from_price(
             )
 
     sell_det_cab = pd.merge(
-        price_france[[cols.INT_PERIODO, cols.FLOAT_PRICE_FR]],
-        capacidad_inter[[cols.INT_PERIODO, cols.FLOAT_IMPORT_CAPACITY]],
+        price_france[[cols.INT_PERIOD, cols.FLOAT_PRICE_FR]],
+        capacidad_inter[[cols.INT_PERIOD, cols.FLOAT_IMPORT_CAPACITY]],
         how="inner",
-        on=cols.INT_PERIODO,
+        on=cols.INT_PERIOD,
         validate="one_to_one",
     )
     sell_det_cab[cols.CAT_BUY_SELL] = CAT_SELL
@@ -83,10 +83,10 @@ def get_france_det_cab_from_price(
     sell_det_cab = sell_det_cab.drop(columns=[cols.FLOAT_IMPORT_CAPACITY])
 
     buy_det_cab = pd.merge(
-        price_france[[cols.INT_PERIODO, cols.FLOAT_PRICE_FR]],
-        capacidad_inter[[cols.INT_PERIODO, cols.FLOAT_EXPORT_CAPACITY]],
+        price_france[[cols.INT_PERIOD, cols.FLOAT_PRICE_FR]],
+        capacidad_inter[[cols.INT_PERIOD, cols.FLOAT_EXPORT_CAPACITY]],
         how="inner",
-        on=cols.INT_PERIODO,
+        on=cols.INT_PERIOD,
         validate="one_to_one",
     )
     buy_det_cab[cols.CAT_BUY_SELL] = CAT_BUY
@@ -305,7 +305,7 @@ def get_det_cab_for_simulation(
 
     # Recalculate cols.FLOAT_BID_POWER_CUMSUM by country
     det_cab = det_cab.sort_values(
-        by=[cols.INT_PERIODO, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
+        by=[cols.INT_PERIOD, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
     ).copy()
     for country in [SPAIN_ZONE, PORTUGAL_ZONE]:
         det_cab.loc[

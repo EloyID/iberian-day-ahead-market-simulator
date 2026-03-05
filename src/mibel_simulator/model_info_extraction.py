@@ -23,14 +23,14 @@ def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:
     ]
     spain_clearing_price_df = pd.DataFrame(
         {
-            cols.INT_PERIODO: list(range(1, 25)),
+            cols.INT_PERIOD: list(range(1, 25)),
             cols.FLOAT_CLEARED_PRICE: spain_clearing_prices,
             cols.CAT_PAIS: SPAIN_ZONE,
         }
     )
     portugal_clearing_price_df = pd.DataFrame(
         {
-            cols.INT_PERIODO: list(range(1, 25)),
+            cols.INT_PERIOD: list(range(1, 25)),
             cols.FLOAT_CLEARED_PRICE: portugal_clearing_prices,
             cols.CAT_PAIS: PORTUGAL_ZONE,
         }
@@ -258,7 +258,7 @@ def get_spain_portugal_transmissions_det_cab_df(
 
             spanish_entry = {
                 "dat_sesion": dat_sesion,
-                cols.INT_PERIODO: period,
+                cols.INT_PERIOD: period,
                 cols.ID_UNIDAD: "MIE",
                 cols.CAT_BUY_SELL: "V" if spain_portugal_flow < 0 else "C",
                 cols.FLOAT_BID_PRICE: -500 if spain_portugal_flow < 0 else 3000,
@@ -272,7 +272,7 @@ def get_spain_portugal_transmissions_det_cab_df(
 
             portugal_entry = {
                 "dat_sesion": dat_sesion,
-                cols.INT_PERIODO: period,
+                cols.INT_PERIOD: period,
                 cols.ID_UNIDAD: "MIP",
                 cols.CAT_BUY_SELL: "V" if spain_portugal_flow > 0 else "C",
                 cols.FLOAT_BID_PRICE: -500 if spain_portugal_flow > 0 else 3000,
@@ -318,7 +318,7 @@ def get_det_cab_results(
             indicator=True,
         )
         .sort_values(
-            by=[cols.INT_PERIODO, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
+            by=[cols.INT_PERIOD, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
         )
         .copy()
     )
@@ -334,7 +334,7 @@ def get_det_cab_results(
     det_cab_results[cols.FLOAT_CLEARED_POWER_CUMSUM] = get_float_bid_power_cumsum(
         det_cab_results,
         date_column_name="dat_sesion",
-        hour_column_name=cols.INT_PERIODO,
+        hour_column_name=cols.INT_PERIOD,
         cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
         cod_ofertada_casada_column_name="cod_ofertada_casada",
         qua_energia_column_name=cols.FLOAT_CLEARED_POWER,
@@ -348,7 +348,7 @@ def get_det_cab_results(
         ] = get_float_bid_power_cumsum(
             det_cab_results.loc[(det_cab_results[cols.CAT_PAIS] == country)],
             date_column_name="dat_sesion",
-            hour_column_name=cols.INT_PERIODO,
+            hour_column_name=cols.INT_PERIOD,
             cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
             cod_ofertada_casada_column_name="cod_ofertada_casada",
             qua_energia_column_name=cols.FLOAT_CLEARED_POWER,

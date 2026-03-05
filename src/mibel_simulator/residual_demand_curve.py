@@ -66,7 +66,7 @@ def generate_residual_demand_det_cab_and_participants_bidding_zone(
         {
             cols.DATE_SESION: date_sesion,
             cols.ID_ORDER: id_order,
-            cols.INT_PERIODO: periods,
+            cols.INT_PERIOD: periods,
             cols.INT_NUM_BLOQ: 0,
             cols.INT_NUM_TRAMO: 1,
             cols.INT_NUM_GRUPO_EXCL: 0,
@@ -142,7 +142,7 @@ def get_clearing_prices_dict(results: dict, sell_country: str) -> dict:
         results["clearing_prices"].query(f"{cols.CAT_PAIS} == '{sell_country}'").copy()
     )
     clearing_prices_country["price_keys"] = "price_" + clearing_prices_country[
-        cols.INT_PERIODO
+        cols.INT_PERIOD
     ].astype(str)
     clearing_prices_dict = (
         clearing_prices_country[["price_keys", cols.FLOAT_CLEARED_PRICE]]

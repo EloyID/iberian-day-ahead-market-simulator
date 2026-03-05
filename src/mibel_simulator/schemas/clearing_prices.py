@@ -6,7 +6,7 @@ from .columns_dict import columns_dict
 
 ClearingPricesSchema = pa.DataFrameSchema(
     {
-        cols.INT_PERIODO:           columns_dict[cols.INT_PERIODO],
+        cols.INT_PERIOD:           columns_dict[cols.INT_PERIOD],
         cols.FLOAT_CLEARED_PRICE:   columns_dict[cols.FLOAT_CLEARED_PRICE],
         cols.CAT_PAIS:              columns_dict[cols.CAT_PAIS],
     }

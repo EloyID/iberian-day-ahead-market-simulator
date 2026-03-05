@@ -105,7 +105,7 @@ def get_cleared_power_with_price_curve(
 
     price_curve_dict = {i: price_curve[i - 1] for i in range(1, 25)}
     det_cab = det_cab.copy()
-    det_cab[cols.FLOAT_CLEARED_PRICE] = det_cab[cols.INT_PERIODO].map(price_curve_dict)
+    det_cab[cols.FLOAT_CLEARED_PRICE] = det_cab[cols.INT_PERIOD].map(price_curve_dict)
 
     cleared_energy = pd.Series(index=det_cab.index, dtype=float)
 
@@ -164,7 +164,7 @@ def get_cleared_power_as_simple_bids_with_price_curve(
 
     price_curve_dict = {i: price_curve[i - 1] for i in range(1, 25)}
     det_cab = det_cab.copy()
-    det_cab[cols.FLOAT_CLEARED_PRICE] = det_cab[cols.INT_PERIODO].map(price_curve_dict)
+    det_cab[cols.FLOAT_CLEARED_PRICE] = det_cab[cols.INT_PERIOD].map(price_curve_dict)
 
     cleared_energy = pd.Series(index=det_cab.index, dtype=float)
 

@@ -55,16 +55,16 @@ def calculate_complex_residual_demand_II_with_market_split(
     det_cab, capacidad_inter_PBC_pt
 ):
 
-    capacidad_imp_PT = -capacidad_inter_PBC_pt.set_index(cols.INT_PERIODO)[
+    capacidad_imp_PT = -capacidad_inter_PBC_pt.set_index(cols.INT_PERIOD)[
         cols.FLOAT_IMPORT_CAPACITY
     ].abs()
-    capacidad_exp_PT = capacidad_inter_PBC_pt.set_index(cols.INT_PERIODO)[
+    capacidad_exp_PT = capacidad_inter_PBC_pt.set_index(cols.INT_PERIOD)[
         cols.FLOAT_EXPORT_CAPACITY
     ].abs()
 
     energy_hourly_cleared_per_country_CV = (
         det_cab.groupby(
-            [cols.CAT_PAIS, cols.CAT_BUY_SELL, cols.INT_PERIODO], observed=False
+            [cols.CAT_PAIS, cols.CAT_BUY_SELL, cols.INT_PERIOD], observed=False
         )[cols.FLOAT_CLEARED_POWER]
         .sum()
         .sort_index()
@@ -110,7 +110,7 @@ def calculate_complex_residual_demand_II_with_market_split(
 
 
 def sum_cleared_power_by_period(det_cab, cleared_power_column=cols.FLOAT_CLEARED_POWER):
-    return det_cab.groupby(cols.INT_PERIODO)[cleared_power_column].sum().sort_index()
+    return det_cab.groupby(cols.INT_PERIOD)[cleared_power_column].sum().sort_index()
 
 
 def calculate_complex_residual_demand_I_without_market_split(det_cab):

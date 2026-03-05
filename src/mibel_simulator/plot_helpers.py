@@ -178,7 +178,7 @@ def plot_clearing_prices(
     if hue and hue in clearing_prices.columns:
         for key, grp in clearing_prices.groupby(hue):
             ax.plot(
-                grp[cols.INT_PERIODO],
+                grp[cols.INT_PERIOD],
                 grp[cols.FLOAT_CLEARED_PRICE],
                 label=str(key),
                 marker=marker,
@@ -188,7 +188,7 @@ def plot_clearing_prices(
             )
     else:
         ax.plot(
-            clearing_prices["periodo"],
+            clearing_prices["period"],
             clearing_prices["cleared_price"],
             marker=marker,
             linewidth=linewidth,

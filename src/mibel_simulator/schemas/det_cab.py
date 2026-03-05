@@ -78,7 +78,7 @@ mic_only_in_scos = pa.Check(
 
 check_not_exclusive_groups_max_power_not_exceeded = pa.Check(
     lambda df: df.query(f"{cols.INT_NUM_GRUPO_EXCL} == 0")
-    .groupby([cols.ID_ORDER, cols.INT_PERIODO], observed=True)
+    .groupby([cols.ID_ORDER, cols.INT_PERIOD], observed=True)
     .agg(
         {
             cols.FLOAT_BID_POWER: "sum",
@@ -95,7 +95,7 @@ check_not_exclusive_groups_max_power_not_exceeded = pa.Check(
 check_exclusive_groups_max_power_not_exceeded = pa.Check(
     lambda df: df.query(f"{cols.INT_NUM_GRUPO_EXCL} > 0")
     .groupby(
-        [cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL, cols.INT_NUM_BLOQ, cols.INT_PERIODO],
+        [cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL, cols.INT_NUM_BLOQ, cols.INT_PERIOD],
         observed=True,
     )
     .agg(

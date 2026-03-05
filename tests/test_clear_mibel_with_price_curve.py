@@ -82,7 +82,7 @@ class TestGetClearedEnergyFromSCO:
         """SCO order that clears."""
         return pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 2, 3],
+                cols.INT_PERIOD: [1, 2, 3],
                 # cols.FLOAT_CLEARED_PRICE: [40.0, 41.0, 42.0],
                 cols.FLOAT_BID_PRICE: [35.0, 35.0, 35.0],
                 cols.FLOAT_BID_POWER: [100.0, 110.0, 120.0],
@@ -199,7 +199,7 @@ class TestCalculateClearedEnergyFromSCOs:
         return pd.DataFrame(
             {
                 cols.ID_ORDER: ["SCO1", "SCO1", "SCO1", "SCO2", "SCO2"],
-                cols.INT_PERIODO: [1, 2, 3, 1, 2],
+                cols.INT_PERIOD: [1, 2, 3, 1, 2],
                 cols.FLOAT_CLEARED_PRICE: [40.0, 41.0, 42.0, 39.0, 40.0],
                 cols.FLOAT_BID_PRICE: [35.0, 35.0, 35.0, 38.0, 38.0],
                 cols.FLOAT_BID_POWER: [100.0, 110.0, 120.0, 80.0, 90.0],
@@ -231,7 +231,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         # fmt: off
         return pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 2, 2, 3, 3, 3, 4, 4, 4],
+                cols.INT_PERIOD: [1, 1, 2, 2, 3, 3, 3, 4, 4, 4],
                 cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "V", "C", "V", "V"],
                 cols.CAT_ORDER_TYPE: ["S", "S", "S", "C01", "S", "S", "C02", "S", "C04", "S"],
                 cols.FLOAT_BID_PRICE: [35.0, 30.0, 35.0, 32.0, 35.0, 30.0, 33.0, 35.0, 34.0, 30.0],
@@ -284,7 +284,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         """Test that C01, C02, C04 orders clear using simple bid logic."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 1, 1],
+                cols.INT_PERIOD: [1, 1, 1, 1],
                 cols.CAT_BUY_SELL: ["V", "V", "V", "V"],
                 cols.CAT_ORDER_TYPE: ["S", "C01", "C02", "C04"],
                 cols.FLOAT_BID_PRICE: [30.0, 32.0, 33.0, 34.0],
@@ -304,7 +304,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         """Test boundary condition (equal prices) for complex order types."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 2, 3, 4],
+                cols.INT_PERIOD: [1, 2, 3, 4],
                 cols.CAT_BUY_SELL: ["V", "V", "V", "V"],
                 cols.CAT_ORDER_TYPE: ["C01", "C02", "C04", "S"],
                 cols.FLOAT_BID_PRICE: [35.0, 35.0, 35.0, 35.0],
@@ -367,7 +367,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([35.0] * 24)
         empty_df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [],
+                cols.INT_PERIOD: [],
                 cols.CAT_BUY_SELL: [],
                 cols.CAT_ORDER_TYPE: [],
                 cols.FLOAT_BID_PRICE: [],
@@ -386,7 +386,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         """Test DataFrame with only C01 (block) orders treated as simple."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 2, 3],
+                cols.INT_PERIOD: [1, 2, 3],
                 cols.CAT_BUY_SELL: ["V", "V", "V"],
                 cols.CAT_ORDER_TYPE: ["C01", "C01", "C01"],
                 cols.FLOAT_BID_PRICE: [30.0, 35.0, 28.0],
@@ -407,7 +407,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         """Test DataFrame with only C02 (SCO) orders treated as simple."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 2, 3],
+                cols.INT_PERIOD: [1, 2, 3],
                 cols.CAT_BUY_SELL: ["V", "V", "V"],
                 cols.CAT_ORDER_TYPE: ["C02", "C02", "C02"],
                 cols.FLOAT_BID_PRICE: [32.0, 34.0, 29.0],
@@ -428,7 +428,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         """Test DataFrame with only C04 (exclusive block) orders treated as simple."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 2, 3],
+                cols.INT_PERIOD: [1, 2, 3],
                 cols.CAT_BUY_SELL: ["V", "V", "V"],
                 cols.CAT_ORDER_TYPE: ["C04", "C04", "C04"],
                 cols.FLOAT_BID_PRICE: [33.0, 36.0, 27.0],
