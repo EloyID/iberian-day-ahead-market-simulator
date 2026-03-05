@@ -488,7 +488,7 @@ def iterative_function(
     Args:
         args (tuple): Tuple containing:
             - det_cab (pd.DataFrame): Full DET/CAB DataFrame.
-            - capacidad_inter_PT_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
+            - capacidad_inter_PBC_pt (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
             - paradox_groups (list): List of SCO order IDs with MIC for this iteration.
             - france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
 
@@ -498,7 +498,7 @@ def iterative_function(
 
     (
         det_cab,
-        capacidad_inter_PT_date,
+        capacidad_inter_PBC_pt,
         paradox_groups,
         france_fixed_exchange,
     ) = args
@@ -511,7 +511,7 @@ def iterative_function(
     # Run market model
     model, _, results = run_model(
         det_cab_paradox_groups_filtered,
-        capacidad_inter_PT_date,
+        capacidad_inter_PBC_pt,
         france_fixed_exchange,
     )
 
@@ -580,10 +580,10 @@ def check_if_success_at_first_iteration(
 
 
 @pa.check_input(DETCABSchema, "det_cab", lazy=True)
-@pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pt_date", lazy=True)
+@pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pbc_pt", lazy=True)
 def run_iterative_loop(
     det_cab: DataFrame,
-    capacidad_inter_pt_date: DataFrame,
+    capacidad_inter_pbc_pt: DataFrame,
     france_fixed_exchange: pd.Series | None = None,
     iterations_count: int = 100,
     iteration_ids_mic_scos: list | None = None,
@@ -598,7 +598,7 @@ def run_iterative_loop(
 
     Args:
         det_cab (pd.DataFrame): Full DET/CAB DataFrame.
-        capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
+        capacidad_inter_pbc_pt (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
         france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
         iteration_ids_mic_scos (list, optional): Initial SCOs with MIC for the first iteration.
         iteration_ids_bid_blocks (list, optional): Initial bid blocks for the first iteration.
@@ -663,7 +663,7 @@ def run_iterative_loop(
         args_list = [
             (
                 det_cab,
-                capacidad_inter_pt_date,
+                capacidad_inter_pbc_pt,
                 iteration_paradox_groups,
                 france_fixed_exchange,
             )
@@ -714,7 +714,7 @@ def run_iterative_loop(
     # Run market model
     best_model, best_model_binary, results = run_model(
         det_cab=det_cab_scos_filtered,
-        capacidad_inter_PT_date=capacidad_inter_pt_date,
+        capacidad_inter_PBC_pt=capacidad_inter_pbc_pt,
         france_fixed_exchange=france_fixed_exchange,
     )
 
@@ -784,23 +784,23 @@ def run_mibel_simulator(
     else:
         participants_bidding_zones = pd.read_csv(PARTICIPANTS_BIDDING_ZONES_FILEPATH)
 
-    capacidad_inter_pt_date = capacidad_inter_pbc.query(
+    capacidad_inter_pbc_pt = capacidad_inter_pbc.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
-    det_cab_fr_date = get_france_det_cab_from_price(
+    det_cab_fr = get_france_det_cab_from_price(
         france_day_ahead_prices, capacidad_inter_pbc
     )
     det_cab = get_det_cab_for_simulation(
         det=det,
         cab=cab,
         participants_bidding_zones=participants_bidding_zones,
-        det_cab_fr_date=det_cab_fr_date,
+        det_cab_fr=det_cab_fr,
         spain_as_default_bidding_zone=spain_as_default_bidding_zone,
     )
 
     iterations_df, model, model_binary = run_iterative_loop(
         det_cab=det_cab,
-        capacidad_inter_pt_date=capacidad_inter_pt_date,
+        capacidad_inter_pbc_pt=capacidad_inter_pbc_pt,
         iterations_count=iterations_count,
         iterations_df=starting_iterations_df,
         iteration_ids_mic_scos=iteration_ids_mic_scos,

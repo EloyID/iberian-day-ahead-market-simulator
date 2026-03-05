@@ -30,7 +30,7 @@ EPSILON = 1e-6
 
 def make_model(
     det_cab,
-    capacidad_inter_PT_date,
+    capacidad_inter_PBC_pt,
     france_fixed_exchange: pd.Series | None = None,
 ):
 
@@ -141,8 +141,8 @@ def make_model(
     p_quantity_BUYER_BIDS =                     det_cab_C           .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
     p_quantity_FRANCE_EXPORT_BIDS =             det_cab_C_export_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
     p_quantity_FRANCE_IMPORT_BIDS =             det_cab_V_import_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
-    p_congestion_spain_portugal_exportacion =   capacidad_inter_PT_date  .set_index(cols.INT_PERIODO)            [cols.FLOAT_EXPORT_CAPACITY].to_dict()
-    p_congestion_spain_portugal_importacion =   capacidad_inter_PT_date  .set_index(cols.INT_PERIODO)            [cols.FLOAT_IMPORT_CAPACITY].to_dict()
+    p_congestion_spain_portugal_exportacion =   capacidad_inter_PBC_pt  .set_index(cols.INT_PERIODO)            [cols.FLOAT_EXPORT_CAPACITY].to_dict()
+    p_congestion_spain_portugal_importacion =   capacidad_inter_PBC_pt  .set_index(cols.INT_PERIODO)            [cols.FLOAT_IMPORT_CAPACITY].to_dict()
     p_MAR =                                     det_cab_V_bloque    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_MAR].to_dict()
     p_MIC =                                     det_cab_V_sco       .drop_duplicates(cols.ID_SCO).set_index(cols.ID_SCO)[cols.FLOAT_MIC].to_dict()
     p_SCO_ORDER_PER_BID =                       det_cab_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.ID_SCO].to_dict()

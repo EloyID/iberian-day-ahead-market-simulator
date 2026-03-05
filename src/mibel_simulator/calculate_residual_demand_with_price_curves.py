@@ -52,13 +52,13 @@ def format_price_curves(
 
 
 def calculate_complex_residual_demand_II_with_market_split(
-    det_cab, capacidad_inter_PT_date
+    det_cab, capacidad_inter_PBC_pt
 ):
 
-    capacidad_imp_PT = -capacidad_inter_PT_date.set_index(cols.INT_PERIODO)[
+    capacidad_imp_PT = -capacidad_inter_PBC_pt.set_index(cols.INT_PERIODO)[
         cols.FLOAT_IMPORT_CAPACITY
     ].abs()
-    capacidad_exp_PT = capacidad_inter_PT_date.set_index(cols.INT_PERIODO)[
+    capacidad_exp_PT = capacidad_inter_PBC_pt.set_index(cols.INT_PERIODO)[
         cols.FLOAT_EXPORT_CAPACITY
     ].abs()
 
@@ -183,7 +183,7 @@ def calculate_residual_demand_with_price_curves(
     else:
         participants_bidding_zones = pd.read_csv(PARTICIPANTS_BIDDING_ZONES_FILEPATH)
 
-    capacidad_inter_PT_date = capacidad_inter_pbc.query(
+    capacidad_inter_PBC_pt = capacidad_inter_pbc.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
 
@@ -239,7 +239,7 @@ def calculate_residual_demand_with_price_curves(
 
         complex_residual_demand_II_with_market_split = (
             calculate_complex_residual_demand_II_with_market_split(
-                det_cab_aux, capacidad_inter_PT_date
+                det_cab_aux, capacidad_inter_PBC_pt
             )
         )
         complex_residual_demand_II_with_market_split.index = RDC_ENERGY_COLUMNS

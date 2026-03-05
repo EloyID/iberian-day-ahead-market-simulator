@@ -193,7 +193,7 @@ class TestGetDetCabDateForSimulation:
             full_simplified_det_dataframe,
             full_simplified_cab_dataframe,
             full_det_cab_participants_bidding_zones_dataframe,
-            det_cab_fr_date=full_simplified_det_cab_fr_dataframe,
+            det_cab_fr=full_simplified_det_cab_fr_dataframe,
         ).sort_index()
 
         print(det_cab.id_paradox_groups.to_list())
