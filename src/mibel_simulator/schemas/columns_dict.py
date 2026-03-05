@@ -26,7 +26,7 @@ columns_dict = {
     cols.INT_PERIOD:         pa.Column(int, checks=[pa.Check.ge(1), pa.Check.le(25)], coerce=True),
     cols.INT_NUM_BLOQ:        pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),
     cols.INT_NUM_TRAMO:       pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),
-    cols.INT_NUM_GRUPO_EXCL:  pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),
+    cols.INT_NUM_EXCL_GROUP:  pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),
     
     cols.FLOAT_BID_PRICE:         pa.Column(float,                                           coerce=True),
     cols.FLOAT_BID_POWER:         pa.Column(float, checks=[pa.Check.ge(0)],                  coerce=True),

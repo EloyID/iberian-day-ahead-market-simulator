@@ -46,9 +46,9 @@ def get_cleared_energy_from_exclusive_block_order_group(df):
 def calculate_cleared_energy_from_exclusive_block_order_groups(df):
     df = df.copy()
     df[cols.FLOAT_CLEARED_POWER] = (
-        df.groupby([cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL], observed=True)
+        df.groupby([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], observed=True)
         .apply(get_cleared_energy_from_exclusive_block_order_group, include_groups=True)
-        .reset_index(level=[cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL], drop=True)
+        .reset_index(level=[cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], drop=True)
     )
     return df[cols.FLOAT_CLEARED_POWER]
 

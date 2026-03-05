@@ -2,7 +2,7 @@
 INT_PERIOD = "int_period"
 INT_NUM_BLOQ = "int_num_bloq"
 INT_NUM_TRAMO = "int_num_tramo"
-INT_NUM_GRUPO_EXCL = "int_num_grupo_excl"
+INT_NUM_EXCL_GROUP = "int_num_excl_group"
 
 INT_NUM_TRAMO_PARENT = "int_num_tramo_parent"
 INT_NUM_TRAMO_CHILD = "int_num_tramo_child"

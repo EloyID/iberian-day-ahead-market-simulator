@@ -100,7 +100,7 @@ def get_france_det_cab_from_price(
         cols.FLOAT_MAX_POWER: 99999999,  # High value to avoid issues
         cols.INT_NUM_BLOQ: 0,
         cols.INT_NUM_TRAMO: 1,
-        cols.INT_NUM_GRUPO_EXCL: 0,
+        cols.INT_NUM_EXCL_GROUP: 0,
         cols.FLOAT_MAV: 0,
         cols.FLOAT_MAR: 0,
         cols.CAT_BIDDING_ZONE: CAT_BIDDING_ZONE_SPAIN,  # Spain because it's sold from France to Spain
@@ -155,7 +155,7 @@ def get_det_cab_id_block_order(det_cab: pd.DataFrame) -> np.ndarray:
         + "_B_"
         + det_cab[cols.INT_NUM_BLOQ].astype(str)
         + "_GE_"
-        + det_cab[cols.INT_NUM_GRUPO_EXCL].astype(str),
+        + det_cab[cols.INT_NUM_EXCL_GROUP].astype(str),
         np.nan,
     )
 
@@ -338,9 +338,9 @@ def get_exclusive_block_orders_grouped(det_cab: pd.DataFrame) -> pd.Series:
         pd.Series: Series mapping (order ID, exclusion group) to lists of block order identifiers.
     """
     exclusive_block_orders_grouped = (
-        det_cab.query(f"{cols.INT_NUM_GRUPO_EXCL} > 0")
-        .drop_duplicates([cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL, cols.INT_NUM_BLOQ])
-        .groupby([cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL], observed=True)[
+        det_cab.query(f"{cols.INT_NUM_EXCL_GROUP} > 0")
+        .drop_duplicates([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP, cols.INT_NUM_BLOQ])
+        .groupby([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], observed=True)[
             cols.ID_BLOCK_ORDER
         ]
         .apply(list)

@@ -9,7 +9,7 @@ ExclusiveBlockOrdersGroupedSchema = pa.SeriesSchema(
     index=pa.MultiIndex(
         [
             pa.Index(pa.String, name=cols.ID_ORDER),
-            pa.Index(pa.Int, name=cols.INT_NUM_GRUPO_EXCL, coerce=True),
+            pa.Index(pa.Int, name=cols.INT_NUM_EXCL_GROUP, coerce=True),
         ]
     ),
     dtype=pa.String,

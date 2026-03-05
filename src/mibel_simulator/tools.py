@@ -72,7 +72,7 @@ def get_is_simple_bid(
     det_cab: pd.DataFrame,
     id_order_column: str = cols.ID_ORDER,
     num_bloq_column: str = cols.INT_NUM_BLOQ,
-    num_grupo_excl_column: str = cols.INT_NUM_GRUPO_EXCL,
+    num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
     mav_column: str = cols.FLOAT_MAV,
     mar_column: str = cols.FLOAT_MAR,
     fijoeuro_column: str = cols.FLOAT_MIC,
@@ -90,7 +90,7 @@ def get_is_simple_bid(
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
         id_order_column (str, optional): Name of the order ID column. Defaults to cols.ID_ORDER.
         num_bloq_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOQ.
-        num_grupo_excl_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_GRUPO_EXCL.
+        num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
         mav_column (str, optional): Name of the MAV column. Defaults to cols.FLOAT_MAV.
         mar_column (str, optional): Name of the MAR column. Defaults to cols.FLOAT_MAR.
         fijoeuro_column (str, optional): Name of the MIC column. Defaults to cols.FLOAT_MIC.
@@ -101,7 +101,7 @@ def get_is_simple_bid(
     is_SCO_ = get_is_SCO(det_cab, id_order_column, mav_column, fijoeuro_column)
     return (
         (det_cab[num_bloq_column] == 0)
-        & (det_cab[num_grupo_excl_column] == 0)
+        & (det_cab[num_excl_group_column] == 0)
         & (det_cab[mar_column] == 0)
         & (~is_SCO_)
     )
@@ -139,7 +139,7 @@ def get_is_SCO(
 def get_is_not_exclusive_block(
     det_cab: pd.DataFrame,
     num_bloq_column: str = cols.INT_NUM_BLOQ,
-    num_grupo_excl_column: str = cols.INT_NUM_GRUPO_EXCL,
+    num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
 ) -> pd.Series:
     """
     Identifies non-exclusive block bids in the DET/CAB DataFrame.
@@ -149,17 +149,17 @@ def get_is_not_exclusive_block(
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
         num_bloq_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOQ.
-        num_grupo_excl_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_GRUPO_EXCL.
+        num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
 
     Returns:
         pd.Series: Boolean Series indicating which bids are non-exclusive block bids.
     """
-    return (det_cab[num_bloq_column] > 0) & (det_cab[num_grupo_excl_column] == 0)
+    return (det_cab[num_bloq_column] > 0) & (det_cab[num_excl_group_column] == 0)
 
 
 def get_is_exclusive_block_group(
     det_cab: pd.DataFrame,
-    num_grupo_excl_column: str = cols.INT_NUM_GRUPO_EXCL,
+    num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
 ) -> pd.Series:
     """
     Identifies exclusive block group bids in the DET/CAB DataFrame.
@@ -168,20 +168,20 @@ def get_is_exclusive_block_group(
 
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
-        num_grupo_excl_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_GRUPO_EXCL.
+        num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
 
     Returns:
         pd.Series: Boolean Series indicating which bids are part of an exclusive block group.
     """
 
-    return det_cab[num_grupo_excl_column] > 0
+    return det_cab[num_excl_group_column] > 0
 
 
 def get_cat_order_type_column(
     det_cab: pd.DataFrame,
     id_order_column: str = cols.ID_ORDER,
     num_bloq_column: str = cols.INT_NUM_BLOQ,
-    num_grupo_excl_column: str = cols.INT_NUM_GRUPO_EXCL,
+    num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
     mav_column: str = cols.FLOAT_MAV,
     mar_column: str = cols.FLOAT_MAR,
     fijoeuro_column: str = cols.FLOAT_MIC,
@@ -195,7 +195,7 @@ def get_cat_order_type_column(
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
         num_bloq_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOQ.
-        num_grupo_excl_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_GRUPO_EXCL.
+        num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
         mav_column (str, optional): Name of the mav column. Defaults to cols.FLOAT_MAV.
         mar_column (str, optional): Name of the mar column. Defaults to cols.FLOAT_MAR.
         fijoeuro_column (str, optional): Name of the float_mic column. Defaults to cols.FLOAT_MIC.
@@ -210,7 +210,7 @@ def get_cat_order_type_column(
         det_cab,
         id_order_column,
         num_bloq_column,
-        num_grupo_excl_column,
+        num_excl_group_column,
         mav_column,
         mar_column,
         fijoeuro_column,
@@ -219,10 +219,10 @@ def get_cat_order_type_column(
         det_cab, id_order_column, mav_column, fijoeuro_column
     )
     det_cab[cols.BOOL_IS_NOT_EXCLUSIVE_GROUP] = get_is_not_exclusive_block(
-        det_cab, num_bloq_column, num_grupo_excl_column
+        det_cab, num_bloq_column, num_excl_group_column
     )
     det_cab[cols.BOOL_IS_EXCLUSIVE_GROUP] = get_is_exclusive_block_group(
-        det_cab, num_grupo_excl_column
+        det_cab, num_excl_group_column
     )
 
     assert (

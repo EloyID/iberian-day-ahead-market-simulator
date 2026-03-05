@@ -58,10 +58,10 @@ buy_bids_exclusive_block_offers = pa.Check(
 
 buy_bids_exclusive_offers = pa.Check(
     lambda df: df.query(
-        f"{cols.CAT_BUY_SELL} == 'C' and {cols.INT_NUM_GRUPO_EXCL} > 0"
+        f"{cols.CAT_BUY_SELL} == 'C' and {cols.INT_NUM_EXCL_GROUP} > 0"
     ).empty,
     element_wise=False,
-    error=f"Buy bids {cols.CAT_BUY_SELL} == 'C' cannot be exclusive offers ({cols.INT_NUM_GRUPO_EXCL} > 0)",
+    error=f"Buy bids {cols.CAT_BUY_SELL} == 'C' cannot be exclusive offers ({cols.INT_NUM_EXCL_GROUP} > 0)",
 )
 
 buy_bids_cannot_have_mav = pa.Check(
@@ -77,7 +77,7 @@ mic_only_in_scos = pa.Check(
 )
 
 check_not_exclusive_groups_max_power_not_exceeded = pa.Check(
-    lambda df: df.query(f"{cols.INT_NUM_GRUPO_EXCL} == 0")
+    lambda df: df.query(f"{cols.INT_NUM_EXCL_GROUP} == 0")
     .groupby([cols.ID_ORDER, cols.INT_PERIOD], observed=True)
     .agg(
         {
@@ -93,9 +93,9 @@ check_not_exclusive_groups_max_power_not_exceeded = pa.Check(
 )
 
 check_exclusive_groups_max_power_not_exceeded = pa.Check(
-    lambda df: df.query(f"{cols.INT_NUM_GRUPO_EXCL} > 0")
+    lambda df: df.query(f"{cols.INT_NUM_EXCL_GROUP} > 0")
     .groupby(
-        [cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL, cols.INT_NUM_BLOQ, cols.INT_PERIOD],
+        [cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP, cols.INT_NUM_BLOQ, cols.INT_PERIOD],
         observed=True,
     )
     .agg(

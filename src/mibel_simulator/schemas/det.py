@@ -3,7 +3,7 @@ import mibel_simulator.columns as cols
 from .columns_dict import columns_dict
 
 exclusive_group_must_be_block_offer = pa.Check(
-    lambda df: (df[cols.INT_NUM_GRUPO_EXCL] == 0) | (df[cols.INT_NUM_BLOQ] > 0),
+    lambda df: (df[cols.INT_NUM_EXCL_GROUP] == 0) | (df[cols.INT_NUM_BLOQ] > 0),
     element_wise=True,
     error=f"An exclusive offer include {cols.INT_NUM_BLOQ}",
 )
@@ -42,7 +42,7 @@ DETSchema = pa.DataFrameSchema(
         cols.INT_PERIOD:        columns_dict[cols.INT_PERIOD],
         cols.INT_NUM_BLOQ:       columns_dict[cols.INT_NUM_BLOQ],
         cols.INT_NUM_TRAMO:      columns_dict[cols.INT_NUM_TRAMO],
-        cols.INT_NUM_GRUPO_EXCL: columns_dict[cols.INT_NUM_GRUPO_EXCL],
+        cols.INT_NUM_EXCL_GROUP: columns_dict[cols.INT_NUM_EXCL_GROUP],
         cols.FLOAT_BID_PRICE:    columns_dict[cols.FLOAT_BID_PRICE],
         cols.FLOAT_BID_POWER:    columns_dict[cols.FLOAT_BID_POWER],
         cols.FLOAT_MAV:          columns_dict[cols.FLOAT_MAV],

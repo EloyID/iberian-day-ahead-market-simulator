@@ -146,7 +146,7 @@ class TestGetClearedEnergyFromExclusiveBlockOrderGroups:
             {
                 cols.ID_ORDER: ["BLOCK1", "BLOCK1", "BLOCK2", "BLOCK2"],
                 cols.INT_NUM_BLOQ: [1, 1, 2, 2],
-                cols.INT_NUM_GRUPO_EXCL: [1, 1, 1, 1],
+                cols.INT_NUM_EXCL_GROUP: [1, 1, 1, 1],
                 cols.FLOAT_CLEARED_PRICE: [35.0, 40.0, 30.0, 35.0],
                 cols.FLOAT_BID_PRICE: [34.0, 34.0, 34.0, 34.0],
                 cols.FLOAT_BID_POWER: [100.0, 110.0, 80.0, 90.0],
@@ -172,7 +172,7 @@ class TestCalculateClearedEnergyFromNonExclusiveBlockOrders:
             {
                 cols.ID_ORDER: ["BLOCK1", "BLOCK1", "BLOCK1", "BLOCK2", "BLOCK2"],
                 cols.INT_NUM_BLOQ: [1, 1, 1, 2, 2],
-                cols.INT_NUM_GRUPO_EXCL: [0, 0, 0, 0, 0],
+                cols.INT_NUM_EXCL_GROUP: [0, 0, 0, 0, 0],
                 cols.FLOAT_CLEARED_PRICE: [35.0, 36.0, 37.0, 30.0, 35.0],
                 cols.FLOAT_BID_PRICE: [34.0, 34.0, 34.0, 33.0, 33.0],
                 cols.FLOAT_BID_POWER: [100.0, 110.0, 120.0, 80.0, 90.0],

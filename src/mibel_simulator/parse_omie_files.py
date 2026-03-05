@@ -80,7 +80,7 @@ DET_RENAMING = {
     "Periodo":          cols.INT_PERIOD,
     "NumBloq":          cols.INT_NUM_BLOQ,
     "NumTramo":         cols.INT_NUM_TRAMO,
-    "NumGrupoExcl":     cols.INT_NUM_GRUPO_EXCL,
+    "NumGrupoExcl":     cols.INT_NUM_EXCL_GROUP,
     "PrecEuro":         cols.FLOAT_BID_PRICE,
     "Potencia":         cols.FLOAT_BID_POWER,
     "MAV":              cols.FLOAT_MAV,

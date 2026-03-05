@@ -69,7 +69,7 @@ def generate_residual_demand_det_cab_and_participants_bidding_zone(
             cols.INT_PERIOD: periods,
             cols.INT_NUM_BLOQ: 0,
             cols.INT_NUM_TRAMO: 1,
-            cols.INT_NUM_GRUPO_EXCL: 0,
+            cols.INT_NUM_EXCL_GROUP: 0,
             cols.FLOAT_BID_PRICE: bid_price,
             cols.FLOAT_BID_POWER: bid_power,
             cols.FLOAT_MAV: 0.0,
