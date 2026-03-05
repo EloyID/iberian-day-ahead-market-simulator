@@ -730,7 +730,7 @@ def run_mibel_simulator(
     iterations_count: int = 100,
     starting_iterations_df: pd.DataFrame = None,
     france_fixed_exchange: pd.Series | None = None,
-    zones_default_to_spain: bool = False,
+    spain_as_default_bidding_zone: bool = False,
     iteration_ids_mic_scos: list | None = None,
     iteration_ids_bid_blocks: list | None = None,
     n_jobs: int = 1,
@@ -753,7 +753,7 @@ def run_mibel_simulator(
         iterations_count (int, optional): Maximum number of optimization iterations to run. Defaults to 100.
         starting_iterations_df (pd.DataFrame, optional): Existing iterations DataFrame to continue from. Defaults to None.
         france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
-        zones_default_to_spain (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
+        spain_as_default_bidding_zone (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
         iteration_ids_mic_scos (list | None, optional): List of MIC SCOs for iteration. Defaults to None.
         iteration_ids_bid_blocks (list | None, optional): List of bid blocks for iteration. Defaults to None.
         n_jobs (int, optional): Number of parallel jobs to run. Defaults to 1.
@@ -795,7 +795,7 @@ def run_mibel_simulator(
         cab=cab,
         participants_bidding_zones=participants_bidding_zones,
         det_cab_fr_date=det_cab_fr_date,
-        zones_default_to_spain=zones_default_to_spain,
+        spain_as_default_bidding_zone=spain_as_default_bidding_zone,
     )
 
     iterations_df, model, model_binary = run_iterative_loop(

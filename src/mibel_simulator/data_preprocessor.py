@@ -207,7 +207,7 @@ def get_det_cab_for_simulation(
     cab: pd.DataFrame,
     participants_bidding_zones: pd.DataFrame,
     det_cab_fr_date: None | pd.DataFrame = None,
-    zones_default_to_spain: bool = False,
+    spain_as_default_bidding_zone: bool = False,
 ) -> pd.DataFrame:
     """
     Merge DET, CAB, and France DET/CAB data for a single day, assign order types and unique identifiers, and enrich with UOF zone information.
@@ -221,10 +221,10 @@ def get_det_cab_for_simulation(
         cab (pd.DataFrame): DataFrame with CAB data for a single day.
         det_cab_fr_date (None | pd.DataFrame): DataFrame with France DET/CAB bids for the same day.
         participants_bidding_zones (pd.DataFrame): DataFrame mapping units to zones.
-        zones_default_to_spain (bool, optional): If True, assign missing units to Spain zone. Defaults to False.
+        spain_as_default_bidding_zone (bool, optional): If True, assign missing units to Spain zone. Defaults to False.
 
     Raises:
-        ValueError: If there are units not found in zone mapping and zones_default_to_spain is False.
+        ValueError: If there are units not found in zone mapping and spain_as_default_bidding_zone is False.
 
     Returns:
         pd.DataFrame: Merged and enriched DET/CAB DataFrame for simulation.
@@ -271,7 +271,7 @@ def get_det_cab_for_simulation(
     # Handle units not found in zone mapping
     not_merged_unidades = det_cab.query("_merge != 'both'")[cols.ID_UNIDAD].unique()
     if len(not_merged_unidades) > 0:
-        if zones_default_to_spain:
+        if spain_as_default_bidding_zone:
             det_cab.loc[
                 det_cab[cols.ID_UNIDAD].isin(not_merged_unidades),
                 cols.CAT_PAIS,

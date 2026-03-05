@@ -158,7 +158,7 @@ def calculate_residual_demand_with_price_curves(
     cab: pd.DataFrame | str,
     capacidad_inter_pbc: pd.DataFrame | str,
     participants_bidding_zones: pd.DataFrame | None = None,
-    zones_default_to_spain: bool = False,
+    spain_as_default_bidding_zone: bool = False,
 ) -> dict:
 
     price_curves = format_price_curves(price_curves)
@@ -191,7 +191,7 @@ def calculate_residual_demand_with_price_curves(
         det=det,
         cab=cab,
         participants_bidding_zones=participants_bidding_zones,
-        zones_default_to_spain=zones_default_to_spain,
+        spain_as_default_bidding_zone=spain_as_default_bidding_zone,
     )
 
     only_simple_submitted_relaxed_residual_demands = []
