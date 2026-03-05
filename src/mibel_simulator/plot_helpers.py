@@ -229,7 +229,7 @@ def plot_spain_portugal_transmissions(
 
     ax.plot(
         transmissions_df.index,
-        transmissions_df[cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN],
+        transmissions_df["Transmision_ES_PT"],
         marker=marker,
         linewidth=linewidth,
         alpha=alpha,
