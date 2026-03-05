@@ -3,7 +3,7 @@ import pandera.pandas as pa
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
     BLOCK_UNIQUE_IDENTIFIERS,
-    DET_CAB_DATE_UNIQUE_IDENTIFIERS,
+    DET_CAB_UNIQUE_IDENTIFIERS,
 )
 from .columns_dict import columns_dict
 from .cab import CABSchema
@@ -126,7 +126,7 @@ DETCABSchema = pa.DataFrameSchema(
         cols.FLOAT_BID_POWER_CUMSUM:                columns_dict[cols.FLOAT_BID_POWER_CUMSUM],
         cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY:     columns_dict[cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY],
     },
-    unique=DET_CAB_DATE_UNIQUE_IDENTIFIERS,
+    unique=DET_CAB_UNIQUE_IDENTIFIERS,
     checks=[
         same_block_order_price,
         exclusive_group_must_be_block_offer,

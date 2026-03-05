@@ -16,8 +16,8 @@ import warnings
 from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, TRIALS_DF_COLUMNS
 from mibel_simulator.data_preprocessor import (
     get_all_paradox_groups,
-    get_det_cab_date_for_simulation,
-    get_france_det_cab_date_from_price,
+    get_det_cab_for_simulation,
+    get_france_det_cab_from_price,
 )
 from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
 from mibel_simulator.paradox_groups_tools import (
@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_cleared_paradox_groups_summary(
-    det_cab_date_paradox_groups_filtered: pd.DataFrame,
+    det_cab_paradox_groups_filtered: pd.DataFrame,
     cleared_energy_df: pd.DataFrame,
     clearing_price_df: pd.DataFrame,
 ) -> pd.DataFrame:
@@ -70,7 +70,7 @@ def get_cleared_paradox_groups_summary(
     Merges DET/CAB data with cleared energy and clearing prices, computes financial metrics, and groups by order ID.
 
     Args:
-        det_cab_date_paradox_groups_filtered (pd.DataFrame): DET/CAB DataFrame for paradox orders in the trial.
+        det_cab_paradox_groups_filtered (pd.DataFrame): DET/CAB DataFrame for paradox orders in the trial.
         cleared_energy_df (pd.DataFrame): DataFrame of cleared energy per bid.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
@@ -78,8 +78,8 @@ def get_cleared_paradox_groups_summary(
         pd.DataFrame: DataFrame grouped by order ID with financial results for matched paradox orders.
     """
 
-    cleared_det_cab_date = (
-        det_cab_date_paradox_groups_filtered.merge(
+    cleared_det_cab = (
+        det_cab_paradox_groups_filtered.merge(
             cleared_energy_df,
             left_on=cols.ID_INDIVIDUAL_BID,
             right_index=True,
@@ -92,11 +92,11 @@ def get_cleared_paradox_groups_summary(
         )
         .copy()
     )
-    assert cleared_det_cab_date._merge.isin(["both", "left_only"]).all()
-    cleared_det_cab_date = cleared_det_cab_date.drop(columns="_merge")
+    assert cleared_det_cab._merge.isin(["both", "left_only"]).all()
+    cleared_det_cab = cleared_det_cab.drop(columns="_merge")
 
     cleared_paradox_groups_df = (
-        cleared_det_cab_date.query(
+        cleared_det_cab.query(
             f"({cols.FLOAT_MIC} > 0 or {cols.INT_NUM_BLOQ} > 0) and {cols.FLOAT_CLEARED_POWER} > 0"
         )
         .copy()
@@ -139,7 +139,7 @@ def get_cleared_paradox_groups_summary(
 
 
 def get_leftout_paradox_groups_summary(
-    det_cab_date: pd.DataFrame,
+    det_cab: pd.DataFrame,
     all_paradox_groups: dict,
     trial_paradox_groups: dict,
     clearing_price_df: pd.DataFrame,
@@ -150,7 +150,7 @@ def get_leftout_paradox_groups_summary(
     Merges left-out paradox orders with clearing prices, computes financial metrics, and groups by order ID.
 
     Args:
-        det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
+        det_cab (pd.DataFrame): Full DET/CAB DataFrame.
         all_paradox_groups (dict): Dictionary of all paradox order IDs.
         trial_paradox_groups (dict): Dictionary of paradox order IDs included in the trial.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
@@ -159,7 +159,7 @@ def get_leftout_paradox_groups_summary(
         pd.DataFrame: DataFrame grouped by order ID with financial results for left-out paradox orders.
     """
 
-    det_cab_date = det_cab_date.copy().merge(
+    det_cab = det_cab.copy().merge(
         clearing_price_df,
         on=[cols.INT_PERIODO, cols.CAT_PAIS],
         how="left",
@@ -174,8 +174,8 @@ def get_leftout_paradox_groups_summary(
     trial_bid_blocks = trial_paradox_groups[cols.IDS_BID_BLOCKS]
     left_out_bid_blocks = set(all_bid_blocks) - set(trial_bid_blocks)
 
-    det_cab_date_scos = (
-        det_cab_date.query(f"{cols.ID_SCO} in @left_out_scos")
+    det_cab_scos = (
+        det_cab.query(f"{cols.ID_SCO} in @left_out_scos")
         .assign(
             **{
                 cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
@@ -192,8 +192,8 @@ def get_leftout_paradox_groups_summary(
             """
         )
     )
-    det_cab_date_bid_blocks = (
-        det_cab_date.query(f" {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks")
+    det_cab_bid_blocks = (
+        det_cab.query(f" {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks")
         .assign(
             **{
                 cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
@@ -211,11 +211,11 @@ def get_leftout_paradox_groups_summary(
         )
     )
 
-    det_cab_date_paradox_groups = (
+    det_cab_paradox_groups = (
         pd.concat(
             [
-                det_cab_date_scos,
-                det_cab_date_bid_blocks,
+                det_cab_scos,
+                det_cab_bid_blocks,
             ],
             ignore_index=True,
         )
@@ -242,11 +242,9 @@ def get_leftout_paradox_groups_summary(
         )
     )
 
-    assert det_cab_date_paradox_groups[cols.FLOAT_NET_INCOME].notna().all()
-    assert (
-        det_cab_date_paradox_groups[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
-    )
-    return det_cab_date_paradox_groups
+    assert det_cab_paradox_groups[cols.FLOAT_NET_INCOME].notna().all()
+    assert det_cab_paradox_groups[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
+    return det_cab_paradox_groups
 
 
 #### ITERATIVE LOOP
@@ -381,7 +379,7 @@ def get_new_paradox_groups_list_by_removing_underperforming_ones(
 
 def define_new_paradox_groups_list(
     trials_df: pd.DataFrame,
-    det_cab_date: pd.DataFrame,
+    det_cab: pd.DataFrame,
     all_paradox_groups: dict,
     int_paradox_groups_count: int = 1,
 ) -> list[dict]:
@@ -392,7 +390,7 @@ def define_new_paradox_groups_list(
 
     Args:
         trials_df (pd.DataFrame): DataFrame of previous trial results.
-        det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
+        det_cab (pd.DataFrame): Full DET/CAB DataFrame.
         all_paradox_groups (dict): Dictionary of all paradox groups with MIC.
         int_paradox_groups_count (int, optional): Maximum number of MIC paradox group combinations to propose. Defaults to 1.
 
@@ -418,13 +416,13 @@ def define_new_paradox_groups_list(
         if is_expected_income_respected:
             logger.info("--ALGORITHM--: MIC is respected")
             leftout_paradox_groups_summary = get_leftout_paradox_groups_summary(
-                det_cab_date, all_paradox_groups, paradox_groups, clearing_prices
+                det_cab, all_paradox_groups, paradox_groups, clearing_prices
             ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
-            det_cab_date_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
-                det_cab_date, paradox_groups
+            det_cab_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
+                det_cab, paradox_groups
             )
             trial_cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
-                det_cab_date_paradox_groups_filtered,
+                det_cab_paradox_groups_filtered,
                 cleared_energy,
                 clearing_prices,
             )
@@ -439,11 +437,11 @@ def define_new_paradox_groups_list(
             )
 
         else:
-            det_cab_date_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
-                det_cab_date, paradox_groups
+            det_cab_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
+                det_cab, paradox_groups
             )
             trial_cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
-                det_cab_date_paradox_groups_filtered,
+                det_cab_paradox_groups_filtered,
                 cleared_energy,
                 clearing_prices,
             )
@@ -481,7 +479,7 @@ def iterative_function(
 
     Args:
         args (tuple): Tuple containing:
-            - det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
+            - det_cab (pd.DataFrame): Full DET/CAB DataFrame.
             - capacidad_inter_PT_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
             - paradox_groups (list): List of SCO order IDs with MIC for this trial.
             - france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
@@ -491,20 +489,20 @@ def iterative_function(
     """
 
     (
-        det_cab_date,
+        det_cab,
         capacidad_inter_PT_date,
         paradox_groups,
         france_fixed_exchange,
     ) = args
 
     # Keep only SCOs in the current trial
-    det_cab_date_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
-        det_cab_date, paradox_groups
+    det_cab_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
+        det_cab, paradox_groups
     )
 
     # Run market model
     model, _, results = run_model(
-        det_cab_date_paradox_groups_filtered,
+        det_cab_paradox_groups_filtered,
         capacidad_inter_PT_date,
         france_fixed_exchange,
     )
@@ -513,7 +511,7 @@ def iterative_function(
     cleared_energy = get_cleared_energy_series(model)
     clearing_prices = get_clearing_prices_df(model)
     cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
-        det_cab_date_paradox_groups_filtered, cleared_energy, clearing_prices
+        det_cab_paradox_groups_filtered, cleared_energy, clearing_prices
     )
     welfare = pyo.value(model.OBJ)
     bool_is_expected_income_respected = (
@@ -573,10 +571,10 @@ def check_if_success_at_first_trial(
     return success_at_first_trial
 
 
-@pa.check_input(DETCABSchema, "det_cab_date", lazy=True)
+@pa.check_input(DETCABSchema, "det_cab", lazy=True)
 @pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pt_date", lazy=True)
 def run_iterative_loop(
-    det_cab_date: DataFrame,
+    det_cab: DataFrame,
     capacidad_inter_pt_date: DataFrame,
     france_fixed_exchange: pd.Series | None = None,
     trials_count: int = 100,
@@ -591,7 +589,7 @@ def run_iterative_loop(
     For each trial, filters SCOs, runs the market model, collects results, and updates the trial DataFrame. Continues until all combinations are tested or a successful result is found.
 
     Args:
-        det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
+        det_cab (pd.DataFrame): Full DET/CAB DataFrame.
         capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
         france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
         trial_ids_mic_scos (list, optional): Initial SCOs with MIC for the first trial.
@@ -616,7 +614,7 @@ def run_iterative_loop(
         is_trial_ids_mic_scos_provided and is_trial_ids_bid_blocks_provided
     )
 
-    all_paradox_groups = get_all_paradox_groups(det_cab_date)
+    all_paradox_groups = get_all_paradox_groups(det_cab)
 
     if trials_count // n_jobs < 5 and not is_trials_df_provided:
         logger.warning(
@@ -639,7 +637,7 @@ def run_iterative_loop(
     # If trials_df is defined, define a new combination based on previous trials
     elif not trials_df.empty:
         next_trials_paradox_groups = define_new_paradox_groups_list(
-            trials_df, det_cab_date, all_paradox_groups, min(n_jobs, trials_count)
+            trials_df, det_cab, all_paradox_groups, min(n_jobs, trials_count)
         )
         if next_trials_paradox_groups is False:
             logger.info("--ALGORITHM--: All combinations tried, finishing")
@@ -656,7 +654,7 @@ def run_iterative_loop(
 
         args_list = [
             (
-                det_cab_date,
+                det_cab,
                 capacidad_inter_pt_date,
                 trial_paradox_groups,
                 france_fixed_exchange,
@@ -685,7 +683,7 @@ def run_iterative_loop(
         )
         next_trials_paradox_groups = define_new_paradox_groups_list(
             trials_df,
-            det_cab_date,
+            det_cab,
             all_paradox_groups,
             new_trial_int_paradox_groups_count,
         )
@@ -701,13 +699,13 @@ def run_iterative_loop(
 
     best_trial = get_best_trial(trials_df, mic_respected_only=False)
 
-    det_cab_date_scos_filtered = filter_paradox_groups_from_det_cab(
-        det_cab_date, best_trial[cols.PARADOX_GROUPS_COLUMN]
+    det_cab_scos_filtered = filter_paradox_groups_from_det_cab(
+        det_cab, best_trial[cols.PARADOX_GROUPS_COLUMN]
     )
 
     # Run market model
     best_model, best_model_binary, results = run_model(
-        det_cab_date=det_cab_date_scos_filtered,
+        det_cab=det_cab_scos_filtered,
         capacidad_inter_PT_date=capacidad_inter_pt_date,
         france_fixed_exchange=france_fixed_exchange,
     )
@@ -717,7 +715,7 @@ def run_iterative_loop(
 
 def run_mibel_simulator(
     det: pd.DataFrame | str,
-    cab_date: pd.DataFrame | str,
+    cab: pd.DataFrame | str,
     capacidad_inter_date: pd.DataFrame | str,
     price_france_date: pd.DataFrame,
     uof_zones: pd.DataFrame | None = None,
@@ -740,7 +738,7 @@ def run_mibel_simulator(
 
     Args:
         det (pd.DataFrame | str): DET DataFrame for the studied day or path to DET file.
-        cab_date (pd.DataFrame | str): CAB DataFrame for the studied day or path to CAB file.
+        cab (pd.DataFrame | str): CAB DataFrame for the studied day or path to CAB file.
         capacidad_inter_date (pd.DataFrame | str): DataFrame of interconnection capacities for the studied day or path to file.
         price_france_date (pd.DataFrame): DataFrame of France prices for the studied day.
         uof_zones (pd.DataFrame | None): DataFrame mapping units to zones.
@@ -760,13 +758,13 @@ def run_mibel_simulator(
 
     if isinstance(det, str):
         det = parse_det_file(det)
-    if isinstance(cab_date, str):
-        cab_date = parse_cab_file(cab_date)
+    if isinstance(cab, str):
+        cab = parse_cab_file(cab)
     if isinstance(capacidad_inter_date, str):
         capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
 
     DETSchema.validate(det, lazy=True)
-    CABSchema.validate(cab_date, lazy=True)
+    CABSchema.validate(cab, lazy=True)
     CapacidadInterPTSchema.validate(capacidad_inter_date, lazy=True)
 
     if isinstance(uof_zones, pd.DataFrame):
@@ -777,19 +775,19 @@ def run_mibel_simulator(
     capacidad_inter_pt_date = capacidad_inter_date.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
-    det_cab_fr_date = get_france_det_cab_date_from_price(
+    det_cab_fr_date = get_france_det_cab_from_price(
         price_france_date, capacidad_inter_date
     )
-    det_cab_date = get_det_cab_date_for_simulation(
+    det_cab = get_det_cab_for_simulation(
         det=det,
-        cab_date=cab_date,
+        cab=cab,
         uof_zones=uof_zones,
         det_cab_fr_date=det_cab_fr_date,
         zones_default_to_spain=zones_default_to_spain,
     )
 
     trials_df, model, model_binary = run_iterative_loop(
-        det_cab_date=det_cab_date,
+        det_cab=det_cab,
         capacidad_inter_pt_date=capacidad_inter_pt_date,
         trials_count=trials_count,
         trials_df=starting_trials_df,
@@ -801,7 +799,7 @@ def run_mibel_simulator(
 
     best_trial = get_best_trial(trials_df, mic_respected_only=False)
     cleared_energy = best_trial.cleared_energy
-    cleared_det_cab_date = det_cab_date.merge(
+    cleared_det_cab = det_cab.merge(
         cleared_energy,
         left_on=cols.ID_INDIVIDUAL_BID,
         right_index=True,
@@ -811,7 +809,7 @@ def run_mibel_simulator(
     )
 
     try:
-        ClearedDetCabSchema.validate(cleared_det_cab_date, lazy=True)
+        ClearedDetCabSchema.validate(cleared_det_cab, lazy=True)
     except pa.errors.SchemaErrors as e:
         warnings.warn(f"Pandera validation warning in ClearedDetCabSchema: {e}")
     try:
@@ -831,7 +829,7 @@ def run_mibel_simulator(
         "model_binary_fixed": model,
         "model_binary_not_fixed": model_binary,
         "model_trial_info": best_trial,
-        "cleared_det_cab_date": cleared_det_cab_date,
+        "cleared_det_cab": cleared_det_cab,
         "clearing_prices": best_trial.clearing_prices,
         "spain_portugal_transmissions": best_trial.spain_portugal_transmissions,
         "trials_df": trials_df,

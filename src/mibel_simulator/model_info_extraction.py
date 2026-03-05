@@ -290,14 +290,14 @@ def get_spain_portugal_transmissions_det_cab_df(
     return pd.DataFrame(international_flows)
 
 
-def get_det_cab_date_results(
-    model: pyo.ConcreteModel, det_cab_date: pd.DataFrame
+def get_det_cab_results(
+    model: pyo.ConcreteModel, det_cab: pd.DataFrame
 ) -> pd.DataFrame:
     """_summary_
 
     Args:
         model (pyo.ConcreteModel): _description_
-        det_cab_date (pd.DataFrame): _description_
+        det_cab (pd.DataFrame): _description_
 
     Returns:
         pd.DataFrame: _description_
@@ -305,11 +305,11 @@ def get_det_cab_date_results(
 
     cleared_energy = get_cleared_energy_series(model)
     spain_portugal_transmissions_det_cab = get_spain_portugal_transmissions_det_cab_df(
-        model, det_cab_date["dat_sesion"].iloc[0]
+        model, det_cab["dat_sesion"].iloc[0]
     )
 
-    det_cab_date_results = (
-        det_cab_date.merge(
+    det_cab_results = (
+        det_cab.merge(
             cleared_energy,
             left_on=cols.ID_INDIVIDUAL_BID,
             right_index=True,
@@ -323,16 +323,16 @@ def get_det_cab_date_results(
         .copy()
     )
 
-    assert det_cab_date_results._merge.isin(["both", "left_only"]).all()
-    det_cab_date_results = det_cab_date_results.drop(columns="_merge")
+    assert det_cab_results._merge.isin(["both", "left_only"]).all()
+    det_cab_results = det_cab_results.drop(columns="_merge")
 
-    det_cab_date_results = pd.concat(
-        [det_cab_date_results, spain_portugal_transmissions_det_cab],
+    det_cab_results = pd.concat(
+        [det_cab_results, spain_portugal_transmissions_det_cab],
         ignore_index=True,
     )
 
-    det_cab_date_results[cols.FLOAT_CLEARED_POWER_CUMSUM] = get_float_bid_power_cumsum(
-        det_cab_date_results,
+    det_cab_results[cols.FLOAT_CLEARED_POWER_CUMSUM] = get_float_bid_power_cumsum(
+        det_cab_results,
         date_column_name="dat_sesion",
         hour_column_name=cols.INT_PERIODO,
         cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
@@ -342,11 +342,11 @@ def get_det_cab_date_results(
     )
 
     for country in [SPAIN_ZONE, PORTUGAL_ZONE]:
-        det_cab_date_results.loc[
-            (det_cab_date_results[cols.CAT_PAIS] == country),
+        det_cab_results.loc[
+            (det_cab_results[cols.CAT_PAIS] == country),
             cols.FLOAT_CLEARED_POWER_CUMSUM_BY_COUNTRY,
         ] = get_float_bid_power_cumsum(
-            det_cab_date_results.loc[(det_cab_date_results[cols.CAT_PAIS] == country)],
+            det_cab_results.loc[(det_cab_results[cols.CAT_PAIS] == country)],
             date_column_name="dat_sesion",
             hour_column_name=cols.INT_PERIODO,
             cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
@@ -355,4 +355,4 @@ def get_det_cab_date_results(
             qua_precio_column_name=cols.FLOAT_BID_PRICE,
         )
 
-    return det_cab_date_results
+    return det_cab_results

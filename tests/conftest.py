@@ -13,7 +13,7 @@ from mibel_simulator import columns as cols
 from tests.const import STANDARD_TESTING_DATE
 
 # ---------------------------------------------------------------------------
-# Full det_cab_date
+# Full det_cab
 # ---------------------------------------------------------------------------
 
 

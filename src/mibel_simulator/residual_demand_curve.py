@@ -158,7 +158,7 @@ def get_clearing_prices_dict(results: dict, sell_country: str) -> dict:
 def calculate_residual_demand_curves(
     sell_profiles: pd.DataFrame,
     det: pd.DataFrame | str,
-    cab_date: pd.DataFrame | str,
+    cab: pd.DataFrame | str,
     capacidad_inter_date: pd.DataFrame | str,
     price_france_date: pd.DataFrame,
     uof_zones: pd.DataFrame | None = None,
@@ -173,7 +173,7 @@ def calculate_residual_demand_curves(
     Args:
         sell_profiles (pd.DataFrame): DataFrame with index as profile names and columns as 'energy_1' to 'energy_24' representing hourly energy values.
         det (pd.DataFrame | str): DataFrame or path to DET file containing market offer details.
-        cab_date (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
+        cab (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
         capacidad_inter_date (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
         price_france_date (pd.DataFrame): DataFrame with France price information.
         uof_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_pais within ('ES', 'PT').
@@ -195,17 +195,17 @@ def calculate_residual_demand_curves(
     # if det is istring
     if isinstance(det, str):
         det = parse_det_file(det)
-    if isinstance(cab_date, str):
-        cab_date = parse_cab_file(cab_date)
+    if isinstance(cab, str):
+        cab = parse_cab_file(cab)
     if isinstance(capacidad_inter_date, str):
         capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
 
     DETSchema.validate(det)
-    CABSchema.validate(cab_date)
+    CABSchema.validate(cab)
     CapacidadInterPTSchema.validate(capacidad_inter_date)
 
     for idx, profile in sell_profiles.iterrows():
-        # Here you would modify the det and cab_date based on the profile
+        # Here you would modify the det and cab based on the profile
         # For simplicity, we will just pass them as is
 
         rdc_det, rdc_cab, rdc_uof_zone = generate_residual_demand_det_cab_and_uof_zone(
@@ -218,7 +218,7 @@ def calculate_residual_demand_curves(
             )
 
         det_modified = pd.concat([det, rdc_det], ignore_index=True)
-        cab_date_modified = pd.concat([cab_date, rdc_cab], ignore_index=True)
+        cab_modified = pd.concat([cab, rdc_cab], ignore_index=True)
 
         if isinstance(uof_zones, pd.DataFrame):
             uof_zones_modified = pd.concat([uof_zones, rdc_uof_zone], ignore_index=True)
@@ -229,7 +229,7 @@ def calculate_residual_demand_curves(
 
         results = run_mibel_simulator(
             det=det_modified,
-            cab_date=cab_date_modified,
+            cab=cab_modified,
             capacidad_inter_date=capacidad_inter_date,
             uof_zones=uof_zones_modified,
             price_france_date=price_france_date,
