@@ -715,7 +715,7 @@ def run_iterative_loop(
     return trials_df, best_model, best_model_binary
 
 
-def clear_OMIE_market(
+def run_mibel_simulator(
     det_date: pd.DataFrame | str,
     cab_date: pd.DataFrame | str,
     capacidad_inter_date: pd.DataFrame | str,
@@ -730,7 +730,7 @@ def clear_OMIE_market(
     n_jobs: int = 1,
 ) -> dict:
     """
-    Runs the full OMIE market clearing process for a given day, including data
+    Runs the full MIBEL clearing process for a given day, including data
     preprocessing, structure building, and iterative optimization.
 
     This function prepares all necessary data structures from the provided DET,

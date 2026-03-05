@@ -3,7 +3,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
-from mibel_simulator.clearing_process import clear_OMIE_market
+from mibel_simulator.clearing_process import run_mibel_simulator
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
     COD_OFERTA_RESIDUAL_DEMAND_C,
@@ -227,7 +227,7 @@ def calculate_residual_demand_curves(
         else:
             uof_zones_modified = None
 
-        results = clear_OMIE_market(
+        results = run_mibel_simulator(
             det_date=det_date_modified,
             cab_date=cab_date_modified,
             capacidad_inter_date=capacidad_inter_date,
