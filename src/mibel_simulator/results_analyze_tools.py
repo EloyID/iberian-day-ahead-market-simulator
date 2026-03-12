@@ -1,10 +1,9 @@
 import numpy as np
 import pandas as pd
 
+import mibel_simulator.columns as cols
 from mibel_simulator.columns import INT_NUM_BLOCK
 from mibel_simulator.const import FRANCE_ID_UNIDAD
-from mibel_simulator.schemas import det_cab
-import mibel_simulator.columns as cols
 
 
 def summary_det_cab(det_cab: pd.DataFrame):
@@ -477,7 +476,7 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
         for index, row in groups.iterrows():
             int_period = row["qua_hora"]
             matching_det_cab_row = det_cab_C04_unidad.query(
-                f"@INT_NUM_BLOCK == @best_int_num_block_cat and int_period == @int_period"
+                "@INT_NUM_BLOCK == @best_int_num_block_cat and int_period == @int_period"
             ).iloc[0]
             curva_pbc_uof_C_V_C04.at[index, "qua_precio"] = (
                 matching_det_cab_row.float_bid_price.values[0]

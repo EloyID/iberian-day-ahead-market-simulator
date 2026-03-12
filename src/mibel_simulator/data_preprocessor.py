@@ -1,14 +1,13 @@
 import logging
+
 import numpy as np
 import pandas as pd
 
-from mibel_simulator.pandas_typing import DET_CAB_DAM_SIMULATOR_TYPING
-from mibel_simulator.tools import get_cat_order_type_column, get_float_bid_power_cumsum
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
-    CAT_BUY,
     CAT_BIDDING_ZONE_FRANCE,
     CAT_BIDDING_ZONE_SPAIN,
+    CAT_BUY,
     CAT_SELL,
     DET_CAB_UNIQUE_IDENTIFIERS,
     FRANCE_ID_ORDER,
@@ -17,6 +16,8 @@ from mibel_simulator.const import (
     PORTUGAL_ZONE,
     SPAIN_ZONE,
 )
+from mibel_simulator.pandas_typing import DET_CAB_DAM_SIMULATOR_TYPING
+from mibel_simulator.tools import get_cat_order_type_column, get_float_bid_power_cumsum
 
 logger = logging.getLogger(__name__)
 

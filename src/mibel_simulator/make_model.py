@@ -1,22 +1,21 @@
-import numpy as np
 import pandas as pd
-from mibel_simulator.const import FRANCE_ID_UNIDAD, PORTUGAL_ZONE, SPAIN_ZONE
-import mibel_simulator.columns as cols
-from pyomo.environ import Binary
 from pyomo.environ import (
+    Any,
+    Binary,
     ConcreteModel,
-    Set,
-    Param,
-    Var,
+    Constraint,
     NonNegativeReals,
     NonPositiveReals,
-    Constraint,
     Objective,
-    maximize,
+    Param,
+    Set,
     UnitInterval,
-    Any,
+    Var,
+    maximize,
 )
 
+import mibel_simulator.columns as cols
+from mibel_simulator.const import PORTUGAL_ZONE, SPAIN_ZONE, FRANCE_ID_UNIDAD
 from mibel_simulator.data_preprocessor import get_exclusive_block_orders_grouped
 from mibel_simulator.schemas.exclusive_block_order_grouped import (
     ExclusiveBlockOrdersGroupedSchema,
@@ -125,10 +124,10 @@ def make_model(
 
     ##### Parameters #####
 
-    def p_mav_fnc(sco, period): 
+    def p_mav_fnc(sco, period):
         p_mav_query = det_cab_V_sco.query(f"{cols.ID_SCO} == @sco and {cols.INT_PERIOD} == @period and {cols.FLOAT_MAV} > 0")
         return p_mav_query[cols.FLOAT_MAV].iloc[0] if len(p_mav_query) > 0 else 0
-    
+
     p_price_min_SIMPLE_SELLERS_BIDS =           det_cab_V_simple    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
     p_price_min_BLOCK_ORDERS =                  det_cab_V_block    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_BID_PRICE].to_dict()
     p_price_min_SCO_SELLER_BIDS =               det_cab_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
@@ -146,7 +145,7 @@ def make_model(
     p_MAR =                                     det_cab_V_block    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_MAR].to_dict()
     p_MIC =                                     det_cab_V_sco       .drop_duplicates(cols.ID_SCO).set_index(cols.ID_SCO)[cols.FLOAT_MIC].to_dict()
     p_SCO_ORDER_PER_BID =                       det_cab_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.ID_SCO].to_dict()
-    
+
     p_MAV =                                     {(sco, period): p_mav_fnc(sco, period) for sco in sco_orders for period in periods}
 
     model.p_price_min_SIMPLE_SELLERS_BIDS =          Param(model.SIMPLE_SELLER_BIDS,  initialize=p_price_min_SIMPLE_SELLERS_BIDS,                                   doc="Minimum price of each generator - simple bids")
@@ -154,7 +153,7 @@ def make_model(
     model.p_price_min_SCO_SELLER_BIDS =              Param(model.SCO_SELLER_BIDS,     initialize=p_price_min_SCO_SELLER_BIDS,                                       doc="Minimum price of each generator - SCO bids")
     model.p_price_max_BUYERS_BIDS =                  Param(model.BUYER_BIDS,          initialize=p_price_max_BUYERS_BIDS,                                           doc="Maximum price of each consumer")
     model.p_price_max_FRANCE_EXPORT_BIDS =           Param(model.FRANCE_EXPORT_BIDS,  initialize=p_price_max_FRANCE_EXPORT_BIDS,                                    doc="Maximum price of France export bids")
-    model.p_price_min_FRANCE_IMPORT_BIDS =           Param(model.FRANCE_IMPORT_BIDS,  initialize=p_price_min_FRANCE_IMPORT_BIDS,                                    doc="Minimum price of France import bids")  
+    model.p_price_min_FRANCE_IMPORT_BIDS =           Param(model.FRANCE_IMPORT_BIDS,  initialize=p_price_min_FRANCE_IMPORT_BIDS,                                    doc="Minimum price of France import bids")
     model.p_quantity_SIMPLE_SELLER_BIDS =            Param(model.SIMPLE_SELLER_BIDS,  initialize=p_quantity_SIMPLE_SELLER_BIDS,            within=NonNegativeReals, doc="Quantity offered by each generator")
     model.p_quantity_SCO_SELLER_BIDS =               Param(model.SCO_SELLER_BIDS,     initialize=p_quantity_SCO_SELLER_BIDS,               within=NonNegativeReals, doc="Quantity offered by each generator - SCO bids")
     model.p_quantity_BLOCK_ORDER_BIDS =              Param(model.BLOCK_ORDER_BIDS,    initialize=p_quantity_BLOCK_ORDER_BIDS,              within=NonNegativeReals, doc="Quantity offered by each generator - block orders")

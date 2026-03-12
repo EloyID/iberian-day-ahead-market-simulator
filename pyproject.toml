@@ -1,0 +1,102 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mibel-simulator"
+dynamic = ["version"]
+description = "MIBEL Iberian day-ahead electricity market clearing simulator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    {name = "EloyID"},
+]
+keywords = [
+    "electricity market",
+    "MIBEL",
+    "OMIE",
+    "day-ahead market",
+    "market clearing",
+    "energy",
+    "Iberian peninsula",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "pandera",
+    "pyomo",
+]
+
+[project.optional-dependencies]
+solver = [
+    "gurobipy",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "wandb",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pandas-stubs",
+]
+
+[project.urls]
+Homepage = "https://github.com/EloyID/mibel-simulator"
+Repository = "https://github.com/EloyID/mibel-simulator"
+"Bug Tracker" = "https://github.com/EloyID/mibel-simulator/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "mibel_simulator.__version__"}
+
+[tool.setuptools.package-data]
+"mibel_simulator" = ["data/*.csv"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = [
+    "E501",   # line-length handled separately
+    "E731",   # lambda-assignment: Pyomo uses lambdas for constraint initialisers
+    "F841",   # local-variable-is-assigned-to-but-never-used: intentional in scientific code
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F811"]                                                        # fixture redefinitions are expected
+"src/mibel_simulator/schemas/__init__.py" = ["F401"]                        # intentional re-exports
+"src/mibel_simulator/results_analyze_tools.py" = ["F821"]                   # IPython display() injected at runtime
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_return_any = false
+files = ["src"]
+
+
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-v --strict-markers --tb=short --disable-warnings"
+markers = [
+    "unit: Unit tests for individual functions",
+    "integration: Integration tests combining multiple components",
+    "slow: Tests that take a long time to run",
+    "requires_data: Tests that require external data files",
+]

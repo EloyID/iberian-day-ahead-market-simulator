@@ -1,3 +1,36 @@
+Metadata-Version: 2.4
+Name: mibel-simulator
+Version: 0.1.0
+Summary: MIBEL Iberian day-ahead electricity market clearing simulator
+Author: EloyID
+License-Expression: MIT
+Project-URL: Homepage, https://github.com/EloyID/mibel-simulator
+Project-URL: Repository, https://github.com/EloyID/mibel-simulator
+Project-URL: Bug Tracker, https://github.com/EloyID/mibel-simulator/issues
+Keywords: electricity market,MIBEL,OMIE,day-ahead market,market clearing,energy,Iberian peninsula
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: pandera
+Requires-Dist: pyomo
+Provides-Extra: solver
+Requires-Dist: gurobipy; extra == "solver"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: wandb; extra == "dev"
+Dynamic: license-file
+
 # mibel-simulator
 
 A Python simulator for the **MIBEL** (Mercado Ibérico de Electricidad) Iberian day-ahead electricity market clearing process.

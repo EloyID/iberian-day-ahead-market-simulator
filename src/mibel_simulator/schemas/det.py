@@ -1,5 +1,7 @@
 import pandera.pandas as pa
+
 import mibel_simulator.columns as cols
+
 from .columns_dict import columns_dict
 
 exclusive_group_must_be_block_offer = pa.Check(

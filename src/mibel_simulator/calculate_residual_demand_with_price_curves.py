@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+import mibel_simulator.columns as cols
 from mibel_simulator.clear_mibel_with_price_curve import (
     get_cleared_power_as_simple_bids_with_price_curve,
     get_cleared_power_with_price_curve,
@@ -25,7 +26,6 @@ from mibel_simulator.schemas.det import DETSchema
 from mibel_simulator.tools import (
     concat_provided_participants_bidding_zones_with_existing_data,
 )
-import mibel_simulator.columns as cols
 
 
 def format_price_curves(

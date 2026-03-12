@@ -1,7 +1,7 @@
+import logging
 import os
 
 import pandas as pd
-import logging
 
 import mibel_simulator.columns as cols
 
@@ -33,21 +33,21 @@ CURVA_PBC_UOF_TYPING = {
 
 
 CAB_FORMAT = [
-    {"field": "CodOferta",          "start": 0,     "end": 10,  "type": str},  
-    # {"field": "Version",            "start": 10,    "end": 15,  "type": int},  
-    {"field": "CodigoUnidad",       "start": 15,    "end": 22,  "type": str},  
-    # {"field": "Descripcion",        "start": 22,    "end": 52,  "type": str},  
-    {"field": "CV",                 "start": 52,    "end": 53,  "type": str},  
-    # {"field": "OferPlazo",          "start": 53,    "end": 54,  "type": str},  
-    {"field": "Fijoeuro",           "start": 54,    "end": 71,  "type": float},  
-    {"field": "MaxPot",             "start": 71,    "end": 78,  "type": float},  
-    # {"field": "CodInt",             "start": 78,   "end": 80,   "type": int},  
-    # {"field": "AnoInsercion",       "start": 80,   "end": 84,   "type": int},  
-    # {"field": "MesInsercion",       "start": 84,   "end": 86,   "type": int},  
-    # {"field": "DiaInsercion",       "start": 86,   "end": 88,   "type": int},  
-    # {"field": "HoraInsercion",      "start": 88,   "end": 90,   "type": int},  
-    # {"field": "MinutoInsercion",    "start": 90,   "end": 92,   "type": int},  
-    # {"field": "SegundoInsercion",   "start": 92,   "end": 94,   "type": int},  
+    {"field": "CodOferta",          "start": 0,     "end": 10,  "type": str},
+    # {"field": "Version",            "start": 10,    "end": 15,  "type": int},
+    {"field": "CodigoUnidad",       "start": 15,    "end": 22,  "type": str},
+    # {"field": "Descripcion",        "start": 22,    "end": 52,  "type": str},
+    {"field": "CV",                 "start": 52,    "end": 53,  "type": str},
+    # {"field": "OferPlazo",          "start": 53,    "end": 54,  "type": str},
+    {"field": "Fijoeuro",           "start": 54,    "end": 71,  "type": float},
+    {"field": "MaxPot",             "start": 71,    "end": 78,  "type": float},
+    # {"field": "CodInt",             "start": 78,   "end": 80,   "type": int},
+    # {"field": "AnoInsercion",       "start": 80,   "end": 84,   "type": int},
+    # {"field": "MesInsercion",       "start": 84,   "end": 86,   "type": int},
+    # {"field": "DiaInsercion",       "start": 86,   "end": 88,   "type": int},
+    # {"field": "HoraInsercion",      "start": 88,   "end": 90,   "type": int},
+    # {"field": "MinutoInsercion",    "start": 90,   "end": 92,   "type": int},
+    # {"field": "SegundoInsercion",   "start": 92,   "end": 94,   "type": int},
 
 ]
 
@@ -192,7 +192,7 @@ def parse_cab_file(cab_filepath: str) -> pd.DataFrame:
 
     cab_data = []
 
-    with open(cab_filepath, "r", encoding="latin-1") as f:
+    with open(cab_filepath, encoding="latin-1") as f:
         dat_sesion = pd.to_datetime(
             cab_filepath.split("/")[-1].split("_")[-1].split(".")[0], format="%Y%m%d"
         )
@@ -260,7 +260,7 @@ def parse_det_file(det_filepath: str) -> pd.DataFrame:
 
     det_data = []
 
-    with open(det_filepath, "r", encoding="latin-1") as f:
+    with open(det_filepath, encoding="latin-1") as f:
         dat_sesion = pd.to_datetime(
             det_filepath.split("/")[-1].split("_")[1].split(".")[0], format="%Y%m%d"
         )
@@ -437,7 +437,7 @@ def price_france_from_entsoe_file_to_parquet(
         price_france[cols.DATETIME_SESION]
         .str.split(" - ")
         .str[0]
-        .str.split(" \(")
+        .str.split(r" \(")
         .str[0]
     )
     price_france = price_france.drop_duplicates(subset=[cols.DATETIME_SESION])

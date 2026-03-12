@@ -1,6 +1,5 @@
 import mibel_simulator.columns as cols
 
-
 SPAIN_ZONE = "ES"
 PORTUGAL_ZONE = "PT"
 

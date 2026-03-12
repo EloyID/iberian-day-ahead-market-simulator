@@ -1,6 +1,6 @@
 from numpy import dtype
-import mibel_simulator.columns as cols
 
+import mibel_simulator.columns as cols
 
 DET_TYPING = {
     "dat_sesion": dtype("<M8[ns]"),

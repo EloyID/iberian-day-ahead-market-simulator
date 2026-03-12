@@ -8,8 +8,8 @@ used across the mibel-simulator test suite.
 import numpy as np
 import pandas as pd
 import pytest
-from mibel_simulator import columns as cols
 
+from mibel_simulator import columns as cols
 from tests.const import STANDARD_TESTING_DATE
 
 # ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ def full_simplified_det_dataframe():
             cols.FLOAT_MAR:        [0.1, 0.1, 0.1, 0.2, 0.2, 0.2],
         }
     )
-    
+
     buy_order = pd.DataFrame(
         {
             cols.DATE_SESION:      [STANDARD_TESTING_DATE] * 3,

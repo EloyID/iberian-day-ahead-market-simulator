@@ -6,7 +6,7 @@ Tests the utility functions for bid processing and analysis.
 
 import numpy as np
 import pandas as pd
-import pytest
+
 from mibel_simulator import columns as cols
 from mibel_simulator import tools
 from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH

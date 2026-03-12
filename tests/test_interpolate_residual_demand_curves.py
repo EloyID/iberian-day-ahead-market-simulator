@@ -2,10 +2,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from mibel_simulator.const import RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS
 from mibel_simulator.residual_demand_curve import (
     interpolate_residual_demand_curves,
 )
-from mibel_simulator.const import RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS
 
 
 def _build_linear_residual_demand_curves():
