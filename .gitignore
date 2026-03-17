@@ -8,9 +8,13 @@ __pycache__/
 old/
 examples/wandb
 examples/results
+examples/results_old
+examples/
+src/mibel_simulator.egg-info
 *.txt
-*.ipynb
-
+# Ignore notebook checkpoint artifacts, not requirements.txt
+*.nbconvert.txt
+*.log
 # Ignore everything in data/
 data/**
 !data/
