@@ -7,10 +7,11 @@ Tests the market clearing logic for different order types with price curves.
 import numpy as np
 import pandas as pd
 import pytest
+
 from mibel_simulator import columns as cols
 from mibel_simulator.clear_mibel_with_price_curve import (
-    calculate_cleared_energy_from_SCOs,
     calculate_cleared_energy_from_exclusive_block_order_groups,
+    calculate_cleared_energy_from_SCOs,
     get_cleared_energy_from_non_exclusive_block_order,
     get_cleared_energy_from_SCO,
     get_cleared_power_as_simple_bids_with_price_curve,
@@ -238,7 +239,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
                 cols.FLOAT_BID_POWER: [100.0, 150.0, 110.0, 160.0, 120.0, 170.0, 140.0, 130.0, 150.0, 180.0],
                 cols.ID_ORDER: ["BUY1", "SELL1", "BUY2", "SELL_C01", "BUY3", "SELL3", "SELL_C02", "BUY4", "SELL_C04", "SELL6"],
             }
-        ) 
+        )
         # fmt: on
 
     def test_simple_and_complex_sell_orders_clear_together(

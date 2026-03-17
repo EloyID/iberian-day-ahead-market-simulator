@@ -1,10 +1,12 @@
 import logging
 from typing import Literal
+
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
-from mibel_simulator.clearing_process import run_mibel_simulator
+
 import mibel_simulator.columns as cols
+from mibel_simulator.clearing_process import run_mibel_simulator
 from mibel_simulator.const import (
     COD_OFERTA_RESIDUAL_DEMAND_C,
     COD_OFERTA_RESIDUAL_DEMAND_V,
@@ -12,7 +14,10 @@ from mibel_simulator.const import (
     CODIGO_UNIDAD_RESIDUAL_DEMAND_V,
     RDC_CAB_C_BASE,
     RDC_CAB_V_BASE,
+    RDC_ENERGY_COLUMNS,
+    RDC_PRICE_COLUMNS,
 )
+
 from mibel_simulator.parse_omie_files import (
     parse_cab_file,
     parse_capacidad_inter_file,
@@ -252,9 +257,6 @@ def calculate_residual_demand_curves(
         }
 
     return residual_demand_curves
-
-
-from mibel_simulator.const import RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS
 
 
 def interpolate_residual_demand_curves(

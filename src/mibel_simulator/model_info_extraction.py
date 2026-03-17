@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
-from mibel_simulator.tools import get_float_bid_power_cumsum
 import pyomo.environ as pyo
-from .const import PORTUGAL_ZONE, SPAIN_ZONE
+
 import mibel_simulator.columns as cols
+from mibel_simulator.tools import get_float_bid_power_cumsum
+
+from .const import PORTUGAL_ZONE, SPAIN_ZONE
 
 
 def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:

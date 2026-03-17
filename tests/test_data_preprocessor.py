@@ -1,13 +1,13 @@
 import pandas as pd
 import pytest
+
 from mibel_simulator import columns as cols
-from mibel_simulator.const import CAT_SELL
 from mibel_simulator.data_preprocessor import (
+    get_det_cab_for_simulation,
     get_det_cab_id_block_order,
     get_det_cab_id_individual_bid,
     get_det_cab_id_sco,
     get_france_det_cab_from_price,
-    get_det_cab_for_simulation,
 )
 from mibel_simulator.tools import get_cat_order_type_column
 

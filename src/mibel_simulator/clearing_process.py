@@ -1,18 +1,17 @@
 ########################### Iterative Loop #########################
 
 
-from itertools import combinations
 import logging
 import multiprocessing
-import numpy as np
-import pandas as pd
-from mibel_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
-    get_new_paradoxal_orders_list_adding_and_removing,
-)
-import mibel_simulator.columns as cols
-import pandera.pandas as pa
 import warnings
 
+import numpy as np
+import pandas as pd
+import pandera.pandas as pa
+import pyomo.environ as pyo
+from pandera.typing import DataFrame
+
+import mibel_simulator.columns as cols
 from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, ITERATIONS_DF_COLUMNS
 from mibel_simulator.data_preprocessor import (
     get_all_paradoxal_orders,
@@ -20,19 +19,18 @@ from mibel_simulator.data_preprocessor import (
     get_france_det_cab_from_price,
 )
 from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
+from mibel_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
+    get_new_paradoxal_orders_list_adding_and_removing,
+)
+from mibel_simulator.model_info_extraction import (
+    get_cleared_energy_series,
+    get_clearing_prices_df,
+    get_spain_portugal_transmissions,
+)
 from mibel_simulator.paradoxal_orders_tools import (
     check_are_paradoxal_orders_tested,
     transform_ids_paradoxal_orders_list_to_dict,
     transform_paradoxal_orders_dict_to_ids_list,
-)
-from mibel_simulator.schemas import (
-    CABSchema,
-    CapacidadInterPTSchema,
-    ClearingPricesSchema,
-    DETCABSchema,
-    DETSchema,
-    ExclusiveBlockOrdersGroupedSchema,
-    IterationsSchema,
 )
 from mibel_simulator.parse_omie_files import (
     parse_cab_file,
@@ -40,10 +38,13 @@ from mibel_simulator.parse_omie_files import (
     parse_det_file,
 )
 from mibel_simulator.run_model import run_model
-from mibel_simulator.model_info_extraction import (
-    get_cleared_energy_series,
-    get_clearing_prices_df,
-    get_spain_portugal_transmissions,
+from mibel_simulator.schemas import (
+    CABSchema,
+    CapacidadInterPTSchema,
+    ClearingPricesSchema,
+    DETCABSchema,
+    DETSchema,
+    IterationsSchema,
 )
 from mibel_simulator.schemas.cleared_det_cab import ClearedDetCabSchema
 from mibel_simulator.schemas.spain_portugal_transmissions import (
@@ -53,8 +54,6 @@ from mibel_simulator.tools import (
     concat_provided_participants_bidding_zones_with_existing_data,
     filter_paradoxal_orders_from_det_cab,
 )
-import pyomo.environ as pyo
-from pandera.typing import DataFrame, Series
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +129,7 @@ def get_cleared_paradoxal_orders_summary(
         .eval(
             f"""
             {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
-            {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_CLEARED_POWER}            
+            {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_CLEARED_POWER}
             """
         )
     )
@@ -482,6 +481,8 @@ def iterative_function(
         pd.DataFrame,
         list,
         pd.Series | None,
+        str,
+        dict | None,
     ],
 ) -> pd.DataFrame:
     """
@@ -506,6 +507,8 @@ def iterative_function(
         capacidad_inter_PBC_pt,
         paradoxal_orders,
         france_fixed_exchange,
+        solver_factory_type,
+        solver_options,
     ) = args
 
     # Keep only SCOs in the current iteration
@@ -518,6 +521,8 @@ def iterative_function(
         det_cab_paradoxal_orders_filtered,
         capacidad_inter_PBC_pt,
         france_fixed_exchange,
+        solver_factory_type=solver_factory_type,
+        solver_options=solver_options,
     )
 
     # Extract information from the model
@@ -595,6 +600,8 @@ def run_iterative_loop(
     iteration_ids_bid_blocks: list | None = None,
     iterations_df: pd.DataFrame | None = None,
     n_jobs: int = 1,
+    solver_factory_type: str = "gurobi",
+    solver_options: dict | None = None,
 ) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
     """
     Runs the iterative clearing process, optimizing combinations of SCOs with MIC.
@@ -608,6 +615,8 @@ def run_iterative_loop(
         iteration_ids_mic_scos (list, optional): Initial SCOs with MIC for the first iteration.
         iteration_ids_bid_blocks (list, optional): Initial bid blocks for the first iteration.
         iterations_df (pd.DataFrame, optional): Existing iterations DataFrame to continue from.
+        solver_factory_type (str, optional): Pyomo solver name to use in SolverFactory (e.g. "gurobi", "cbc", "glpk"). Defaults to "gurobi".
+        solver_options (dict | None, optional): Solver options dictionary passed to Pyomo solver plugin. Incompatible options for known solvers are ignored with a warning.
 
     Returns:
         tuple: (iterations_df, best_model, best_model_binary)
@@ -671,6 +680,8 @@ def run_iterative_loop(
                 capacidad_inter_pbc_pt,
                 iteration_paradoxal_orders,
                 france_fixed_exchange,
+                solver_factory_type,
+                solver_options,
             )
             for iteration_paradoxal_orders in next_iterations_paradoxal_orders
         ]
@@ -721,6 +732,8 @@ def run_iterative_loop(
         det_cab=det_cab_scos_filtered,
         capacidad_inter_PBC_pt=capacidad_inter_pbc_pt,
         france_fixed_exchange=france_fixed_exchange,
+        solver_factory_type=solver_factory_type,
+        solver_options=solver_options,
     )
 
     return iterations_df, best_model, best_model_binary
@@ -739,6 +752,8 @@ def run_mibel_simulator(
     iteration_ids_mic_scos: list | None = None,
     iteration_ids_bid_blocks: list | None = None,
     n_jobs: int = 1,
+    solver_factory_type: str = "gurobi",
+    solver_options: dict | None = None,
 ) -> dict:
     """
     Runs the full MIBEL clearing process for a given day, including data
@@ -762,6 +777,8 @@ def run_mibel_simulator(
         iteration_ids_mic_scos (list | None, optional): List of MIC SCOs for iteration. Defaults to None.
         iteration_ids_bid_blocks (list | None, optional): List of bid blocks for iteration. Defaults to None.
         n_jobs (int, optional): Number of parallel jobs to run. Defaults to 1.
+        solver_factory_type (str, optional): Pyomo solver name to use in SolverFactory (e.g. "gurobi", "cbc", "glpk"). Defaults to "gurobi".
+        solver_options (dict | None, optional): Solver options dictionary passed to Pyomo solver plugin. Incompatible options for known solvers are ignored with a warning.
     Returns:
         tuple: (iterations_df, best_model, best_model_binary)
             iterations_df (pd.DataFrame): DataFrame of all iteration results.
@@ -812,6 +829,8 @@ def run_mibel_simulator(
         iteration_ids_bid_blocks=iteration_ids_bid_blocks,
         france_fixed_exchange=france_fixed_exchange,
         n_jobs=n_jobs,
+        solver_factory_type=solver_factory_type,
+        solver_options=solver_options,
     )
 
     best_iteration = get_best_iteration(iterations_df, mic_respected_only=False)
