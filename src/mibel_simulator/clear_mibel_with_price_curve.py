@@ -27,7 +27,7 @@ def get_cleared_energy_from_exclusive_block_order_group(df):
             lambda group: pd.DataFrame(
                 get_cleared_energy_from_non_exclusive_block_order(group)
             ),  # making a df and then taking the series bc of https://stackoverflow.com/a/69232413
-            include_groups=True,
+            include_groups=False,
         )
         .reset_index(level=[cols.INT_NUM_BLOCK], drop=True)
     )[cols.FLOAT_CLEARED_POWER]
@@ -48,8 +48,10 @@ def get_cleared_energy_from_exclusive_block_order_group(df):
 def calculate_cleared_energy_from_exclusive_block_order_groups(df):
     df = df.copy()
     df[cols.FLOAT_CLEARED_POWER] = (
-        df.groupby([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], observed=True)
-        .apply(get_cleared_energy_from_exclusive_block_order_group, include_groups=True)
+        df.groupby([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], observed=True)[df.columns]
+        .apply(
+            get_cleared_energy_from_exclusive_block_order_group, include_groups=False
+        )
         .reset_index(level=[cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], drop=True)
     )
     return df[cols.FLOAT_CLEARED_POWER]
@@ -69,8 +71,8 @@ def calculate_cleared_energy_from_non_exclusive_block_orders(df):
 def calculate_cleared_energy_from_SCOs(df):
     df = df.copy()
     cleared_energy = (
-        df.groupby([cols.ID_ORDER], observed=True)
-        .apply(get_cleared_energy_from_SCO, include_groups=True)
+        df.groupby([cols.ID_ORDER], observed=True)[df.columns]
+        .apply(get_cleared_energy_from_SCO, include_groups=False)
         .reset_index(level=[cols.ID_ORDER], drop=True)
     )
     if len(cleared_energy) != len(df):

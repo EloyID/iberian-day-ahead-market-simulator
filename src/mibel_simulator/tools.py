@@ -251,7 +251,7 @@ def get_cat_order_type_column(
         ),
     )
     assert (det_cab[cols.CAT_ORDER_TYPE] != "Error").all()
-    return det_cab[cols.CAT_ORDER_TYPE]
+    return det_cab[cols.CAT_ORDER_TYPE].astype("category")
 
 
 def filter_paradoxal_orders_from_det_cab(

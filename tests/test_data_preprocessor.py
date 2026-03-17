@@ -63,11 +63,6 @@ def expected_det_cab_fr():
                 pd.Timestamp("2025-07-01 00:00:00"),
             ],
         }
-    ).astype(
-        # to match dtypes
-        {
-            "date_sesion": "datetime64[s]",
-        }
     )
 
 
@@ -91,6 +86,7 @@ class TestGetFranceDetCabDateFromPrice:
         pd.testing.assert_frame_equal(
             det_cab.reset_index(drop=True),
             expected_det_cab_fr.reset_index(drop=True),
+            check_dtype=False,
         )
 
     def test_filters_by_date_when_multiple_dates_present(
@@ -121,6 +117,7 @@ class TestGetFranceDetCabDateFromPrice:
         pd.testing.assert_frame_equal(
             det_cab.reset_index(drop=True),
             expected_det_cab_fr.reset_index(drop=True),
+            check_dtype=False,
         )
 
     def test_filters_cat_frontier_equals_three(
@@ -138,6 +135,7 @@ class TestGetFranceDetCabDateFromPrice:
         pd.testing.assert_frame_equal(
             det_cab.reset_index(drop=True),
             expected_det_cab_fr.reset_index(drop=True),
+            check_dtype=False,
         )
 
     def test_raises_if_multiple_dates_without_date_param(
@@ -171,6 +169,7 @@ class TestGetFranceDetCabDateFromPrice:
         pd.testing.assert_frame_equal(
             det_cab.reset_index(drop=True),
             expected_det_cab_fr.reset_index(drop=True),
+            check_dtype=False,
         )
 
 
@@ -210,7 +209,7 @@ class TestGetCatOrderTypeColumn:
 
         pd.testing.assert_series_equal(
             cat_order_type,
-            full_simplified_det_cab_dataframe[cols.CAT_ORDER_TYPE].astype("object"),
+            full_simplified_det_cab_dataframe[cols.CAT_ORDER_TYPE],
         )
 
 

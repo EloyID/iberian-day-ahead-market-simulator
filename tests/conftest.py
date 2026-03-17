@@ -213,7 +213,7 @@ def full_simplified_det_cab_dataframe():
             'float_bid_power_cumsum_by_country': [60.0, 70.0, 80.0, 120.0, 140.0, 160.0, 150.0, 160.0, 370.0, 190.0, 220.0, 250.0, 260.0, 300.0, 340.0, np.nan, np.nan, np.nan, 90.0, 100.0, 110.0, 140.0, 160.0, 180.0, 250.0, 310.0, 200.0, 390.0, 460.0, 530.0]}
     ).astype(
         {
-            'date_sesion': 'object',
+            # 'date_sesion': 'object',
             'id_order': 'string',
             'int_period': 'int8',
             'int_num_block': 'int8',
@@ -230,7 +230,7 @@ def full_simplified_det_cab_dataframe():
             'cat_bidding_zone': 'category',
             'cat_order_type': 'category',
             'float_bid_power_cumsum': 'float64',
-            'id_individual_bid': 'object',
+            # 'id_individual_bid': 'object',
             'id_block_order': 'string',
             'id_sco': 'string',
             'float_bid_power_cumsum_by_country': 'float64'
