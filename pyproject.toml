@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mibel-simulator"
+dynamic = ["version"]
+description = "MIBEL Iberian day-ahead electricity market clearing simulator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    {name = "EloyID"},
+]
+keywords = [
+    "electricity markets",
+    "MIBEL",
+    "OMIE",
+    "Euphemia",
+    "day-ahead market",
+    "market clearing",
+    "energy",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "pandera",
+    "pyomo",
+]
+
+[project.optional-dependencies]
+solver = [
+    "gurobipy",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "wandb",
+    "pandas-stubs",
+]
+
+[project.urls]
+Homepage = "https://github.com/EloyID/mibel-simulator"
+Repository = "https://github.com/EloyID/mibel-simulator"
+"Bug Tracker" = "https://github.com/EloyID/mibel-simulator/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "mibel_simulator.__version__"}
+
+[tool.setuptools.package-data]
+"mibel_simulator" = ["data/*.csv"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-v --strict-markers --tb=short --disable-warnings"
+markers = [
+    "unit: Unit tests for individual functions",
+    "integration: Integration tests combining multiple components",
+    "slow: Tests that take a long time to run",
+    "requires_data: Tests that require external data files",
+]
