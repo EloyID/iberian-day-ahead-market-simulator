@@ -4,12 +4,10 @@ Tests for mibel_simulator.residual_demand_curve module.
 Tests the residual demand curve generation and profile creation functions.
 """
 
-import numpy as np
 import pandas as pd
-import pytest
+
 from mibel_simulator import columns as cols
 from mibel_simulator import residual_demand_curve as rdc
-from datetime import datetime
 
 
 class TestCreateHomotheticSellProfiles:

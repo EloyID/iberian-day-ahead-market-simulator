@@ -1,9 +1,10 @@
-import pytest
 import pandas as pd
+import pytest
+
 from mibel_simulator import columns as cols
 from mibel_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
-    get_paradoxal_orders_combinations,
     get_new_paradoxal_orders_list_adding_and_removing,
+    get_paradoxal_orders_combinations,
 )
 from mibel_simulator.paradoxal_orders_tools import (
     transform_ids_paradoxal_orders_list_to_dict,

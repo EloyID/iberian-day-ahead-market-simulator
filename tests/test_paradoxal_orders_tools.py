@@ -1,12 +1,11 @@
-import pytest
 import pandas as pd
+
 from mibel_simulator import columns as cols
 from mibel_simulator.paradoxal_orders_tools import (
     check_are_paradoxal_orders_tested,
     transform_ids_paradoxal_orders_list_to_dict,
     transform_paradoxal_orders_dict_to_ids_list,
 )
-
 
 # Realistic test data
 MIC_SCO_IDS = [
