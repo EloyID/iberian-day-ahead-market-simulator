@@ -12,8 +12,8 @@ from mibel_simulator.const import (
     RDC_PRICE_COLUMNS,
     SPAIN_ZONE,
 )
-from mibel_simulator.data_preprocessor import get_det_cab_date_for_simulation
-from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
+from mibel_simulator.data_preprocessor import get_det_cab_for_simulation
+from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
 from mibel_simulator.parse_omie_files import (
     parse_cab_file,
     parse_capacidad_inter_file,
@@ -22,7 +22,9 @@ from mibel_simulator.parse_omie_files import (
 from mibel_simulator.schemas.cab import CABSchema
 from mibel_simulator.schemas.capacidad_inter_pt import CapacidadInterPTSchema
 from mibel_simulator.schemas.det import DETSchema
-from mibel_simulator.tools import concat_provided_uof_zones_with_existing_data
+from mibel_simulator.tools import (
+    concat_provided_participants_bidding_zones_with_existing_data,
+)
 import mibel_simulator.columns as cols
 
 
@@ -50,19 +52,19 @@ def format_price_curves(
 
 
 def calculate_complex_residual_demand_II_with_market_split(
-    det_cab_date, capacidad_inter_PT_date
+    det_cab, capacidad_inter_PBC_pt
 ):
 
-    capacidad_imp_PT = -capacidad_inter_PT_date.set_index(cols.INT_PERIODO)[
+    capacidad_imp_PT = -capacidad_inter_PBC_pt.set_index(cols.INT_PERIOD)[
         cols.FLOAT_IMPORT_CAPACITY
     ].abs()
-    capacidad_exp_PT = capacidad_inter_PT_date.set_index(cols.INT_PERIODO)[
+    capacidad_exp_PT = capacidad_inter_PBC_pt.set_index(cols.INT_PERIOD)[
         cols.FLOAT_EXPORT_CAPACITY
     ].abs()
 
     energy_hourly_cleared_per_country_CV = (
-        det_cab_date.groupby(
-            [cols.CAT_PAIS, cols.CAT_BUY_SELL, cols.INT_PERIODO], observed=False
+        det_cab.groupby(
+            [cols.CAT_BIDDING_ZONE, cols.CAT_BUY_SELL, cols.INT_PERIOD], observed=False
         )[cols.FLOAT_CLEARED_POWER]
         .sum()
         .sort_index()
@@ -107,49 +109,43 @@ def calculate_complex_residual_demand_II_with_market_split(
     return residual_demand_with_saturation_hourly
 
 
-def sum_cleared_power_by_period(
-    det_cab_date, cleared_power_column=cols.FLOAT_CLEARED_POWER
-):
-    return (
-        det_cab_date.groupby(cols.INT_PERIODO)[cleared_power_column].sum().sort_index()
-    )
+def sum_cleared_power_by_period(det_cab, cleared_power_column=cols.FLOAT_CLEARED_POWER):
+    return det_cab.groupby(cols.INT_PERIOD)[cleared_power_column].sum().sort_index()
 
 
-def calculate_complex_residual_demand_I_without_market_split(det_cab_date):
+def calculate_complex_residual_demand_I_without_market_split(det_cab):
     energy_hourly_cleared_C = sum_cleared_power_by_period(
-        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C"'),
+        det_cab.query(f'{cols.CAT_BUY_SELL} == "C"'),
     )
     energy_hourly_cleared_V = sum_cleared_power_by_period(
-        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V"'),
+        det_cab.query(f'{cols.CAT_BUY_SELL} == "V"'),
     )
 
     return energy_hourly_cleared_C.sub(energy_hourly_cleared_V, fill_value=0)
 
 
-def calculate_only_simple_submitted_relaxed_residual_demand(det_cab_date):
+def calculate_only_simple_submitted_relaxed_residual_demand(det_cab):
 
     energy_hourly_cleared_C = sum_cleared_power_by_period(
-        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C"'),
+        det_cab.query(f'{cols.CAT_BUY_SELL} == "C"'),
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
     energy_hourly_cleared_V_S = sum_cleared_power_by_period(
-        det_cab_date.query(
-            f'{cols.CAT_BUY_SELL} == "V" & {cols.CAT_ORDER_TYPE} == "S"'
-        ),
+        det_cab.query(f'{cols.CAT_BUY_SELL} == "V" & {cols.CAT_ORDER_TYPE} == "S"'),
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
 
     return energy_hourly_cleared_C.sub(energy_hourly_cleared_V_S, fill_value=0)
 
 
-def calculate_submitted_relaxed_residual_demand(det_cab_date):
+def calculate_submitted_relaxed_residual_demand(det_cab):
 
     energy_hourly_cleared_C = sum_cleared_power_by_period(
-        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C"'),
+        det_cab.query(f'{cols.CAT_BUY_SELL} == "C"'),
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
     energy_hourly_cleared_V = sum_cleared_power_by_period(
-        det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V"'),
+        det_cab.query(f'{cols.CAT_BUY_SELL} == "V"'),
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
 
@@ -158,40 +154,44 @@ def calculate_submitted_relaxed_residual_demand(det_cab_date):
 
 def calculate_residual_demand_with_price_curves(
     price_curves: np.ndarray,
-    det_date: pd.DataFrame | str,
-    cab_date: pd.DataFrame | str,
-    capacidad_inter_date: pd.DataFrame | str,
-    uof_zones: pd.DataFrame | None = None,
-    zones_default_to_spain: bool = False,
+    det: pd.DataFrame | str,
+    cab: pd.DataFrame | str,
+    capacidad_inter_pbc: pd.DataFrame | str,
+    participants_bidding_zones: pd.DataFrame | None = None,
+    spain_as_default_bidding_zone: bool = False,
 ) -> dict:
 
     price_curves = format_price_curves(price_curves)
 
-    if isinstance(det_date, str):
-        det_date = parse_det_file(det_date)
-    if isinstance(cab_date, str):
-        cab_date = parse_cab_file(cab_date)
-    if isinstance(capacidad_inter_date, str):
-        capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
+    if isinstance(det, str):
+        det = parse_det_file(det)
+    if isinstance(cab, str):
+        cab = parse_cab_file(cab)
+    if isinstance(capacidad_inter_pbc, str):
+        capacidad_inter_pbc = parse_capacidad_inter_file(capacidad_inter_pbc)
 
-    DETSchema.validate(det_date)
-    CABSchema.validate(cab_date)
-    CapacidadInterPTSchema.validate(capacidad_inter_date)
+    DETSchema.validate(det)
+    CABSchema.validate(cab)
+    CapacidadInterPTSchema.validate(capacidad_inter_pbc)
 
-    if isinstance(uof_zones, pd.DataFrame):
-        uof_zones = concat_provided_uof_zones_with_existing_data(uof_zones)
+    if isinstance(participants_bidding_zones, pd.DataFrame):
+        participants_bidding_zones = (
+            concat_provided_participants_bidding_zones_with_existing_data(
+                participants_bidding_zones
+            )
+        )
     else:
-        uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
+        participants_bidding_zones = pd.read_csv(PARTICIPANTS_BIDDING_ZONES_FILEPATH)
 
-    capacidad_inter_PT_date = capacidad_inter_date.query(
+    capacidad_inter_PBC_pt = capacidad_inter_pbc.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
 
-    det_cab_date = get_det_cab_date_for_simulation(
-        det_date=det_date,
-        cab_date=cab_date,
-        uof_zones=uof_zones,
-        zones_default_to_spain=zones_default_to_spain,
+    det_cab = get_det_cab_for_simulation(
+        det=det,
+        cab=cab,
+        participants_bidding_zones=participants_bidding_zones,
+        spain_as_default_bidding_zone=spain_as_default_bidding_zone,
     )
 
     only_simple_submitted_relaxed_residual_demands = []
@@ -201,22 +201,20 @@ def calculate_residual_demand_with_price_curves(
 
     for price_curve in price_curves:
 
-        det_cab_date_aux = det_cab_date.copy()
+        det_cab_aux = det_cab.copy()
         price_series = pd.Series(price_curve, index=RDC_PRICE_COLUMNS)
 
         # Calculate cleared power values
-        det_cab_date_aux["float_cleared_power_as_simple_bid"] = (
-            get_cleared_power_as_simple_bids_with_price_curve(
-                price_curve, det_cab_date_aux
-            )
+        det_cab_aux["float_cleared_power_as_simple_bid"] = (
+            get_cleared_power_as_simple_bids_with_price_curve(price_curve, det_cab_aux)
         )
-        det_cab_date_aux[cols.FLOAT_CLEARED_POWER] = get_cleared_power_with_price_curve(
-            price_curve, det_cab_date_aux
+        det_cab_aux[cols.FLOAT_CLEARED_POWER] = get_cleared_power_with_price_curve(
+            price_curve, det_cab_aux
         )
 
         # Calculate residual demand
         only_simple_submitted_relaxed_residual_demand = (
-            calculate_only_simple_submitted_relaxed_residual_demand(det_cab_date_aux)
+            calculate_only_simple_submitted_relaxed_residual_demand(det_cab_aux)
         )
         only_simple_submitted_relaxed_residual_demand.index = RDC_ENERGY_COLUMNS
         only_simple_submitted_relaxed_residual_demand = pd.concat(
@@ -224,7 +222,7 @@ def calculate_residual_demand_with_price_curves(
         )
 
         submitted_relaxed_residual_demand = calculate_submitted_relaxed_residual_demand(
-            det_cab_date_aux
+            det_cab_aux
         )
         submitted_relaxed_residual_demand.index = RDC_ENERGY_COLUMNS
         submitted_relaxed_residual_demand = pd.concat(
@@ -232,7 +230,7 @@ def calculate_residual_demand_with_price_curves(
         )
 
         complex_residual_demand_I_without_market_split = (
-            calculate_complex_residual_demand_I_without_market_split(det_cab_date_aux)
+            calculate_complex_residual_demand_I_without_market_split(det_cab_aux)
         )
         complex_residual_demand_I_without_market_split.index = RDC_ENERGY_COLUMNS
         complex_residual_demand_I_without_market_split = pd.concat(
@@ -241,7 +239,7 @@ def calculate_residual_demand_with_price_curves(
 
         complex_residual_demand_II_with_market_split = (
             calculate_complex_residual_demand_II_with_market_split(
-                det_cab_date_aux, capacidad_inter_PT_date
+                det_cab_aux, capacidad_inter_PBC_pt
             )
         )
         complex_residual_demand_II_with_market_split.index = RDC_ENERGY_COLUMNS

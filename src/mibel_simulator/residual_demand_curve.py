@@ -3,7 +3,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
-from mibel_simulator.clearing_process import clear_OMIE_market
+from mibel_simulator.clearing_process import run_mibel_simulator
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
     COD_OFERTA_RESIDUAL_DEMAND_C,
@@ -27,7 +27,7 @@ from mibel_simulator.schemas.sell_profiles import SellProfilesSchema
 logger = logging.getLogger(__name__)
 
 
-def generate_residual_demand_det_cab_and_uof_zone(
+def generate_residual_demand_det_cab_and_participants_bidding_zone(
     rdc: pd.Series, date_sesion: pd.Timestamp, sell_country: str
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Generate residual demand DET, CAB, and UOF zone dataframes.
@@ -66,10 +66,10 @@ def generate_residual_demand_det_cab_and_uof_zone(
         {
             cols.DATE_SESION: date_sesion,
             cols.ID_ORDER: id_order,
-            cols.INT_PERIODO: periods,
-            cols.INT_NUM_BLOQ: 0,
-            cols.INT_NUM_TRAMO: 1,
-            cols.INT_NUM_GRUPO_EXCL: 0,
+            cols.INT_PERIOD: periods,
+            cols.INT_NUM_BLOCK: 0,
+            cols.INT_NUM_SUBORDER: 1,
+            cols.INT_NUM_EXCL_GROUP: 0,
             cols.FLOAT_BID_PRICE: bid_price,
             cols.FLOAT_BID_POWER: bid_power,
             cols.FLOAT_MAV: 0.0,
@@ -88,14 +88,14 @@ def generate_residual_demand_det_cab_and_uof_zone(
         f"{cols.ID_ORDER} in {rdc_det[cols.ID_ORDER].unique().tolist()}"
     )
 
-    uof_zone = pd.DataFrame(
+    participants_bidding_zone = pd.DataFrame(
         {
             cols.ID_UNIDAD: uof_ids,
-            cols.CAT_PAIS: sell_country,
+            cols.CAT_BIDDING_ZONE: sell_country,
         }
     )
 
-    return rdc_det, rdc_cab, uof_zone
+    return rdc_det, rdc_cab, participants_bidding_zone
 
 
 @pa.check_output(SellProfilesSchema, lazy=True)
@@ -139,10 +139,12 @@ def get_clearing_prices_dict(results: dict, sell_country: str) -> dict:
     """
 
     clearing_prices_country = (
-        results["clearing_prices"].query(f"{cols.CAT_PAIS} == '{sell_country}'").copy()
+        results["clearing_prices"]
+        .query(f"{cols.CAT_BIDDING_ZONE} == '{sell_country}'")
+        .copy()
     )
     clearing_prices_country["price_keys"] = "price_" + clearing_prices_country[
-        cols.INT_PERIODO
+        cols.INT_PERIOD
     ].astype(str)
     clearing_prices_dict = (
         clearing_prices_country[["price_keys", cols.FLOAT_CLEARED_PRICE]]
@@ -157,14 +159,14 @@ def get_clearing_prices_dict(results: dict, sell_country: str) -> dict:
 @pa.check_output(ResidualDemandCurvesSchema, lazy=True)
 def calculate_residual_demand_curves(
     sell_profiles: pd.DataFrame,
-    det_date: pd.DataFrame | str,
-    cab_date: pd.DataFrame | str,
-    capacidad_inter_date: pd.DataFrame | str,
-    price_france_date: pd.DataFrame,
-    uof_zones: pd.DataFrame | None = None,
+    det: pd.DataFrame | str,
+    cab: pd.DataFrame | str,
+    capacidad_inter_pbc: pd.DataFrame | str,
+    france_day_ahead_prices: pd.DataFrame,
+    participants_bidding_zones: pd.DataFrame | None = None,
     sell_country: str = "ES",
-    trials_count: int = 100,
-    zones_default_to_spain: bool = True,
+    iterations_count: int = 100,
+    spain_as_default_bidding_zone: bool = True,
     n_jobs: int = 1,
 ) -> pd.DataFrame:
     """
@@ -172,14 +174,14 @@ def calculate_residual_demand_curves(
 
     Args:
         sell_profiles (pd.DataFrame): DataFrame with index as profile names and columns as 'energy_1' to 'energy_24' representing hourly energy values.
-        det_date (pd.DataFrame | str): DataFrame or path to DET file containing market offer details.
-        cab_date (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
-        capacidad_inter_date (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
-        price_france_date (pd.DataFrame): DataFrame with France price information.
-        uof_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_pais within ('ES', 'PT').
+        det (pd.DataFrame | str): DataFrame or path to DET file containing market offer details.
+        cab (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
+        capacidad_inter_pbc (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
+        france_day_ahead_prices (pd.DataFrame): DataFrame with France price information.
+        participants_bidding_zones (pd.DataFrame | None): DataFrame with UOF zone information with columns id_unidad and cat_bidding_zone within ('ES', 'PT').
         sell_country (str, optional): Country code for the selling side. Defaults to "ES".
-        trials_count (int, optional): Number of trials for the market clearing simulation. Defaults to 100.
-        zones_default_to_spain (bool, optional): If True, zones default to Spain. Defaults to True.
+        iterations_count (int, optional): Number of iterations for the market clearing simulation. Defaults to 100.
+        spain_as_default_bidding_zone (bool, optional): If True, zones default to Spain. Defaults to True.
         n_jobs (int, optional): Number of parallel jobs for simulation. Defaults to 1.
 
     Returns:
@@ -192,49 +194,54 @@ def calculate_residual_demand_curves(
         index=sell_profiles.index,
     )
 
-    # if det_date is istring
-    if isinstance(det_date, str):
-        det_date = parse_det_file(det_date)
-    if isinstance(cab_date, str):
-        cab_date = parse_cab_file(cab_date)
-    if isinstance(capacidad_inter_date, str):
-        capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
+    # if det is istring
+    if isinstance(det, str):
+        det = parse_det_file(det)
+    if isinstance(cab, str):
+        cab = parse_cab_file(cab)
+    if isinstance(capacidad_inter_pbc, str):
+        capacidad_inter_pbc = parse_capacidad_inter_file(capacidad_inter_pbc)
 
-    DETSchema.validate(det_date)
-    CABSchema.validate(cab_date)
-    CapacidadInterPTSchema.validate(capacidad_inter_date)
+    DETSchema.validate(det)
+    CABSchema.validate(cab)
+    CapacidadInterPTSchema.validate(capacidad_inter_pbc)
 
     for idx, profile in sell_profiles.iterrows():
-        # Here you would modify the det_date and cab_date based on the profile
+        # Here you would modify the det and cab based on the profile
         # For simplicity, we will just pass them as is
 
-        rdc_det, rdc_cab, rdc_uof_zone = generate_residual_demand_det_cab_and_uof_zone(
-            profile, det_date[cols.DATE_SESION].iloc[0], sell_country
+        rdc_det, rdc_cab, rdc_participants_bidding_zone = (
+            generate_residual_demand_det_cab_and_participants_bidding_zone(
+                profile, det[cols.DATE_SESION].iloc[0], sell_country
+            )
         )
 
-        if rdc_det.empty or rdc_cab.empty or rdc_uof_zone.empty:
+        if rdc_det.empty or rdc_cab.empty or rdc_participants_bidding_zone.empty:
             logger.warning(
                 f"Profile {idx} has empty residual demand, the results are similar to a normal clearing of the market."
             )
 
-        det_date_modified = pd.concat([det_date, rdc_det], ignore_index=True)
-        cab_date_modified = pd.concat([cab_date, rdc_cab], ignore_index=True)
+        det_modified = pd.concat([det, rdc_det], ignore_index=True)
+        cab_modified = pd.concat([cab, rdc_cab], ignore_index=True)
 
-        if isinstance(uof_zones, pd.DataFrame):
-            uof_zones_modified = pd.concat([uof_zones, rdc_uof_zone], ignore_index=True)
-        elif not rdc_uof_zone.empty:
-            uof_zones_modified = rdc_uof_zone
+        if isinstance(participants_bidding_zones, pd.DataFrame):
+            participants_bidding_zones_modified = pd.concat(
+                [participants_bidding_zones, rdc_participants_bidding_zone],
+                ignore_index=True,
+            )
+        elif not rdc_participants_bidding_zone.empty:
+            participants_bidding_zones_modified = rdc_participants_bidding_zone
         else:
-            uof_zones_modified = None
+            participants_bidding_zones_modified = None
 
-        results = clear_OMIE_market(
-            det_date=det_date_modified,
-            cab_date=cab_date_modified,
-            capacidad_inter_date=capacidad_inter_date,
-            uof_zones=uof_zones_modified,
-            price_france_date=price_france_date,
-            trials_count=trials_count,
-            zones_default_to_spain=zones_default_to_spain,
+        results = run_mibel_simulator(
+            det=det_modified,
+            cab=cab_modified,
+            capacidad_inter_pbc=capacidad_inter_pbc,
+            participants_bidding_zones=participants_bidding_zones_modified,
+            france_day_ahead_prices=france_day_ahead_prices,
+            iterations_count=iterations_count,
+            spain_as_default_bidding_zone=spain_as_default_bidding_zone,
             n_jobs=n_jobs,
         )
         energies_dict = profile.to_dict()

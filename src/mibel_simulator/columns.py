@@ -1,15 +1,15 @@
 ##### COLUMNS NAMES FOR DATAFRAMES #####
-INT_PERIODO = "int_periodo"
-INT_NUM_BLOQ = "int_num_bloq"
-INT_NUM_TRAMO = "int_num_tramo"
-INT_NUM_GRUPO_EXCL = "int_num_grupo_excl"
+INT_PERIOD = "int_period"
+INT_NUM_BLOCK = "int_num_block"
+INT_NUM_SUBORDER = "int_num_suborder"
+INT_NUM_EXCL_GROUP = "int_num_excl_group"
 
-INT_NUM_TRAMO_PARENT = "int_num_tramo_parent"
-INT_NUM_TRAMO_CHILD = "int_num_tramo_child"
-INT_NUM_BLOQ_PARENT = "int_num_bloq_parent"
-INT_NUM_BLOQ_CHILD = "int_num_bloq_child"
+INT_NUM_SUBORDER_PARENT = "int_num_suborder_parent"
+INT_NUM_SUBORDER_CHILD = "int_num_suborder_child"
+INT_NUM_BLOCK_PARENT = "int_num_block_parent"
+INT_NUM_BLOCK_CHILD = "int_num_block_child"
 
-CAT_PAIS = "cat_pais"
+CAT_BIDDING_ZONE = "cat_bidding_zone"
 CAT_OFERTADA_CASADA = "cat_ofertada_casada"
 CAT_ORDER_TYPE = "cat_order_type"
 CAT_FRONTIER = "cat_frontier"
@@ -52,14 +52,14 @@ IDS_MIC_SCOS = "ids_mic_scos"
 INT_MIC_SCOS_COUNT = "int_mic_scos_count"
 IDS_BID_BLOCKS = "ids_bid_blocks"
 INT_BID_BLOCKS_COUNT = "int_bid_blocks_count"
-BOOL_ARE_PARADOX_GROUPS_TESTED = "bool_are_paradox_groups_tested"
+BOOL_ARE_PARADOXAL_ORDERS_TESTED = "bool_are_paradoxal_orders_tested"
 BOOL_IS_EXPECTED_INCOME_RESPECTED = "bool_is_expected_income_respected"
-ID_PARADOX_GROUPS = "id_paradox_groups"
-PARADOX_GROUPS_COLUMN = "paradox_groups"
-IDS_PARADOX_GROUPS = (
-    "ids_paradox_groups"  # id_order if mic_sco, id_block_order if bid_block
+ID_PARADOXAL_ORDERS = "id_paradoxal_orders"
+PARADOXAL_ORDERS_COLUMN = "paradoxal_orders"
+IDS_PARADOXAL_ORDERS = (
+    "ids_paradoxal_orders"  # id_order if mic_sco, id_block_order if bid_block
 )
-INT_PARADOX_GROUPS_COUNT = "int_paradox_groups_count"
+INT_PARADOXAL_ORDERS_COUNT = "int_paradoxal_orders_count"
 
 FLOAT_VARIABLE_COST = "float_variable_cost"
 FLOAT_TOTAL_VARIABLE_COST = "float_total_variable_cost"

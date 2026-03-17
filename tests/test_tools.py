@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from mibel_simulator import columns as cols
 from mibel_simulator import tools
-from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
+from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
 
 
 class TestGetFloatBidPowerCumsum:
@@ -30,7 +30,7 @@ class TestGetFloatBidPowerCumsum:
         """Test that function returns a Series."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 1],
+                cols.INT_PERIOD: [1, 1, 1],
                 cols.CAT_BUY_SELL: ["V", "V", "V"],
                 cols.CAT_OFERTADA_CASADA: [None, None, None],
                 cols.DATE_SESION: [pd.Timestamp("2024-01-01")] * 3,
@@ -48,7 +48,7 @@ class TestGetFloatBidPowerCumsum:
         """Test that cumulative sum doesn't produce negative values."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 1],
+                cols.INT_PERIOD: [1, 1, 1],
                 cols.CAT_BUY_SELL: ["V", "V", "V"],
                 cols.CAT_OFERTADA_CASADA: [None, None, None],
                 cols.DATE_SESION: [pd.Timestamp("2024-01-01")] * 3,
@@ -66,7 +66,7 @@ class TestGetFloatBidPowerCumsum:
         """Test that mixed buy/sell are processed separately."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1, 1, 1, 1],
+                cols.INT_PERIOD: [1, 1, 1, 1],
                 cols.CAT_BUY_SELL: ["V", "V", "C", "C"],
                 cols.CAT_OFERTADA_CASADA: [None, None, None, None],
                 cols.DATE_SESION: [pd.Timestamp("2024-01-01")] * 4,
@@ -84,7 +84,7 @@ class TestGetFloatBidPowerCumsum:
         """Test function handles empty dataframe."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [],
+                cols.INT_PERIOD: [],
                 cols.CAT_BUY_SELL: [],
                 cols.CAT_OFERTADA_CASADA: [],
                 cols.DATE_SESION: [],
@@ -100,7 +100,7 @@ class TestGetFloatBidPowerCumsum:
         """Test function with single row."""
         df = pd.DataFrame(
             {
-                cols.INT_PERIODO: [1],
+                cols.INT_PERIOD: [1],
                 cols.CAT_BUY_SELL: ["V"],
                 cols.CAT_OFERTADA_CASADA: [None],
                 cols.DATE_SESION: [pd.Timestamp("2024-01-01")],
@@ -140,19 +140,21 @@ class TestGetIsSCO:
         assert np.array_equal(result.values, expected_result.values)
 
 
-class TestConcatProvidedUOFZonesWithExistingData:
-    """Test suite for concat_provided_uof_zones_with_existing_data function."""
+class TestConcatProvidedParticipantBiddingZonesWithExistingData:
+    """Test suite for concat_provided_participants_bidding_zones_with_existing_data function."""
 
-    def test_concat_new_uof_zones(self):
+    def test_concat_new_participants_bidding_zones(self):
         """Test concatenating new UOF zones with existing data."""
         new_df = pd.DataFrame(
             {
                 cols.ID_UNIDAD: ["UNIT3", "UNIT4"],
-                cols.CAT_PAIS: ["ES", "PT"],
+                cols.CAT_BIDDING_ZONE: ["ES", "PT"],
             }
         )
 
-        result = tools.concat_provided_uof_zones_with_existing_data(new_df)
+        result = tools.concat_provided_participants_bidding_zones_with_existing_data(
+            new_df
+        )
 
         # Should contain the new units
         assert "UNIT3" in result[cols.ID_UNIDAD].values
@@ -161,24 +163,30 @@ class TestConcatProvidedUOFZonesWithExistingData:
     def test_concat_overlapping_units(self):
         """Test concatenating with overlapping unit IDs."""
 
-        existing_uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
-        example_unit = existing_uof_zones.iloc[0][cols.ID_UNIDAD]
+        existing_participants_bidding_zones = pd.read_csv(
+            PARTICIPANTS_BIDDING_ZONES_FILEPATH
+        )
+        example_unit = existing_participants_bidding_zones.iloc[0][cols.ID_UNIDAD]
 
         # We don't know the country of the existing unit, so just use "ES" for test
         example_country = "ES"
         new_df = pd.DataFrame(
             {
                 cols.ID_UNIDAD: [example_unit, "UNIT3"],
-                cols.CAT_PAIS: [example_country, "ES"],
+                cols.CAT_BIDDING_ZONE: [example_country, "ES"],
             }
         )
 
-        result = tools.concat_provided_uof_zones_with_existing_data(new_df)
+        result = tools.concat_provided_participants_bidding_zones_with_existing_data(
+            new_df
+        )
 
         # Should handle overlapping units
         assert "UNIT3" in result[cols.ID_UNIDAD].values
         assert (
-            result.loc[result[cols.ID_UNIDAD] == example_unit, cols.CAT_PAIS].values[0]
+            result.loc[
+                result[cols.ID_UNIDAD] == example_unit, cols.CAT_BIDDING_ZONE
+            ].values[0]
             == example_country
         )
 
@@ -187,16 +195,20 @@ class TestConcatProvidedUOFZonesWithExistingData:
         new_df = pd.DataFrame(
             {
                 cols.ID_UNIDAD: [example_unit, "UNIT3"],
-                cols.CAT_PAIS: [example_country, "ES"],
+                cols.CAT_BIDDING_ZONE: [example_country, "ES"],
             }
         )
 
-        result = tools.concat_provided_uof_zones_with_existing_data(new_df)
+        result = tools.concat_provided_participants_bidding_zones_with_existing_data(
+            new_df
+        )
 
         # Should handle overlapping units
         assert "UNIT3" in result[cols.ID_UNIDAD].values
         assert (
-            result.loc[result[cols.ID_UNIDAD] == example_unit, cols.CAT_PAIS].values[0]
+            result.loc[
+                result[cols.ID_UNIDAD] == example_unit, cols.CAT_BIDDING_ZONE
+            ].values[0]
             == example_country
         )
 
@@ -205,25 +217,29 @@ class TestConcatProvidedUOFZonesWithExistingData:
         new_df = pd.DataFrame(
             {
                 cols.ID_UNIDAD: ["UNIT5"],
-                cols.CAT_PAIS: ["PT"],
+                cols.CAT_BIDDING_ZONE: ["PT"],
             }
         )
 
-        result = tools.concat_provided_uof_zones_with_existing_data(new_df)
+        result = tools.concat_provided_participants_bidding_zones_with_existing_data(
+            new_df
+        )
 
         assert "UNIT5" in result[cols.ID_UNIDAD].values
         assert (
-            result.loc[result[cols.ID_UNIDAD] == "UNIT5", cols.CAT_PAIS].values[0]
+            result.loc[result[cols.ID_UNIDAD] == "UNIT5", cols.CAT_BIDDING_ZONE].values[
+                0
+            ]
             == "PT"
         )
 
 
-class TestFilterParadoxGroupsFromDetCab:
-    """Test suite for filter_paradox_groups_from_det_cab function."""
+class TestFilterParadoxalOrdersFromDetCab:
+    """Test suite for filter_paradoxal_orders_from_det_cab function."""
 
-    def test_filter_paradox_groups(self, full_simplified_det_cab_dataframe):
+    def test_filter_paradoxal_orders(self, full_simplified_det_cab_dataframe):
         """Test filtering paradox groups from DET/CAB."""
-        paradox_groups = {
+        paradoxal_orders = {
             "ids_mic_scos": ["ID_SCO_MIC_SCO"],
             "ids_bid_blocks": [
                 "ID_BLOCK_B_1_GE_0",
@@ -232,44 +248,46 @@ class TestFilterParadoxGroupsFromDetCab:
                 "ID_EXCL_BLOCK_B_2_GE_1",
             ],
         }  # Order 1 is a MIC SCO
-        result = tools.filter_paradox_groups_from_det_cab(
-            full_simplified_det_cab_dataframe, paradox_groups
+        result = tools.filter_paradoxal_orders_from_det_cab(
+            full_simplified_det_cab_dataframe, paradoxal_orders
         )
 
-        # Should include rows where ID_ORDER is in paradox_groups OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradoxal_orders OR where FLOAT_MIC is not > 0
         assert len(result) == 30
 
-    def test_filter_out_all_paradox_groups(self, full_simplified_det_cab_dataframe):
+    def test_filter_out_all_paradoxal_orders(self, full_simplified_det_cab_dataframe):
         """Test filtering paradox groups from DET/CAB."""
-        paradox_groups = {
+        paradoxal_orders = {
             "ids_mic_scos": [],
             "ids_bid_blocks": [],
         }  # Order 1 is a MIC SCO
-        result = tools.filter_paradox_groups_from_det_cab(
-            full_simplified_det_cab_dataframe, paradox_groups
+        result = tools.filter_paradoxal_orders_from_det_cab(
+            full_simplified_det_cab_dataframe, paradoxal_orders
         )
 
-        # Should include rows where ID_ORDER is in paradox_groups  OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradoxal_orders  OR where FLOAT_MIC is not > 0
         assert len(result) == 15
 
-    def test_filter_out_bid_blocks_paradox_groups(
+    def test_filter_out_bid_blocks_paradoxal_orders(
         self, full_simplified_det_cab_dataframe
     ):
         """Test filtering paradox groups from DET/CAB."""
-        paradox_groups = {
+        paradoxal_orders = {
             "ids_mic_scos": ["ID_SCO_MIC_SCO"],
             "ids_bid_blocks": [],
         }  # Order 1 is a MIC SCO
-        result = tools.filter_paradox_groups_from_det_cab(
-            full_simplified_det_cab_dataframe, paradox_groups
+        result = tools.filter_paradoxal_orders_from_det_cab(
+            full_simplified_det_cab_dataframe, paradoxal_orders
         )
 
-        # Should include rows where ID_ORDER is in paradox_groups  OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradoxal_orders  OR where FLOAT_MIC is not > 0
         assert len(result) == 18
 
-    def test_filter_out_mic_sco_paradox_groups(self, full_simplified_det_cab_dataframe):
+    def test_filter_out_mic_sco_paradoxal_orders(
+        self, full_simplified_det_cab_dataframe
+    ):
         """Test filtering paradox groups from DET/CAB."""
-        paradox_groups = {
+        paradoxal_orders = {
             "ids_mic_scos": [],
             "ids_bid_blocks": [
                 "ID_BLOCK_B_1_GE_0",
@@ -278,9 +296,9 @@ class TestFilterParadoxGroupsFromDetCab:
                 "ID_EXCL_BLOCK_B_2_GE_1",
             ],
         }  # Order 1 is a MIC SCO
-        result = tools.filter_paradox_groups_from_det_cab(
-            full_simplified_det_cab_dataframe, paradox_groups
+        result = tools.filter_paradoxal_orders_from_det_cab(
+            full_simplified_det_cab_dataframe, paradoxal_orders
         )
 
-        # Should include rows where ID_ORDER is in paradox_groups  OR where FLOAT_MIC is not > 0
+        # Should include rows where ID_ORDER is in paradoxal_orders  OR where FLOAT_MIC is not > 0
         assert len(result) == 27

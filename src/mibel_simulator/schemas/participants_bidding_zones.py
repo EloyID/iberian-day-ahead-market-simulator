@@ -4,10 +4,10 @@ from .columns_dict import columns_dict
 
 # fmt: off
 
-UOFZonesSchema = pa.DataFrameSchema(
+ParticipantBiddingZonesSchema = pa.DataFrameSchema(
     {
         cols.ID_UNIDAD:       columns_dict[cols.ID_UNIDAD],
-        cols.CAT_PAIS:        columns_dict[cols.CAT_PAIS],
+        cols.CAT_BIDDING_ZONE:        columns_dict[cols.CAT_BIDDING_ZONE],
     },
     unique=[cols.ID_UNIDAD],
 )

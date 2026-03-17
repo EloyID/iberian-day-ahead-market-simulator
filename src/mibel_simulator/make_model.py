@@ -29,12 +29,12 @@ EPSILON = 1e-6
 
 
 def make_model(
-    det_cab_date,
-    capacidad_inter_PT_date,
+    det_cab,
+    capacidad_inter_PBC_pt,
     france_fixed_exchange: pd.Series | None = None,
 ):
 
-    exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab_date)
+    exclusive_block_orders_grouped = get_exclusive_block_orders_grouped(det_cab)
     exclusive_block_orders_grouped_joined = exclusive_block_orders_grouped.apply(
         lambda x: "$".join(x)
     )
@@ -45,23 +45,23 @@ def make_model(
 
     # fmt: off
 
-    det_cab_date_C =           det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C" and {cols.ID_UNIDAD} != @FRANCE_ID_UNIDAD').copy()
-    det_cab_date_C_export_FR = det_cab_date.query(f'{cols.CAT_BUY_SELL} == "C" and {cols.ID_UNIDAD} == @FRANCE_ID_UNIDAD').copy()
-    det_cab_date_V =           det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V" and {cols.ID_UNIDAD} != @FRANCE_ID_UNIDAD').copy()
-    det_cab_date_V_import_FR = det_cab_date.query(f'{cols.CAT_BUY_SELL} == "V" and {cols.ID_UNIDAD} == @FRANCE_ID_UNIDAD').copy()
+    det_cab_C =           det_cab.query(f'{cols.CAT_BUY_SELL} == "C" and {cols.ID_UNIDAD} != @FRANCE_ID_UNIDAD').copy()
+    det_cab_C_export_FR = det_cab.query(f'{cols.CAT_BUY_SELL} == "C" and {cols.ID_UNIDAD} == @FRANCE_ID_UNIDAD').copy()
+    det_cab_V =           det_cab.query(f'{cols.CAT_BUY_SELL} == "V" and {cols.ID_UNIDAD} != @FRANCE_ID_UNIDAD').copy()
+    det_cab_V_import_FR = det_cab.query(f'{cols.CAT_BUY_SELL} == "V" and {cols.ID_UNIDAD} == @FRANCE_ID_UNIDAD').copy()
 
-    det_cab_date_V_bloque = det_cab_date_V.query(f"{cols.ID_BLOCK_ORDER}.notna()").copy()
-    det_cab_date_V_simple = det_cab_date_V.query(f"{cols.ID_BLOCK_ORDER}.isna() and {cols.ID_SCO}.isna()").copy()
-    det_cab_date_V_sco =    det_cab_date_V.query(f"{cols.ID_SCO}.notna()").copy()
+    det_cab_V_block = det_cab_V.query(f"{cols.ID_BLOCK_ORDER}.notna()").copy()
+    det_cab_V_simple = det_cab_V.query(f"{cols.ID_BLOCK_ORDER}.isna() and {cols.ID_SCO}.isna()").copy()
+    det_cab_V_sco =    det_cab_V.query(f"{cols.ID_SCO}.notna()").copy()
 
     # TODO: move this check to data validation step
-    assert len(det_cab_date_V) == len(det_cab_date_V_bloque) + len(
-        det_cab_date_V_simple
-    ) + len(det_cab_date_V_sco), "Some offer is not classified as block, simple or sco"
+    assert len(det_cab_V) == len(det_cab_V_block) + len(
+        det_cab_V_simple
+    ) + len(det_cab_V_sco), "Some offer is not classified as block, simple or sco"
 
     model = ConcreteModel("MIBEL Market")
 
-    periods = det_cab_date[cols.INT_PERIODO].sort_values().unique().tolist()
+    periods = det_cab[cols.INT_PERIOD].sort_values().unique().tolist()
     countries = [SPAIN_ZONE, PORTUGAL_ZONE]
 
     ##### Sets #####
@@ -69,14 +69,14 @@ def make_model(
     model.PERIODS =             Set(initialize=periods,     doc="Market sessions along the day")
     model.COUNTRIES =           Set(initialize=countries,   doc="Countries/regions participating in the market")
 
-    buyer_bids =            det_cab_date_C          [cols.ID_INDIVIDUAL_BID].tolist()
-    block_order_bids =      det_cab_date_V_bloque   [cols.ID_INDIVIDUAL_BID].tolist()
-    simple_seller_bids =    det_cab_date_V_simple   [cols.ID_INDIVIDUAL_BID].tolist()
-    sco_seller_bids =       det_cab_date_V_sco      [cols.ID_INDIVIDUAL_BID].tolist()
-    block_orders =          det_cab_date_V_bloque   [cols.ID_BLOCK_ORDER].unique().tolist()
-    sco_orders =            det_cab_date_V_sco      [cols.ID_SCO].unique().tolist()
-    france_export_bids =    det_cab_date_C_export_FR[cols.ID_INDIVIDUAL_BID].tolist()
-    france_import_bids =    det_cab_date_V_import_FR[cols.ID_INDIVIDUAL_BID].tolist()
+    buyer_bids =            det_cab_C          [cols.ID_INDIVIDUAL_BID].tolist()
+    block_order_bids =      det_cab_V_block   [cols.ID_INDIVIDUAL_BID].tolist()
+    simple_seller_bids =    det_cab_V_simple   [cols.ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids =       det_cab_V_sco      [cols.ID_INDIVIDUAL_BID].tolist()
+    block_orders =          det_cab_V_block   [cols.ID_BLOCK_ORDER].unique().tolist()
+    sco_orders =            det_cab_V_sco      [cols.ID_SCO].unique().tolist()
+    france_export_bids =    det_cab_C_export_FR[cols.ID_INDIVIDUAL_BID].tolist()
+    france_import_bids =    det_cab_V_import_FR[cols.ID_INDIVIDUAL_BID].tolist()
 
     model.BUYER_BIDS =          Set(initialize=buyer_bids,          doc="Buyer individual bid ids")
     model.SIMPLE_SELLER_BIDS =  Set(initialize=simple_seller_bids,  doc="Seller simple individual bid ids")
@@ -87,21 +87,21 @@ def make_model(
     model.FRANCE_EXPORT_BIDS =  Set(initialize=france_export_bids,  doc="France export individual bid ids")
     model.FRANCE_IMPORT_BIDS =  Set(initialize=france_import_bids,  doc="France import individual bid ids")
 
-    buyer_bids_per_period_and_country_fnc =          lambda period, country:   det_cab_date_C          .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_order_bids_by_block_and_period_fnc =       lambda bloque_id, period: det_cab_date_V_bloque   .query(f"{cols.ID_BLOCK_ORDER} == @bloque_id   and {cols.INT_PERIODO} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
-    simple_seller_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_V_simple   .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_order_bids_by_block_fnc =                  lambda bloque_id:         det_cab_date_V_bloque   .query(f"{cols.ID_BLOCK_ORDER} == @bloque_id"                                     )[cols.ID_INDIVIDUAL_BID].tolist()
-    sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_date_V_sco      .query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    sco_seller_bids_per_sco =                        lambda sco:               det_cab_date_V_sco      .query(f"{cols.ID_SCO} == @sco"                                                   )[cols.ID_INDIVIDUAL_BID].tolist()
-    sco_seller_bids_per_sco_and_period_fnc =         lambda sco, period:       det_cab_date_V_sco      .query(f"{cols.ID_SCO} == @sco                 and {cols.INT_PERIODO} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_orders_by_country_fnc =                    lambda country:           det_cab_date_V_bloque   .query(f"{cols.CAT_PAIS} == @country"                                             )[cols.ID_BLOCK_ORDER].unique().tolist()
-    france_export_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_C_export_FR.query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    france_import_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_date_V_import_FR.query(f"{cols.INT_PERIODO} == @period         and {cols.CAT_PAIS} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    buyer_bids_per_period_and_country_fnc =          lambda period, country:   det_cab_C          .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    block_order_bids_by_block_and_period_fnc =       lambda block_id, period: det_cab_V_block   .query(f"{cols.ID_BLOCK_ORDER} == @block_id   and {cols.INT_PERIOD} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
+    simple_seller_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_V_simple   .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    block_order_bids_by_block_fnc =                  lambda block_id:         det_cab_V_block   .query(f"{cols.ID_BLOCK_ORDER} == @block_id"                                     )[cols.ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_V_sco      .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids_per_sco =                        lambda sco:               det_cab_V_sco      .query(f"{cols.ID_SCO} == @sco"                                                   )[cols.ID_INDIVIDUAL_BID].tolist()
+    sco_seller_bids_per_sco_and_period_fnc =         lambda sco, period:       det_cab_V_sco      .query(f"{cols.ID_SCO} == @sco                 and {cols.INT_PERIOD} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
+    block_orders_by_country_fnc =                    lambda country:           det_cab_V_block   .query(f"{cols.CAT_BIDDING_ZONE} == @country"                                             )[cols.ID_BLOCK_ORDER].unique().tolist()
+    france_export_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_C_export_FR.query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    france_import_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_V_import_FR.query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
 
     buyer_bids_per_period_and_country =         {(period, country):   buyer_bids_per_period_and_country_fnc(period, country)          for period in periods           for country in countries}
-    block_order_bids_by_block_and_period =      {(bloque_id, period): block_order_bids_by_block_and_period_fnc(bloque_id, period)     for bloque_id in block_orders   for period in periods}
+    block_order_bids_by_block_and_period =      {(block_id, period): block_order_bids_by_block_and_period_fnc(block_id, period)     for block_id in block_orders   for period in periods}
     simple_seller_bids_per_period_and_country = {(period, country):   simple_seller_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
-    block_order_bids_by_block =                 {bloque_id:           block_order_bids_by_block_fnc(bloque_id)                        for bloque_id in block_orders}
+    block_order_bids_by_block =                 {block_id:           block_order_bids_by_block_fnc(block_id)                        for block_id in block_orders}
     sco_seller_bids_per_period_and_country =    {(period, country):   sco_seller_bids_per_period_and_country_fnc(period, country)     for period in periods           for country in countries}
     sco_seller_bids_per_sco =                   {sco:                 sco_seller_bids_per_sco(sco)                                    for sco in sco_orders}
     sco_seller_bids_per_sco_and_period =        {(sco, period):       sco_seller_bids_per_sco_and_period_fnc(sco, period)             for sco in sco_orders           for period in periods}
@@ -126,26 +126,26 @@ def make_model(
     ##### Parameters #####
 
     def p_mav_fnc(sco, period): 
-        p_mav_query = det_cab_date_V_sco.query(f"{cols.ID_SCO} == @sco and {cols.INT_PERIODO} == @period and {cols.FLOAT_MAV} > 0")
+        p_mav_query = det_cab_V_sco.query(f"{cols.ID_SCO} == @sco and {cols.INT_PERIOD} == @period and {cols.FLOAT_MAV} > 0")
         return p_mav_query[cols.FLOAT_MAV].iloc[0] if len(p_mav_query) > 0 else 0
     
-    p_price_min_SIMPLE_SELLERS_BIDS =           det_cab_date_V_simple    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
-    p_price_min_BLOCK_ORDERS =                  det_cab_date_V_bloque    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_BID_PRICE].to_dict()
-    p_price_min_SCO_SELLER_BIDS =               det_cab_date_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
-    p_price_max_BUYERS_BIDS =                   det_cab_date_C           .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
-    p_price_max_FRANCE_EXPORT_BIDS =            det_cab_date_C_export_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
-    p_price_min_FRANCE_IMPORT_BIDS =            det_cab_date_V_import_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
-    p_quantity_SIMPLE_SELLER_BIDS =             det_cab_date_V_simple    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
-    p_quantity_SCO_SELLER_BIDS =                det_cab_date_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
-    p_quantity_BLOCK_ORDER_BIDS =               det_cab_date_V_bloque    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
-    p_quantity_BUYER_BIDS =                     det_cab_date_C           .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
-    p_quantity_FRANCE_EXPORT_BIDS =             det_cab_date_C_export_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
-    p_quantity_FRANCE_IMPORT_BIDS =             det_cab_date_V_import_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
-    p_congestion_spain_portugal_exportacion =   capacidad_inter_PT_date  .set_index(cols.INT_PERIODO)            [cols.FLOAT_EXPORT_CAPACITY].to_dict()
-    p_congestion_spain_portugal_importacion =   capacidad_inter_PT_date  .set_index(cols.INT_PERIODO)            [cols.FLOAT_IMPORT_CAPACITY].to_dict()
-    p_MAR =                                     det_cab_date_V_bloque    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_MAR].to_dict()
-    p_MIC =                                     det_cab_date_V_sco       .drop_duplicates(cols.ID_SCO).set_index(cols.ID_SCO)[cols.FLOAT_MIC].to_dict()
-    p_SCO_ORDER_PER_BID =                       det_cab_date_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.ID_SCO].to_dict()
+    p_price_min_SIMPLE_SELLERS_BIDS =           det_cab_V_simple    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
+    p_price_min_BLOCK_ORDERS =                  det_cab_V_block    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_BID_PRICE].to_dict()
+    p_price_min_SCO_SELLER_BIDS =               det_cab_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
+    p_price_max_BUYERS_BIDS =                   det_cab_C           .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
+    p_price_max_FRANCE_EXPORT_BIDS =            det_cab_C_export_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
+    p_price_min_FRANCE_IMPORT_BIDS =            det_cab_V_import_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_PRICE].to_dict()
+    p_quantity_SIMPLE_SELLER_BIDS =             det_cab_V_simple    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
+    p_quantity_SCO_SELLER_BIDS =                det_cab_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
+    p_quantity_BLOCK_ORDER_BIDS =               det_cab_V_block    .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
+    p_quantity_BUYER_BIDS =                     det_cab_C           .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
+    p_quantity_FRANCE_EXPORT_BIDS =             det_cab_C_export_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
+    p_quantity_FRANCE_IMPORT_BIDS =             det_cab_V_import_FR .set_index(cols.ID_INDIVIDUAL_BID)      [cols.FLOAT_BID_POWER].to_dict()
+    p_congestion_spain_portugal_exportacion =   capacidad_inter_PBC_pt  .set_index(cols.INT_PERIOD)            [cols.FLOAT_EXPORT_CAPACITY].to_dict()
+    p_congestion_spain_portugal_importacion =   capacidad_inter_PBC_pt  .set_index(cols.INT_PERIOD)            [cols.FLOAT_IMPORT_CAPACITY].to_dict()
+    p_MAR =                                     det_cab_V_block    .drop_duplicates(cols.ID_BLOCK_ORDER).set_index(cols.ID_BLOCK_ORDER)[cols.FLOAT_MAR].to_dict()
+    p_MIC =                                     det_cab_V_sco       .drop_duplicates(cols.ID_SCO).set_index(cols.ID_SCO)[cols.FLOAT_MIC].to_dict()
+    p_SCO_ORDER_PER_BID =                       det_cab_V_sco       .set_index(cols.ID_INDIVIDUAL_BID)      [cols.ID_SCO].to_dict()
     
     p_MAV =                                     {(sco, period): p_mav_fnc(sco, period) for sco in sco_orders for period in periods}
 

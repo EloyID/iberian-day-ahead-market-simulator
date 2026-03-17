@@ -6,14 +6,14 @@ from mibel_simulator.make_model import make_model
 
 
 def run_model(
-    det_cab_date,
-    capacidad_inter_PT_date,
+    det_cab,
+    capacidad_inter_PBC_pt,
     france_fixed_exchange,
 ):
     ########################### Load Model ########################
     model = make_model(
-        det_cab_date=det_cab_date,
-        capacidad_inter_PT_date=capacidad_inter_PT_date,
+        det_cab=det_cab,
+        capacidad_inter_PBC_pt=capacidad_inter_PBC_pt,
         france_fixed_exchange=france_fixed_exchange,
     )
 

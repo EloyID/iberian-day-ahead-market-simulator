@@ -60,7 +60,7 @@ class TestCreateHomotheticSellProfiles:
 
 
 class TestGenerateResidualDemandDetCabAndUOFZone:
-    """Test suite for generate_residual_demand_det_cab_and_uof_zone function."""
+    """Test suite for generate_residual_demand_det_cab_and_participants_bidding_zone function."""
 
     def test_mixed_rdc_values(self):
         """Test RDC generation with mixed positive and negative values."""
@@ -68,8 +68,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         assert not det.empty
@@ -85,8 +87,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         assert det.empty  # No non-zero power
@@ -99,8 +103,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-06-15")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         assert (det[cols.DATE_SESION] == date).all()
@@ -112,11 +118,13 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "PT"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "PT"
+            )
         )
 
-        assert (uof[cols.CAT_PAIS] == "PT").all()
+        assert (uof[cols.CAT_BIDDING_ZONE] == "PT").all()
 
     def test_period_assignment(self):
         """Test that periods 1-24 are correctly assigned."""
@@ -124,11 +132,13 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
-        assert set(det[cols.INT_PERIODO].unique()) == set(range(1, 25))
+        assert set(det[cols.INT_PERIOD].unique()) == set(range(1, 25))
 
     def test_bid_prices_fixed_values(self):
         """Test that bid prices are assigned appropriately."""
@@ -136,8 +146,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         # Prices should be either -500 or 3500
@@ -151,8 +163,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         # All should be sell orders, with bid price of -500
@@ -166,8 +180,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         # All should be buy orders, with bid price of 3500
@@ -181,8 +197,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         # Check that power values are absolute
@@ -190,7 +208,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         # For negative RDC values, bid power should be 50.0
         negative_indices = [i for i in range(24) if i % 2 == 0]
         assert all(
-            det[det[cols.INT_PERIODO].isin([i + 1 for i in negative_indices])][
+            det[det[cols.INT_PERIOD].isin([i + 1 for i in negative_indices])][
                 cols.FLOAT_BID_POWER
             ]
             == 50.0
@@ -198,7 +216,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         # For positive RDC values, bid power should be 75.0
         positive_indices = [i for i in range(24) if i % 2 == 1]
         assert all(
-            det[det[cols.INT_PERIODO].isin([i + 1 for i in positive_indices])][
+            det[det[cols.INT_PERIOD].isin([i + 1 for i in positive_indices])][
                 cols.FLOAT_BID_POWER
             ]
             == 75.0
@@ -210,18 +228,20 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         # Check required columns exist
         required_cols = [
             cols.DATE_SESION,
             cols.ID_ORDER,
-            cols.INT_PERIODO,
-            cols.INT_NUM_BLOQ,
-            cols.INT_NUM_TRAMO,
-            cols.INT_NUM_GRUPO_EXCL,
+            cols.INT_PERIOD,
+            cols.INT_NUM_BLOCK,
+            cols.INT_NUM_SUBORDER,
+            cols.INT_NUM_EXCL_GROUP,
             cols.FLOAT_BID_PRICE,
             cols.FLOAT_BID_POWER,
             cols.FLOAT_MAV,
@@ -236,8 +256,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         # All ID_ORDER values in CAB should be in DET
@@ -251,14 +273,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         # When both positive and negative values exist, should have both buy and sell units
         assert len(uof) == 2
         assert cols.ID_UNIDAD in uof.columns
-        assert cols.CAT_PAIS in uof.columns
+        assert cols.CAT_BIDDING_ZONE in uof.columns
 
     def test_no_nan_values_in_det(self):
         """Test that DET DataFrame contains no NaN values."""
@@ -266,8 +290,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         assert not det.isna().any().any()
@@ -279,8 +305,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         # DET should only have 12 rows (periods 1-12 with non-zero power)
@@ -295,11 +323,13 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         date = pd.Timestamp("2024-01-01")
 
         for country in ["ES", "PT", "FR"]:
-            det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-                rdc_series, date, country
+            det, cab, uof = (
+                rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                    rdc_series, date, country
+                )
             )
 
-            assert (uof[cols.CAT_PAIS] == country).all()
+            assert (uof[cols.CAT_BIDDING_ZONE] == country).all()
 
     def test_very_small_values(self):
         """Test RDC generation with very small values."""
@@ -307,8 +337,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         assert not det.empty
@@ -320,8 +352,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        det, cab, uof = rdc.generate_residual_demand_det_cab_and_uof_zone(
-            rdc_series, date, "ES"
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series, date, "ES"
+            )
         )
 
         assert not det.empty
@@ -335,8 +369,8 @@ class TestGetClearingPricesDict:
         """Test extracting clearing prices for a single country."""
         clearing_prices_df = pd.DataFrame(
             {
-                cols.CAT_PAIS: ["ES", "ES", "PT", "PT"],
-                cols.INT_PERIODO: [1, 2, 1, 2],
+                cols.CAT_BIDDING_ZONE: ["ES", "ES", "PT", "PT"],
+                cols.INT_PERIOD: [1, 2, 1, 2],
                 cols.FLOAT_CLEARED_PRICE: [40.0, 45.0, 38.0, 43.0],
             }
         )
@@ -359,8 +393,8 @@ class TestGetClearingPricesDict:
         """Test extraction when country has no data."""
         clearing_prices_df = pd.DataFrame(
             {
-                cols.CAT_PAIS: ["ES", "PT"],
-                cols.INT_PERIODO: [1, 1],
+                cols.CAT_BIDDING_ZONE: ["ES", "PT"],
+                cols.INT_PERIOD: [1, 1],
                 cols.FLOAT_CLEARED_PRICE: [40.0, 38.0],
             }
         )

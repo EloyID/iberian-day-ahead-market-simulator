@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 # fmt: off
 
 CURVA_PBC_UOF_RENAMING = {
-    "Periodo":                  cols.INT_PERIODO,
-    "Pais":                     cols.CAT_PAIS,
+    "Periodo":                   cols.INT_PERIOD,
+    "Pais":                     cols.CAT_BIDDING_ZONE,
     "Fecha":                    cols.DATE_SESION,
     "Tipo Oferta":              cols.CAT_BUY_SELL,
     "Ofertada (O)/Casada (C)":  cols.CAT_OFERTADA_CASADA,
@@ -22,8 +22,8 @@ CURVA_PBC_UOF_RENAMING = {
 }
 
 CURVA_PBC_UOF_TYPING = {
-    cols.INT_PERIODO:            int,
-    cols.CAT_PAIS:               'category',
+    cols.INT_PERIOD:            int,
+    cols.CAT_BIDDING_ZONE:               'category',
     cols.CAT_BUY_SELL:        'category',
     cols.CAT_OFERTADA_CASADA:    'category',
     cols.CAT_ORDER_TYPE:         'category',
@@ -65,7 +65,7 @@ DET_FORMAT = [
     # {"field": "Version",        "start": 10,   "end": 15,  "type": int},
     {"field": "Periodo",        "start": 15,   "end": 18,  "type": int},
     {"field": "NumBloq",        "start": 18,   "end": 20,  "type": int},
-    {"field": "NumTramo",       "start": 20,   "end": 22,  "type": int},
+    {"field": "NumSuborder",       "start": 20,   "end": 22,  "type": int},
     {"field": "NumGrupoExcl",   "start": 22,   "end": 24,  "type": int},
     {"field": "PrecEuro",       "start": 24,   "end": 41,  "type": float},
     {"field": "Potencia",       "start": 41,   "end": 48,  "type": float},
@@ -77,10 +77,10 @@ DET_FORMAT = [
 DET_RENAMING = {
     cols.DATE_SESION:   cols.DATE_SESION,
     "CodOferta":        cols.ID_ORDER,
-    "Periodo":          cols.INT_PERIODO,
-    "NumBloq":          cols.INT_NUM_BLOQ,
-    "NumTramo":         cols.INT_NUM_TRAMO,
-    "NumGrupoExcl":     cols.INT_NUM_GRUPO_EXCL,
+    "Periodo":          cols.INT_PERIOD,
+    "NumBloq":          cols.INT_NUM_BLOCK,
+    "NumSuborder":         cols.INT_NUM_SUBORDER,
+    "NumGrupoExcl":     cols.INT_NUM_EXCL_GROUP,
     "PrecEuro":         cols.FLOAT_BID_PRICE,
     "Potencia":         cols.FLOAT_BID_POWER,
     "MAV":              cols.FLOAT_MAV,
@@ -88,7 +88,7 @@ DET_RENAMING = {
 }
 
 CAPACIDAD_INTER_RENAMING = {
-    "Periodo":                  cols.INT_PERIODO,
+    "Periodo":                  cols.INT_PERIOD,
     "Fecha":                    cols.DATE_SESION,
     "Frontera":                 cols.CAT_FRONTIER,
     "Capacidad importación":    cols.FLOAT_IMPORT_CAPACITY,
@@ -96,7 +96,7 @@ CAPACIDAD_INTER_RENAMING = {
 }
 
 CAPACIDAD_INTER_TYPING = {
-    cols.INT_PERIODO:              int,
+    cols.INT_PERIOD:              int,
     cols.CAT_FRONTIER:             'category',
     cols.FLOAT_IMPORT_CAPACITY:    float,
     cols.FLOAT_EXPORT_CAPACITY:    float,
@@ -108,7 +108,7 @@ PRICE_FRANCE_RENAMING = {
 }
 PRICE_FRANCE_TYPING = {
     cols.DATE_SESION:      'datetime64[ns]',
-    cols.INT_PERIODO:      int,
+    cols.INT_PERIOD:      int,
     cols.FLOAT_PRICE_FR:   float,
 }
 
@@ -116,7 +116,7 @@ PRICE_FRANCE_TYPING = {
 
 CURVA_PBC_UOF_COLUMNS = list(CURVA_PBC_UOF_RENAMING.values())
 CAPACIDAD_INTER_COLUMNS = list(CAPACIDAD_INTER_RENAMING.values())
-UOF_ZONES_COLUMNS = [cols.CAT_PAIS, cols.ID_UNIDAD]
+PARTICIPANTS_BIDDING_ZONES_COLUMNS = [cols.CAT_BIDDING_ZONE, cols.ID_UNIDAD]
 DET_COLUMNS = list(DET_RENAMING.values())
 CAB_COLUMNS = list(CAB_RENAMING.values())
 PRICE_FRANCE_COLUMNS = list(PRICE_FRANCE_TYPING.keys())
@@ -281,7 +281,7 @@ def parse_det_file(det_filepath: str) -> pd.DataFrame:
         .astype({entry["field"]: entry["type"] for entry in DET_FORMAT})
         .rename(columns=DET_RENAMING, errors="raise")[DET_COLUMNS]
     )
-    det_25_hour = det[det[cols.INT_PERIODO] == 25]
+    det_25_hour = det[det[cols.INT_PERIOD] == 25]
 
     # det files can have 25 periods when they are hourly data, but many times is just
     # false data, so we drop it when it represents less than 1% of the data
@@ -290,10 +290,10 @@ def parse_det_file(det_filepath: str) -> pd.DataFrame:
         print(len(det_25_hour), len(det) / 24)
         if len(det_25_hour) < 0.1 * (len(det) / 24):
             logger.warning(
-                "Period 25 size is less than 0.1 times the size of the other periods, dropping it. You can ignore this, this is a typical issue with OMIE det files. File: %s",
+                "Periodo 25 size is less than 0.1 times the size of the other periods, dropping it. You can ignore this, this is a typical issue with OMIE det files. File: %s",
                 det_filepath,
             )
-            det = det[det[cols.INT_PERIODO] != 25]
+            det = det[det[cols.INT_PERIOD] != 25]
         else:
             logger.warning(
                 "Detected period 25 in DET file %s",
@@ -390,7 +390,7 @@ def capacidad_inter_files_to_parquet(capacidad_inter_folder: str, output_path: s
     capacidad_inter_data = pd.concat(capacidad_inter_dfs, ignore_index=True)
 
     # TODO: use when working in quarter hourly
-    # is_hourly_data = capacidad_inter_data[cols.INT_PERIODO].max() <= 25
+    # is_hourly_data = capacidad_inter_data[cols.INT_PERIOD].max() <= 25
     # if is_hourly_data:
     #     logger.info(
     #         "Detected hourly data in capacidad_inte,r, converting to quarter-hourly..."
@@ -399,15 +399,15 @@ def capacidad_inter_files_to_parquet(capacidad_inter_folder: str, output_path: s
     #     capacidad_inter_data_quarterly_dfs = []
     #     for i in range(1, 5):
     #         capacidad_inter_data_quarterly = capacidad_inter_data.copy()
-    #         capacidad_inter_data_quarterly[cols.INT_PERIODO] = (
-    #             capacidad_inter_data_quarterly[cols.INT_PERIODO] - 1
+    #         capacidad_inter_data_quarterly[cols.INT_PERIOD] = (
+    #             capacidad_inter_data_quarterly[cols.INT_PERIOD] - 1
     #         ) * 4 + i
     #         capacidad_inter_data_quarterly_dfs.append(capacidad_inter_data_quarterly)
 
     #     capacidad_inter_data = pd.concat(capacidad_inter_data_quarterly_dfs)
 
     capacidad_inter_data = capacidad_inter_data.sort_values(
-        by=[cols.DATE_SESION, cols.INT_PERIODO]
+        by=[cols.DATE_SESION, cols.INT_PERIOD]
     ).reset_index(drop=True)
     logger.info("Saving capacidad_inter to parquet at %s", output_path)
     capacidad_inter_data.to_parquet(output_path, index=False)
@@ -450,7 +450,7 @@ def price_france_from_entsoe_file_to_parquet(
     )
     if use_qh_frequency:
         logger.info("Detected quarter-hourly data in France prices")
-        price_france[cols.INT_PERIODO] = (
+        price_france[cols.INT_PERIOD] = (
             price_france[cols.DATETIME_SESION] - price_france[cols.DATE_SESION]
         ).dt.total_seconds() // (15 * 60) + 1
     else:
@@ -467,7 +467,7 @@ def price_france_from_entsoe_file_to_parquet(
                 .mean()
                 .reset_index()
             )
-        price_france[cols.INT_PERIODO] = price_france["Hour"] + 1
+        price_france[cols.INT_PERIOD] = price_france["Hour"] + 1
     price_france = price_france[PRICE_FRANCE_COLUMNS].astype(PRICE_FRANCE_TYPING)
 
     logger.info("Saving France prices to parquet at %s", output_path)
@@ -476,15 +476,16 @@ def price_france_from_entsoe_file_to_parquet(
     return price_france
 
 
-def generate_uof_zones_parquet_from_uof_files(
-    curva_pbc_uof_parquet: str | pd.DataFrame, output_path: str = "uof_zones.parquet"
+def generate_participants_bidding_zones_parquet_from_uof_files(
+    curva_pbc_uof_parquet: str | pd.DataFrame,
+    output_path: str = "participants_bidding_zones.parquet",
 ):
     """
     Generates a parquet file containing unique unit IDs and their corresponding zones from the curva_pbc_uof data.
 
     Args:
         curva_pbc_uof_parquet (str|pd.DataFrame): Path to the curva_pbc_uof parquet file or a DataFrame.
-        output_path (str, optional): Path to save the uof zones parquet file. Defaults to "uof_zones.parquet".
+        output_path (str, optional): Path to save the uof zones parquet file. Defaults to "participants_bidding_zones.parquet".
 
     Returns:
         pd.DataFrame: DataFrame containing unique unit IDs and their zones.
@@ -496,12 +497,12 @@ def generate_uof_zones_parquet_from_uof_files(
         curva_pbc_uof = curva_pbc_uof_parquet
 
     curva_pbc_uof_split = curva_pbc_uof.query(
-        f"{cols.CAT_PAIS} != 'MI' and {cols.ID_UNIDAD} not in @INTERCONEXION_UOFS"
+        f"{cols.CAT_BIDDING_ZONE} != 'MI' and {cols.ID_UNIDAD} not in @INTERCONEXION_UOFS"
     )
 
     curva_pbc_uof_unidad_pais_count = curva_pbc_uof_split.groupby(
         cols.ID_UNIDAD, observed=True
-    )[cols.CAT_PAIS].nunique()
+    )[cols.CAT_BIDDING_ZONE].nunique()
 
     assert (
         curva_pbc_uof_unidad_pais_count.max() == 1
@@ -509,7 +510,7 @@ def generate_uof_zones_parquet_from_uof_files(
 
     curva_pbc_uof_unidad_pais = curva_pbc_uof_split.drop_duplicates(
         subset=[cols.ID_UNIDAD], keep="last"
-    )[UOF_ZONES_COLUMNS]
+    )[PARTICIPANTS_BIDDING_ZONES_COLUMNS]
 
     logger.info("Saving UOF zones to parquet at %s", output_path)
     curva_pbc_uof_unidad_pais.to_parquet(output_path, index=False)

@@ -2,14 +2,16 @@ import numpy as np
 import pandas as pd
 
 import mibel_simulator.columns as cols
-from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
-from mibel_simulator.schemas.uof_zones import UOFZonesSchema
+from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
+from mibel_simulator.schemas.participants_bidding_zones import (
+    ParticipantBiddingZonesSchema,
+)
 
 
 def get_float_bid_power_cumsum(
     curva_pbc_df,
     date_column_name=cols.DATE_SESION,
-    hour_column_name=cols.INT_PERIODO,
+    hour_column_name=cols.INT_PERIOD,
     cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
     cod_ofertada_casada_column_name=cols.CAT_OFERTADA_CASADA,
     qua_energia_column_name=cols.FLOAT_BID_POWER,
@@ -69,8 +71,8 @@ def get_float_bid_power_cumsum(
 def get_is_simple_bid(
     det_cab: pd.DataFrame,
     id_order_column: str = cols.ID_ORDER,
-    num_bloq_column: str = cols.INT_NUM_BLOQ,
-    num_grupo_excl_column: str = cols.INT_NUM_GRUPO_EXCL,
+    num_block_column: str = cols.INT_NUM_BLOCK,
+    num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
     mav_column: str = cols.FLOAT_MAV,
     mar_column: str = cols.FLOAT_MAR,
     fijoeuro_column: str = cols.FLOAT_MIC,
@@ -87,8 +89,8 @@ def get_is_simple_bid(
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
         id_order_column (str, optional): Name of the order ID column. Defaults to cols.ID_ORDER.
-        num_bloq_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOQ.
-        num_grupo_excl_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_GRUPO_EXCL.
+        num_block_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOCK.
+        num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
         mav_column (str, optional): Name of the MAV column. Defaults to cols.FLOAT_MAV.
         mar_column (str, optional): Name of the MAR column. Defaults to cols.FLOAT_MAR.
         fijoeuro_column (str, optional): Name of the MIC column. Defaults to cols.FLOAT_MIC.
@@ -98,8 +100,8 @@ def get_is_simple_bid(
     """
     is_SCO_ = get_is_SCO(det_cab, id_order_column, mav_column, fijoeuro_column)
     return (
-        (det_cab[num_bloq_column] == 0)
-        & (det_cab[num_grupo_excl_column] == 0)
+        (det_cab[num_block_column] == 0)
+        & (det_cab[num_excl_group_column] == 0)
         & (det_cab[mar_column] == 0)
         & (~is_SCO_)
     )
@@ -136,8 +138,8 @@ def get_is_SCO(
 
 def get_is_not_exclusive_block(
     det_cab: pd.DataFrame,
-    num_bloq_column: str = cols.INT_NUM_BLOQ,
-    num_grupo_excl_column: str = cols.INT_NUM_GRUPO_EXCL,
+    num_block_column: str = cols.INT_NUM_BLOCK,
+    num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
 ) -> pd.Series:
     """
     Identifies non-exclusive block bids in the DET/CAB DataFrame.
@@ -146,18 +148,18 @@ def get_is_not_exclusive_block(
 
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
-        num_bloq_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOQ.
-        num_grupo_excl_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_GRUPO_EXCL.
+        num_block_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOCK.
+        num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
 
     Returns:
         pd.Series: Boolean Series indicating which bids are non-exclusive block bids.
     """
-    return (det_cab[num_bloq_column] > 0) & (det_cab[num_grupo_excl_column] == 0)
+    return (det_cab[num_block_column] > 0) & (det_cab[num_excl_group_column] == 0)
 
 
 def get_is_exclusive_block_group(
     det_cab: pd.DataFrame,
-    num_grupo_excl_column: str = cols.INT_NUM_GRUPO_EXCL,
+    num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
 ) -> pd.Series:
     """
     Identifies exclusive block group bids in the DET/CAB DataFrame.
@@ -166,20 +168,20 @@ def get_is_exclusive_block_group(
 
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
-        num_grupo_excl_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_GRUPO_EXCL.
+        num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
 
     Returns:
         pd.Series: Boolean Series indicating which bids are part of an exclusive block group.
     """
 
-    return det_cab[num_grupo_excl_column] > 0
+    return det_cab[num_excl_group_column] > 0
 
 
 def get_cat_order_type_column(
     det_cab: pd.DataFrame,
     id_order_column: str = cols.ID_ORDER,
-    num_bloq_column: str = cols.INT_NUM_BLOQ,
-    num_grupo_excl_column: str = cols.INT_NUM_GRUPO_EXCL,
+    num_block_column: str = cols.INT_NUM_BLOCK,
+    num_excl_group_column: str = cols.INT_NUM_EXCL_GROUP,
     mav_column: str = cols.FLOAT_MAV,
     mar_column: str = cols.FLOAT_MAR,
     fijoeuro_column: str = cols.FLOAT_MIC,
@@ -192,8 +194,8 @@ def get_cat_order_type_column(
 
     Args:
         det_cab (pd.DataFrame): DataFrame containing DET/CAB bids.
-        num_bloq_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOQ.
-        num_grupo_excl_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_GRUPO_EXCL.
+        num_block_column (str, optional): Name of the block number column. Defaults to cols.INT_NUM_BLOCK.
+        num_excl_group_column (str, optional): Name of the exclusion group column. Defaults to cols.INT_NUM_EXCL_GROUP.
         mav_column (str, optional): Name of the mav column. Defaults to cols.FLOAT_MAV.
         mar_column (str, optional): Name of the mar column. Defaults to cols.FLOAT_MAR.
         fijoeuro_column (str, optional): Name of the float_mic column. Defaults to cols.FLOAT_MIC.
@@ -207,8 +209,8 @@ def get_cat_order_type_column(
     det_cab[cols.BOOL_IS_SIMPLE_BID] = get_is_simple_bid(
         det_cab,
         id_order_column,
-        num_bloq_column,
-        num_grupo_excl_column,
+        num_block_column,
+        num_excl_group_column,
         mav_column,
         mar_column,
         fijoeuro_column,
@@ -217,10 +219,10 @@ def get_cat_order_type_column(
         det_cab, id_order_column, mav_column, fijoeuro_column
     )
     det_cab[cols.BOOL_IS_NOT_EXCLUSIVE_GROUP] = get_is_not_exclusive_block(
-        det_cab, num_bloq_column, num_grupo_excl_column
+        det_cab, num_block_column, num_excl_group_column
     )
     det_cab[cols.BOOL_IS_EXCLUSIVE_GROUP] = get_is_exclusive_block_group(
-        det_cab, num_grupo_excl_column
+        det_cab, num_excl_group_column
     )
 
     assert (
@@ -249,62 +251,69 @@ def get_cat_order_type_column(
         ),
     )
     assert (det_cab[cols.CAT_ORDER_TYPE] != "Error").all()
-    return det_cab[cols.CAT_ORDER_TYPE]
+    return det_cab[cols.CAT_ORDER_TYPE].astype("category")
 
 
-def filter_paradox_groups_from_det_cab(
+def filter_paradoxal_orders_from_det_cab(
     det_cab_df: pd.DataFrame,
-    paradox_groups_to_keep: dict,
+    paradoxal_orders_to_keep: dict,
     id_sco_column: str = cols.ID_SCO,
     id_block_column: str = cols.ID_BLOCK_ORDER,
     float_mic_column: str = cols.FLOAT_MIC,
-    int_num_bloq_column: str = cols.INT_NUM_BLOQ,
+    int_num_block_column: str = cols.INT_NUM_BLOCK,
 ) -> pd.DataFrame:
-    mic_scos_to_keep = paradox_groups_to_keep[cols.IDS_MIC_SCOS]
-    bid_blocks_to_keep = paradox_groups_to_keep[cols.IDS_BID_BLOCKS]
+    mic_scos_to_keep = paradoxal_orders_to_keep[cols.IDS_MIC_SCOS]
+    bid_blocks_to_keep = paradoxal_orders_to_keep[cols.IDS_BID_BLOCKS]
 
     mics_not_to_keep_mask = (det_cab_df[float_mic_column] > 0) & (
         ~det_cab_df[id_sco_column].isin(mic_scos_to_keep)
     )
-    blocks_not_to_keep_mask = (det_cab_df[int_num_bloq_column] > 0) & (
+    blocks_not_to_keep_mask = (det_cab_df[int_num_block_column] > 0) & (
         ~det_cab_df[id_block_column].isin(bid_blocks_to_keep)
     )
     return det_cab_df.loc[~(mics_not_to_keep_mask | blocks_not_to_keep_mask)].copy()
 
 
-def concat_provided_uof_zones_with_existing_data(
-    user_uof_zones: pd.DataFrame,
+def concat_provided_participants_bidding_zones_with_existing_data(
+    user_participants_bidding_zones: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Merge user-provided UOF zones with the packaged reference list.
 
     The function copies and schema-validates the user dataframe (only `cols.ID_UNIDAD`
-    and `cols.CAT_PAIS`), loads the bundled UOF zones CSV and returns a combined dataframe
+    and `cols.CAT_BIDDING_ZONE`), loads the bundled UOF zones CSV and returns a combined dataframe
     ready for downstream use (e.g., deduplication or reconciliation).
 
     Args:
-        user_uof_zones: DataFrame with at least the columns `cols.ID_UNIDAD`
-            and `cols.CAT_PAIS` to append to the existing UOF zones list.
+        user_participants_bidding_zones: DataFrame with at least the columns `cols.ID_UNIDAD`
+            and `cols.CAT_BIDDING_ZONE` to append to the existing UOF zones list.
 
     Returns:
         A concatenated DataFrame containing existing and user-provided UOF zones.
 
     Raises:
-        SchemaError: If `user_uof_zones` fails validation against `UOFZonesSchema`.
+        SchemaError: If `user_participants_bidding_zones` fails validation against `ParticipantBiddingZonesSchema`.
         FileNotFoundError: If the existing UOF zones CSV cannot be loaded.
     """
-    user_uof_zones = user_uof_zones.copy()[[cols.ID_UNIDAD, cols.CAT_PAIS]]
-    UOFZonesSchema.validate(user_uof_zones)
+    user_participants_bidding_zones = user_participants_bidding_zones.copy()[
+        [cols.ID_UNIDAD, cols.CAT_BIDDING_ZONE]
+    ]
+    ParticipantBiddingZonesSchema.validate(user_participants_bidding_zones)
 
-    existing_uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
+    existing_participants_bidding_zones = pd.read_csv(
+        PARTICIPANTS_BIDDING_ZONES_FILEPATH
+    )
 
-    user_uof_zones["__origin"] = "user"
-    existing_uof_zones["__origin"] = "existing"
+    user_participants_bidding_zones["__origin"] = "user"
+    existing_participants_bidding_zones["__origin"] = "existing"
 
     altered_zones = (
-        pd.concat([existing_uof_zones, user_uof_zones], ignore_index=True)
+        pd.concat(
+            [existing_participants_bidding_zones, user_participants_bidding_zones],
+            ignore_index=True,
+        )
         .groupby([cols.ID_UNIDAD])
-        .filter(lambda x: len(x[cols.CAT_PAIS].unique()) > 1)
+        .filter(lambda x: len(x[cols.CAT_BIDDING_ZONE].unique()) > 1)
     )
     if not altered_zones.empty:
         altered_zones_list = altered_zones[cols.ID_UNIDAD].unique().tolist()
@@ -313,14 +322,22 @@ def concat_provided_uof_zones_with_existing_data(
             f"Warning: The following UOF zones are different from existing in the package and will use the user-provided values: {altered_zones_list}"
         )
 
-    user_unidades = user_uof_zones[cols.ID_UNIDAD].unique().tolist()
-    existing_uof_zones_filtered = existing_uof_zones.query(
-        f"`{cols.ID_UNIDAD}` not in @user_unidades"
+    user_unidades = user_participants_bidding_zones[cols.ID_UNIDAD].unique().tolist()
+    existing_participants_bidding_zones_filtered = (
+        existing_participants_bidding_zones.query(
+            f"`{cols.ID_UNIDAD}` not in @user_unidades"
+        )
     )
-    combined_uof_zones = (
-        pd.concat([existing_uof_zones_filtered, user_uof_zones], ignore_index=True)
+    combined_participants_bidding_zones = (
+        pd.concat(
+            [
+                existing_participants_bidding_zones_filtered,
+                user_participants_bidding_zones,
+            ],
+            ignore_index=True,
+        )
         .reset_index(drop=True)
         .drop(columns="__origin")
     )
 
-    return combined_uof_zones
+    return combined_participants_bidding_zones

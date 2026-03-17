@@ -22,23 +22,25 @@ def get_cleared_energy_from_exclusive_block_order_group(df):
     df = df.copy()
     assert df[cols.ID_ORDER].nunique() == 1, "DataFrame must be for a single offer"
     df[cols.FLOAT_CLEARED_POWER] = (
-        df.groupby([cols.INT_NUM_BLOQ], observed=True)
+        df.groupby([cols.INT_NUM_BLOCK], observed=True)
         .apply(
             lambda group: pd.DataFrame(
                 get_cleared_energy_from_non_exclusive_block_order(group)
             ),  # making a df and then taking the series bc of https://stackoverflow.com/a/69232413
-            include_groups=True,
+            include_groups=False,
         )
-        .reset_index(level=[cols.INT_NUM_BLOQ], drop=True)
+        .reset_index(level=[cols.INT_NUM_BLOCK], drop=True)
     )[cols.FLOAT_CLEARED_POWER]
     if (df[cols.FLOAT_CLEARED_POWER] == 0).all():
         return df[cols.FLOAT_CLEARED_POWER]
     df["welfare"] = df[cols.FLOAT_CLEARED_POWER] * (
         df[cols.FLOAT_CLEARED_PRICE] - df[cols.FLOAT_BID_PRICE]
     )
-    max_welfare = df.groupby(cols.INT_NUM_BLOQ, observed=True)["welfare"].sum().idxmax()
+    max_welfare = (
+        df.groupby(cols.INT_NUM_BLOCK, observed=True)["welfare"].sum().idxmax()
+    )
     df[cols.FLOAT_CLEARED_POWER] = np.where(
-        df[cols.INT_NUM_BLOQ] == max_welfare, df[cols.FLOAT_CLEARED_POWER], 0
+        df[cols.INT_NUM_BLOCK] == max_welfare, df[cols.FLOAT_CLEARED_POWER], 0
     )
     return df[cols.FLOAT_CLEARED_POWER]
 
@@ -46,9 +48,11 @@ def get_cleared_energy_from_exclusive_block_order_group(df):
 def calculate_cleared_energy_from_exclusive_block_order_groups(df):
     df = df.copy()
     df[cols.FLOAT_CLEARED_POWER] = (
-        df.groupby([cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL], observed=True)
-        .apply(get_cleared_energy_from_exclusive_block_order_group, include_groups=True)
-        .reset_index(level=[cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL], drop=True)
+        df.groupby([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], observed=True)[df.columns]
+        .apply(
+            get_cleared_energy_from_exclusive_block_order_group, include_groups=False
+        )
+        .reset_index(level=[cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], drop=True)
     )
     return df[cols.FLOAT_CLEARED_POWER]
 
@@ -57,7 +61,7 @@ def calculate_cleared_energy_from_non_exclusive_block_orders(df):
     df = df.copy()
     assert get_is_not_exclusive_block(df).all()
     df[cols.FLOAT_CLEARED_POWER] = (
-        df.groupby([cols.ID_ORDER, cols.INT_NUM_BLOQ], observed=True)
+        df.groupby([cols.ID_ORDER, cols.INT_NUM_BLOCK], observed=True)
         .apply(lambda x: get_cleared_energy_from_non_exclusive_block_order(x))
         .reset_index(level=[0, 1], drop=True)
     )
@@ -67,8 +71,8 @@ def calculate_cleared_energy_from_non_exclusive_block_orders(df):
 def calculate_cleared_energy_from_SCOs(df):
     df = df.copy()
     cleared_energy = (
-        df.groupby([cols.ID_ORDER], observed=True)
-        .apply(get_cleared_energy_from_SCO, include_groups=True)
+        df.groupby([cols.ID_ORDER], observed=True)[df.columns]
+        .apply(get_cleared_energy_from_SCO, include_groups=False)
         .reset_index(level=[cols.ID_ORDER], drop=True)
     )
     if len(cleared_energy) != len(df):
@@ -100,57 +104,55 @@ def get_cleared_energy_from_SCO(df):
 
 def get_cleared_power_with_price_curve(
     price_curve: np.ndarray,
-    det_cab_date: pd.DataFrame,
+    det_cab: pd.DataFrame,
 ):
 
     price_curve_dict = {i: price_curve[i - 1] for i in range(1, 25)}
-    det_cab_date = det_cab_date.copy()
-    det_cab_date[cols.FLOAT_CLEARED_PRICE] = det_cab_date[cols.INT_PERIODO].map(
-        price_curve_dict
-    )
+    det_cab = det_cab.copy()
+    det_cab[cols.FLOAT_CLEARED_PRICE] = det_cab[cols.INT_PERIOD].map(price_curve_dict)
 
-    cleared_energy = pd.Series(index=det_cab_date.index, dtype=float)
+    cleared_energy = pd.Series(index=det_cab.index, dtype=float)
 
-    det_cab_date_buy_mask = det_cab_date[cols.CAT_BUY_SELL] == "C"
-    cleared_energy.loc[det_cab_date_buy_mask] = np.where(
-        det_cab_date.loc[det_cab_date_buy_mask, cols.FLOAT_BID_PRICE]
-        >= det_cab_date.loc[det_cab_date_buy_mask, cols.FLOAT_CLEARED_PRICE],
-        det_cab_date.loc[det_cab_date_buy_mask, cols.FLOAT_BID_POWER],
+    det_cab_buy_mask = det_cab[cols.CAT_BUY_SELL] == "C"
+    cleared_energy.loc[det_cab_buy_mask] = np.where(
+        det_cab.loc[det_cab_buy_mask, cols.FLOAT_BID_PRICE]
+        >= det_cab.loc[det_cab_buy_mask, cols.FLOAT_CLEARED_PRICE],
+        det_cab.loc[det_cab_buy_mask, cols.FLOAT_BID_POWER],
         0,
     )
 
-    det_cab_date_sell_simple_mask = (det_cab_date[cols.CAT_BUY_SELL] == "V") & (
-        det_cab_date[cols.CAT_ORDER_TYPE] == "S"
+    det_cab_sell_simple_mask = (det_cab[cols.CAT_BUY_SELL] == "V") & (
+        det_cab[cols.CAT_ORDER_TYPE] == "S"
     )
-    cleared_energy.loc[det_cab_date_sell_simple_mask] = np.where(
-        det_cab_date.loc[det_cab_date_sell_simple_mask, cols.FLOAT_BID_PRICE]
-        <= det_cab_date.loc[det_cab_date_sell_simple_mask, cols.FLOAT_CLEARED_PRICE],
-        det_cab_date.loc[det_cab_date_sell_simple_mask, cols.FLOAT_BID_POWER],
+    cleared_energy.loc[det_cab_sell_simple_mask] = np.where(
+        det_cab.loc[det_cab_sell_simple_mask, cols.FLOAT_BID_PRICE]
+        <= det_cab.loc[det_cab_sell_simple_mask, cols.FLOAT_CLEARED_PRICE],
+        det_cab.loc[det_cab_sell_simple_mask, cols.FLOAT_BID_POWER],
         0,
     )
 
-    det_cab_date_sell_C01_mask = (det_cab_date[cols.CAT_BUY_SELL] == "V") & (
-        det_cab_date[cols.CAT_ORDER_TYPE] == "C01"
+    det_cab_sell_C01_mask = (det_cab[cols.CAT_BUY_SELL] == "V") & (
+        det_cab[cols.CAT_ORDER_TYPE] == "C01"
     )
-    cleared_energy.loc[det_cab_date_sell_C01_mask] = (
+    cleared_energy.loc[det_cab_sell_C01_mask] = (
         calculate_cleared_energy_from_non_exclusive_block_orders(
-            det_cab_date.loc[det_cab_date_sell_C01_mask]
+            det_cab.loc[det_cab_sell_C01_mask]
         )
     )
 
-    det_cab_date_sell_C02_mask = (det_cab_date[cols.CAT_BUY_SELL] == "V") & (
-        det_cab_date[cols.CAT_ORDER_TYPE] == "C02"
+    det_cab_sell_C02_mask = (det_cab[cols.CAT_BUY_SELL] == "V") & (
+        det_cab[cols.CAT_ORDER_TYPE] == "C02"
     )
-    cleared_energy.loc[det_cab_date_sell_C02_mask] = calculate_cleared_energy_from_SCOs(
-        det_cab_date.loc[det_cab_date_sell_C02_mask]
+    cleared_energy.loc[det_cab_sell_C02_mask] = calculate_cleared_energy_from_SCOs(
+        det_cab.loc[det_cab_sell_C02_mask]
     )
 
-    det_cab_date_sell_C04_mask = (det_cab_date[cols.CAT_BUY_SELL] == "V") & (
-        det_cab_date[cols.CAT_ORDER_TYPE] == "C04"
+    det_cab_sell_C04_mask = (det_cab[cols.CAT_BUY_SELL] == "V") & (
+        det_cab[cols.CAT_ORDER_TYPE] == "C04"
     )
-    cleared_energy.loc[det_cab_date_sell_C04_mask] = (
+    cleared_energy.loc[det_cab_sell_C04_mask] = (
         calculate_cleared_energy_from_exclusive_block_order_groups(
-            det_cab_date.loc[det_cab_date_sell_C04_mask]
+            det_cab.loc[det_cab_sell_C04_mask]
         )
     )
 
@@ -161,30 +163,28 @@ def get_cleared_power_with_price_curve(
 
 def get_cleared_power_as_simple_bids_with_price_curve(
     price_curve: np.ndarray,
-    det_cab_date: pd.DataFrame,
+    det_cab: pd.DataFrame,
 ):
 
     price_curve_dict = {i: price_curve[i - 1] for i in range(1, 25)}
-    det_cab_date = det_cab_date.copy()
-    det_cab_date[cols.FLOAT_CLEARED_PRICE] = det_cab_date[cols.INT_PERIODO].map(
-        price_curve_dict
-    )
+    det_cab = det_cab.copy()
+    det_cab[cols.FLOAT_CLEARED_PRICE] = det_cab[cols.INT_PERIOD].map(price_curve_dict)
 
-    cleared_energy = pd.Series(index=det_cab_date.index, dtype=float)
+    cleared_energy = pd.Series(index=det_cab.index, dtype=float)
 
-    det_cab_date_buy_mask = det_cab_date[cols.CAT_BUY_SELL] == "C"
-    cleared_energy.loc[det_cab_date_buy_mask] = np.where(
-        det_cab_date.loc[det_cab_date_buy_mask, cols.FLOAT_BID_PRICE]
-        >= det_cab_date.loc[det_cab_date_buy_mask, cols.FLOAT_CLEARED_PRICE],
-        det_cab_date.loc[det_cab_date_buy_mask, cols.FLOAT_BID_POWER],
+    det_cab_buy_mask = det_cab[cols.CAT_BUY_SELL] == "C"
+    cleared_energy.loc[det_cab_buy_mask] = np.where(
+        det_cab.loc[det_cab_buy_mask, cols.FLOAT_BID_PRICE]
+        >= det_cab.loc[det_cab_buy_mask, cols.FLOAT_CLEARED_PRICE],
+        det_cab.loc[det_cab_buy_mask, cols.FLOAT_BID_POWER],
         0,
     )
 
-    det_cab_date_sell_mask = det_cab_date[cols.CAT_BUY_SELL] == "V"
-    cleared_energy.loc[det_cab_date_sell_mask] = np.where(
-        det_cab_date.loc[det_cab_date_sell_mask, cols.FLOAT_BID_PRICE]
-        <= det_cab_date.loc[det_cab_date_sell_mask, cols.FLOAT_CLEARED_PRICE],
-        det_cab_date.loc[det_cab_date_sell_mask, cols.FLOAT_BID_POWER],
+    det_cab_sell_mask = det_cab[cols.CAT_BUY_SELL] == "V"
+    cleared_energy.loc[det_cab_sell_mask] = np.where(
+        det_cab.loc[det_cab_sell_mask, cols.FLOAT_BID_PRICE]
+        <= det_cab.loc[det_cab_sell_mask, cols.FLOAT_CLEARED_PRICE],
+        det_cab.loc[det_cab_sell_mask, cols.FLOAT_BID_POWER],
         0,
     )
 

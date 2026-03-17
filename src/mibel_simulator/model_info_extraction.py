@@ -23,16 +23,16 @@ def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:
     ]
     spain_clearing_price_df = pd.DataFrame(
         {
-            cols.INT_PERIODO: list(range(1, 25)),
+            cols.INT_PERIOD: list(range(1, 25)),
             cols.FLOAT_CLEARED_PRICE: spain_clearing_prices,
-            cols.CAT_PAIS: SPAIN_ZONE,
+            cols.CAT_BIDDING_ZONE: SPAIN_ZONE,
         }
     )
     portugal_clearing_price_df = pd.DataFrame(
         {
-            cols.INT_PERIODO: list(range(1, 25)),
+            cols.INT_PERIOD: list(range(1, 25)),
             cols.FLOAT_CLEARED_PRICE: portugal_clearing_prices,
-            cols.CAT_PAIS: PORTUGAL_ZONE,
+            cols.CAT_BIDDING_ZONE: PORTUGAL_ZONE,
         }
     )
     return pd.concat(
@@ -258,13 +258,13 @@ def get_spain_portugal_transmissions_det_cab_df(
 
             spanish_entry = {
                 "dat_sesion": dat_sesion,
-                cols.INT_PERIODO: period,
+                cols.INT_PERIOD: period,
                 cols.ID_UNIDAD: "MIE",
                 cols.CAT_BUY_SELL: "V" if spain_portugal_flow < 0 else "C",
                 cols.FLOAT_BID_PRICE: -500 if spain_portugal_flow < 0 else 3000,
                 cols.FLOAT_BID_POWER: abs(spain_portugal_flow),
                 cols.ID_INDIVIDUAL_BID: f"International_Spain_Portugal_{period}",
-                cols.CAT_PAIS: "ES",
+                cols.CAT_BIDDING_ZONE: "ES",
                 cols.FLOAT_CLEARED_POWER: abs(spain_portugal_flow),
                 cols.FLOAT_BID_POWER_CUMSUM: np.nan,
                 cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY: np.nan,
@@ -272,13 +272,13 @@ def get_spain_portugal_transmissions_det_cab_df(
 
             portugal_entry = {
                 "dat_sesion": dat_sesion,
-                cols.INT_PERIODO: period,
+                cols.INT_PERIOD: period,
                 cols.ID_UNIDAD: "MIP",
                 cols.CAT_BUY_SELL: "V" if spain_portugal_flow > 0 else "C",
                 cols.FLOAT_BID_PRICE: -500 if spain_portugal_flow > 0 else 3000,
                 cols.FLOAT_BID_POWER: abs(spain_portugal_flow),
                 cols.ID_INDIVIDUAL_BID: f"International_Portugal_Spain_{period}",
-                cols.CAT_PAIS: "PT",
+                cols.CAT_BIDDING_ZONE: "PT",
                 cols.FLOAT_CLEARED_POWER: abs(spain_portugal_flow),
                 cols.FLOAT_BID_POWER_CUMSUM: np.nan,
                 cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY: np.nan,
@@ -290,14 +290,14 @@ def get_spain_portugal_transmissions_det_cab_df(
     return pd.DataFrame(international_flows)
 
 
-def get_det_cab_date_results(
-    model: pyo.ConcreteModel, det_cab_date: pd.DataFrame
+def get_det_cab_results(
+    model: pyo.ConcreteModel, det_cab: pd.DataFrame
 ) -> pd.DataFrame:
     """_summary_
 
     Args:
         model (pyo.ConcreteModel): _description_
-        det_cab_date (pd.DataFrame): _description_
+        det_cab (pd.DataFrame): _description_
 
     Returns:
         pd.DataFrame: _description_
@@ -305,11 +305,11 @@ def get_det_cab_date_results(
 
     cleared_energy = get_cleared_energy_series(model)
     spain_portugal_transmissions_det_cab = get_spain_portugal_transmissions_det_cab_df(
-        model, det_cab_date["dat_sesion"].iloc[0]
+        model, det_cab["dat_sesion"].iloc[0]
     )
 
-    det_cab_date_results = (
-        det_cab_date.merge(
+    det_cab_results = (
+        det_cab.merge(
             cleared_energy,
             left_on=cols.ID_INDIVIDUAL_BID,
             right_index=True,
@@ -318,23 +318,23 @@ def get_det_cab_date_results(
             indicator=True,
         )
         .sort_values(
-            by=[cols.INT_PERIODO, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
+            by=[cols.INT_PERIOD, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
         )
         .copy()
     )
 
-    assert det_cab_date_results._merge.isin(["both", "left_only"]).all()
-    det_cab_date_results = det_cab_date_results.drop(columns="_merge")
+    assert det_cab_results._merge.isin(["both", "left_only"]).all()
+    det_cab_results = det_cab_results.drop(columns="_merge")
 
-    det_cab_date_results = pd.concat(
-        [det_cab_date_results, spain_portugal_transmissions_det_cab],
+    det_cab_results = pd.concat(
+        [det_cab_results, spain_portugal_transmissions_det_cab],
         ignore_index=True,
     )
 
-    det_cab_date_results[cols.FLOAT_CLEARED_POWER_CUMSUM] = get_float_bid_power_cumsum(
-        det_cab_date_results,
+    det_cab_results[cols.FLOAT_CLEARED_POWER_CUMSUM] = get_float_bid_power_cumsum(
+        det_cab_results,
         date_column_name="dat_sesion",
-        hour_column_name=cols.INT_PERIODO,
+        hour_column_name=cols.INT_PERIOD,
         cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
         cod_ofertada_casada_column_name="cod_ofertada_casada",
         qua_energia_column_name=cols.FLOAT_CLEARED_POWER,
@@ -342,17 +342,17 @@ def get_det_cab_date_results(
     )
 
     for country in [SPAIN_ZONE, PORTUGAL_ZONE]:
-        det_cab_date_results.loc[
-            (det_cab_date_results[cols.CAT_PAIS] == country),
+        det_cab_results.loc[
+            (det_cab_results[cols.CAT_BIDDING_ZONE] == country),
             cols.FLOAT_CLEARED_POWER_CUMSUM_BY_COUNTRY,
         ] = get_float_bid_power_cumsum(
-            det_cab_date_results.loc[(det_cab_date_results[cols.CAT_PAIS] == country)],
+            det_cab_results.loc[(det_cab_results[cols.CAT_BIDDING_ZONE] == country)],
             date_column_name="dat_sesion",
-            hour_column_name=cols.INT_PERIODO,
+            hour_column_name=cols.INT_PERIOD,
             cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
             cod_ofertada_casada_column_name="cod_ofertada_casada",
             qua_energia_column_name=cols.FLOAT_CLEARED_POWER,
             qua_precio_column_name=cols.FLOAT_BID_PRICE,
         )
 
-    return det_cab_date_results
+    return det_cab_results

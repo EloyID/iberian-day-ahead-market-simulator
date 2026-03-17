@@ -6,24 +6,24 @@ import logging
 import multiprocessing
 import numpy as np
 import pandas as pd
-from mibel_simulator.get_new_paradox_groups_list_adding_and_removing import (
-    get_new_paradox_groups_list_adding_and_removing,
+from mibel_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
+    get_new_paradoxal_orders_list_adding_and_removing,
 )
 import mibel_simulator.columns as cols
 import pandera.pandas as pa
 import warnings
 
-from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, TRIALS_DF_COLUMNS
+from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, ITERATIONS_DF_COLUMNS
 from mibel_simulator.data_preprocessor import (
-    get_all_paradox_groups,
-    get_det_cab_date_for_simulation,
-    get_france_det_cab_date_from_price,
+    get_all_paradoxal_orders,
+    get_det_cab_for_simulation,
+    get_france_det_cab_from_price,
 )
-from mibel_simulator.file_paths import UOF_ZONES_FILEPATH
-from mibel_simulator.paradox_groups_tools import (
-    check_are_paradox_groups_tested,
-    transform_ids_paradox_groups_list_to_dict,
-    transform_paradox_groups_dict_to_ids_list,
+from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
+from mibel_simulator.paradoxal_orders_tools import (
+    check_are_paradoxal_orders_tested,
+    transform_ids_paradoxal_orders_list_to_dict,
+    transform_paradoxal_orders_dict_to_ids_list,
 )
 from mibel_simulator.schemas import (
     CABSchema,
@@ -32,7 +32,7 @@ from mibel_simulator.schemas import (
     DETCABSchema,
     DETSchema,
     ExclusiveBlockOrdersGroupedSchema,
-    TrialsSchema,
+    IterationsSchema,
 )
 from mibel_simulator.parse_omie_files import (
     parse_cab_file,
@@ -50,8 +50,8 @@ from mibel_simulator.schemas.spain_portugal_transmissions import (
     SpainPortugaLTransmissionsSchema,
 )
 from mibel_simulator.tools import (
-    concat_provided_uof_zones_with_existing_data,
-    filter_paradox_groups_from_det_cab,
+    concat_provided_participants_bidding_zones_with_existing_data,
+    filter_paradoxal_orders_from_det_cab,
 )
 import pyomo.environ as pyo
 from pandera.typing import DataFrame, Series
@@ -59,18 +59,18 @@ from pandera.typing import DataFrame, Series
 logger = logging.getLogger(__name__)
 
 
-def get_cleared_paradox_groups_summary(
-    det_cab_date_paradox_groups_filtered: pd.DataFrame,
+def get_cleared_paradoxal_orders_summary(
+    det_cab_paradoxal_orders_filtered: pd.DataFrame,
     cleared_energy_df: pd.DataFrame,
     clearing_price_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Aggregates results for paradox orders that were matched in the trial.
+    Aggregates results for paradox orders that were matched in the iteration.
 
     Merges DET/CAB data with cleared energy and clearing prices, computes financial metrics, and groups by order ID.
 
     Args:
-        det_cab_date_paradox_groups_filtered (pd.DataFrame): DET/CAB DataFrame for paradox orders in the trial.
+        det_cab_paradoxal_orders_filtered (pd.DataFrame): DET/CAB DataFrame for paradox orders in the iteration.
         cleared_energy_df (pd.DataFrame): DataFrame of cleared energy per bid.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
@@ -78,8 +78,8 @@ def get_cleared_paradox_groups_summary(
         pd.DataFrame: DataFrame grouped by order ID with financial results for matched paradox orders.
     """
 
-    cleared_det_cab_date = (
-        det_cab_date_paradox_groups_filtered.merge(
+    cleared_det_cab = (
+        det_cab_paradoxal_orders_filtered.merge(
             cleared_energy_df,
             left_on=cols.ID_INDIVIDUAL_BID,
             right_index=True,
@@ -88,37 +88,37 @@ def get_cleared_paradox_groups_summary(
             indicator=True,
         )
         .sort_values(
-            by=[cols.INT_PERIODO, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
+            by=[cols.INT_PERIOD, cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER_CUMSUM]
         )
         .copy()
     )
-    assert cleared_det_cab_date._merge.isin(["both", "left_only"]).all()
-    cleared_det_cab_date = cleared_det_cab_date.drop(columns="_merge")
+    assert cleared_det_cab._merge.isin(["both", "left_only"]).all()
+    cleared_det_cab = cleared_det_cab.drop(columns="_merge")
 
-    cleared_paradox_groups_df = (
-        cleared_det_cab_date.query(
-            f"({cols.FLOAT_MIC} > 0 or {cols.INT_NUM_BLOQ} > 0) and {cols.FLOAT_CLEARED_POWER} > 0"
+    cleared_paradoxal_orders_df = (
+        cleared_det_cab.query(
+            f"({cols.FLOAT_MIC} > 0 or {cols.INT_NUM_BLOCK} > 0) and {cols.FLOAT_CLEARED_POWER} > 0"
         )
         .copy()
         .merge(
             clearing_price_df,
-            on=[cols.INT_PERIODO, cols.CAT_PAIS],
+            on=[cols.INT_PERIOD, cols.CAT_BIDDING_ZONE],
             how="left",
             validate="many_to_one",
             indicator=True,
         )
     )
-    assert cleared_paradox_groups_df._merge.isin(["both"]).all()
-    cleared_paradox_groups_df = cleared_paradox_groups_df.drop(columns="_merge")
+    assert cleared_paradoxal_orders_df._merge.isin(["both"]).all()
+    cleared_paradoxal_orders_df = cleared_paradoxal_orders_df.drop(columns="_merge")
 
-    cleared_paradox_groups_df = cleared_paradox_groups_df.eval(
+    cleared_paradoxal_orders_df = cleared_paradoxal_orders_df.eval(
         f"""
         {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_CLEARED_PRICE}
         {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_BID_PRICE}
         """
     )
-    cleared_paradox_groups_df_grouped = (
-        cleared_paradox_groups_df.groupby([cols.ID_PARADOX_GROUPS], observed=True)
+    cleared_paradoxal_orders_df_grouped = (
+        cleared_paradoxal_orders_df.groupby([cols.ID_PARADOXAL_ORDERS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
@@ -135,47 +135,47 @@ def get_cleared_paradox_groups_summary(
         )
     )
 
-    return cleared_paradox_groups_df_grouped
+    return cleared_paradoxal_orders_df_grouped
 
 
-def get_leftout_paradox_groups_summary(
-    det_cab_date: pd.DataFrame,
-    all_paradox_groups: dict,
-    trial_paradox_groups: dict,
+def get_leftout_paradoxal_orders_summary(
+    det_cab: pd.DataFrame,
+    all_paradoxal_orders: dict,
+    iteration_paradoxal_orders: dict,
     clearing_price_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Aggregates financial results for paradox orders not included in the current trial.
+    Aggregates financial results for paradox orders not included in the current iteration.
 
     Merges left-out paradox orders with clearing prices, computes financial metrics, and groups by order ID.
 
     Args:
-        det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
-        all_paradox_groups (dict): Dictionary of all paradox order IDs.
-        trial_paradox_groups (dict): Dictionary of paradox order IDs included in the trial.
+        det_cab (pd.DataFrame): Full DET/CAB DataFrame.
+        all_paradoxal_orders (dict): Dictionary of all paradox order IDs.
+        iteration_paradoxal_orders (dict): Dictionary of paradox order IDs included in the iteration.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
     Returns:
         pd.DataFrame: DataFrame grouped by order ID with financial results for left-out paradox orders.
     """
 
-    det_cab_date = det_cab_date.copy().merge(
+    det_cab = det_cab.copy().merge(
         clearing_price_df,
-        on=[cols.INT_PERIODO, cols.CAT_PAIS],
+        on=[cols.INT_PERIOD, cols.CAT_BIDDING_ZONE],
         how="left",
         validate="many_to_one",
     )
 
-    all_scos = all_paradox_groups[cols.IDS_MIC_SCOS]
-    trial_scos = trial_paradox_groups[cols.IDS_MIC_SCOS]
-    left_out_scos = set(all_scos) - set(trial_scos)
+    all_scos = all_paradoxal_orders[cols.IDS_MIC_SCOS]
+    iteration_scos = iteration_paradoxal_orders[cols.IDS_MIC_SCOS]
+    left_out_scos = set(all_scos) - set(iteration_scos)
 
-    all_bid_blocks = all_paradox_groups[cols.IDS_BID_BLOCKS]
-    trial_bid_blocks = trial_paradox_groups[cols.IDS_BID_BLOCKS]
-    left_out_bid_blocks = set(all_bid_blocks) - set(trial_bid_blocks)
+    all_bid_blocks = all_paradoxal_orders[cols.IDS_BID_BLOCKS]
+    iteration_bid_blocks = iteration_paradoxal_orders[cols.IDS_BID_BLOCKS]
+    left_out_bid_blocks = set(all_bid_blocks) - set(iteration_bid_blocks)
 
-    det_cab_date_scos = (
-        det_cab_date.query(f"{cols.ID_SCO} in @left_out_scos")
+    det_cab_scos = (
+        det_cab.query(f"{cols.ID_SCO} in @left_out_scos")
         .assign(
             **{
                 cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
@@ -192,8 +192,8 @@ def get_leftout_paradox_groups_summary(
             """
         )
     )
-    det_cab_date_bid_blocks = (
-        det_cab_date.query(f" {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks")
+    det_cab_bid_blocks = (
+        det_cab.query(f" {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks")
         .assign(
             **{
                 cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: lambda df: np.where(
@@ -211,11 +211,11 @@ def get_leftout_paradox_groups_summary(
         )
     )
 
-    det_cab_date_paradox_groups = (
+    det_cab_paradoxal_orders = (
         pd.concat(
             [
-                det_cab_date_scos,
-                det_cab_date_bid_blocks,
+                det_cab_scos,
+                det_cab_bid_blocks,
             ],
             ignore_index=True,
         )
@@ -225,7 +225,7 @@ def get_leftout_paradox_groups_summary(
             {cols.FLOAT_TOTAL_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_VARIABLE_COST}
             """
         )
-        .groupby([cols.ID_PARADOX_GROUPS], observed=True)
+        .groupby([cols.ID_PARADOXAL_ORDERS], observed=True)
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
@@ -242,46 +242,44 @@ def get_leftout_paradox_groups_summary(
         )
     )
 
-    assert det_cab_date_paradox_groups[cols.FLOAT_NET_INCOME].notna().all()
-    assert (
-        det_cab_date_paradox_groups[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
-    )
-    return det_cab_date_paradox_groups
+    assert det_cab_paradoxal_orders[cols.FLOAT_NET_INCOME].notna().all()
+    assert det_cab_paradoxal_orders[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
+    return det_cab_paradoxal_orders
 
 
 #### ITERATIVE LOOP
 
 
-def sort_trials_df_by_most_promising(trials_df: pd.DataFrame) -> pd.DataFrame:
+def sort_iterations_df_by_most_promising(iterations_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Sorts the trials DataFrame to prioritize the most promising SCO combinations.
-    Trials with successful status are sorted by objective value and SCO count; unsuccessful trials are sorted by SCO count and objective value.
+    Sorts the iterations DataFrame to prioritize the most promising SCO combinations.
+    Iterations with successful status are sorted by objective value and SCO count; unsuccessful iterations are sorted by SCO count and objective value.
 
     Args:
-        trials_df (pd.DataFrame): DataFrame containing results of previous trials.
+        iterations_df (pd.DataFrame): DataFrame containing results of previous iterations.
 
     Returns:
-        pd.DataFrame: Sorted DataFrame of trials.
+        pd.DataFrame: Sorted DataFrame of iterations.
     """
 
-    trials_df_status_false = trials_df.query(
+    iterations_df_status_false = iterations_df.query(
         f"{cols.BOOL_IS_EXPECTED_INCOME_RESPECTED} == False"
     )
-    trials_df_status_true = trials_df.query(
+    iterations_df_status_true = iterations_df.query(
         f"{cols.BOOL_IS_EXPECTED_INCOME_RESPECTED} == True"
     )
-    sorted_promising_trials_df = pd.concat(
+    sorted_promising_iterations_df = pd.concat(
         [
-            trials_df_status_true.sort_values(
+            iterations_df_status_true.sort_values(
                 by=[
                     cols.FLOAT_OBJECTIVE_VALUE,
-                    cols.INT_PARADOX_GROUPS_COUNT,
+                    cols.INT_PARADOXAL_ORDERS_COUNT,
                 ],
                 ascending=[False, True],
             ),
-            trials_df_status_false.sort_values(
+            iterations_df_status_false.sort_values(
                 by=[
-                    cols.INT_PARADOX_GROUPS_COUNT,
+                    cols.INT_PARADOXAL_ORDERS_COUNT,
                     cols.FLOAT_OBJECTIVE_VALUE,
                 ],
                 ascending=[True, False],
@@ -289,180 +287,193 @@ def sort_trials_df_by_most_promising(trials_df: pd.DataFrame) -> pd.DataFrame:
         ],
         ignore_index=True,
     )
-    return sorted_promising_trials_df
+    return sorted_promising_iterations_df
 
 
-def get_best_trial(
-    trials_df: pd.DataFrame, mic_respected_only: bool = True
+def get_best_iteration(
+    iterations_df: pd.DataFrame, mic_respected_only: bool = True
 ) -> pd.Series:
     """
-    Selects and returns the best trial from the trials DataFrame.
+    Selects and returns the best iteration from the iterations DataFrame.
 
-    If mic_respected_only is True, only considers trials where the MIC constraint is respected.
-    The best trial is determined by sorting for the highest objective value and, in case of ties,
-    the lowest number of SCOs with MIC. If mic_respected_only is False, considers all trials.
+    If mic_respected_only is True, only considers iterations where the MIC constraint is respected.
+    The best iteration is determined by sorting for the highest objective value and, in case of ties,
+    the lowest number of SCOs with MIC. If mic_respected_only is False, considers all iterations.
 
     Args:
-        trials_df (pd.DataFrame): DataFrame containing results of all trials.
-        mic_respected_only (bool, optional): If True, only consider trials where MIC is respected. Defaults to True.
+        iterations_df (pd.DataFrame): DataFrame containing results of all iterations.
+        mic_respected_only (bool, optional): If True, only consider iterations where MIC is respected. Defaults to True.
 
     Returns:
-        pd.Series: The row of the best trial in the DataFrame.
+        pd.Series: The row of the best iteration in the DataFrame.
     """
     if mic_respected_only:
-        trials_df = trials_df.query(f"{cols.BOOL_IS_EXPECTED_INCOME_RESPECTED} == True")
-    sorted_trials_df = sort_trials_df_by_most_promising(trials_df)
-    return sorted_trials_df.iloc[0]
+        iterations_df = iterations_df.query(
+            f"{cols.BOOL_IS_EXPECTED_INCOME_RESPECTED} == True"
+        )
+    sorted_iterations_df = sort_iterations_df_by_most_promising(iterations_df)
+    return sorted_iterations_df.iloc[0]
 
 
-def get_new_paradox_groups_list_by_removing_underperforming_ones(
-    trial_cleared_paradox_groups_summary: pd.DataFrame,
-    trials_df: pd.DataFrame,
-    paradox_groups_combination: dict,
-    int_paradox_groups_count: int = 1,
+def get_new_paradoxal_orders_list_by_removing_underperforming_ones(
+    iteration_cleared_paradoxal_orders_summary: pd.DataFrame,
+    iterations_df: pd.DataFrame,
+    paradoxal_orders_combination: dict,
+    int_paradoxal_orders_count: int = 1,
 ) -> pd.Series:
     """
     Proposes new paradox order combinations by removing underperforming paradox orders from the current combination.
 
     This function identifies paradox orders with negative net income per cleared power, removes them one by one from the current combination,
-    and checks if the resulting combinations have already been tested. Returns up to int_paradox_groups_count new combinations that have not been tested yet.
+    and checks if the resulting combinations have already been tested. Returns up to int_paradoxal_orders_count new combinations that have not been tested yet.
 
     Args:
-        trial_cleared_paradox_groups_summary (pd.DataFrame): Summary DataFrame of cleared paradox orders for the current trial.
-        trials_df (pd.DataFrame): DataFrame of all previous trial results.
-        paradox_groups_combination (dict): Dictionary of paradox orders in the current trial.
-        int_paradox_groups_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
+        iteration_cleared_paradoxal_orders_summary (pd.DataFrame): Summary DataFrame of cleared paradox orders for the current iteration.
+        iterations_df (pd.DataFrame): DataFrame of all previous iteration results.
+        paradoxal_orders_combination (dict): Dictionary of paradox orders in the current iteration.
+        int_paradoxal_orders_count (int, optional): Maximum number of new combinations to return. Defaults to 1.
 
     Returns:
-        pd.Series: Series of new paradox order combinations (as lists) to try in the next trials.
+        pd.Series: Series of new paradox order combinations (as lists) to try in the next iterations.
     """
-    trial_cleared_paradox_groups_summary = trial_cleared_paradox_groups_summary.query(
-        f"{cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} < 0"
-    ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER, ascending=True)
-    new_paradox_groups_df = pd.DataFrame(
+    iteration_cleared_paradoxal_orders_summary = (
+        iteration_cleared_paradoxal_orders_summary.query(
+            f"{cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} < 0"
+        ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER, ascending=True)
+    )
+    new_paradoxal_orders_df = pd.DataFrame(
         {
-            cols.PARADOX_GROUPS_COLUMN: np.nan,
-            cols.BOOL_ARE_PARADOX_GROUPS_TESTED: np.nan,
+            cols.PARADOXAL_ORDERS_COLUMN: np.nan,
+            cols.BOOL_ARE_PARADOXAL_ORDERS_TESTED: np.nan,
         },
-        index=trial_cleared_paradox_groups_summary.index,
+        index=iteration_cleared_paradoxal_orders_summary.index,
     ).astype(
-        {cols.PARADOX_GROUPS_COLUMN: object, cols.BOOL_ARE_PARADOX_GROUPS_TESTED: bool}
+        {
+            cols.PARADOXAL_ORDERS_COLUMN: object,
+            cols.BOOL_ARE_PARADOXAL_ORDERS_TESTED: bool,
+        }
     )
 
-    paradox_group_ids_left = transform_paradox_groups_dict_to_ids_list(
-        paradox_groups_combination
+    paradoxal_order_ids_left = transform_paradoxal_orders_dict_to_ids_list(
+        paradoxal_orders_combination
     )
 
-    for index, row in new_paradox_groups_df.iterrows():
-        new_trial_paradox_groups = list(set(paradox_group_ids_left) - set([index]))
-        are_paradox_groups_tested = check_are_paradox_groups_tested(
-            trials_df, new_trial_paradox_groups
+    for index, row in new_paradoxal_orders_df.iterrows():
+        new_iteration_paradoxal_orders = list(
+            set(paradoxal_order_ids_left) - set([index])
+        )
+        are_paradoxal_orders_tested = check_are_paradoxal_orders_tested(
+            iterations_df, new_iteration_paradoxal_orders
         )
 
-        new_paradox_groups_df.at[index, cols.PARADOX_GROUPS_COLUMN] = (
-            new_trial_paradox_groups
+        new_paradoxal_orders_df.at[index, cols.PARADOXAL_ORDERS_COLUMN] = (
+            new_iteration_paradoxal_orders
         )
-        new_paradox_groups_df.at[index, cols.BOOL_ARE_PARADOX_GROUPS_TESTED] = (
-            are_paradox_groups_tested
+        new_paradoxal_orders_df.at[index, cols.BOOL_ARE_PARADOXAL_ORDERS_TESTED] = (
+            are_paradoxal_orders_tested
         )
 
-        paradox_group_ids_left = new_trial_paradox_groups
+        paradoxal_order_ids_left = new_iteration_paradoxal_orders
 
-    new_paradox_groups_df = new_paradox_groups_df.query(
-        f"{cols.BOOL_ARE_PARADOX_GROUPS_TESTED} == False"
-    ).head(int_paradox_groups_count)
+    new_paradoxal_orders_df = new_paradoxal_orders_df.query(
+        f"{cols.BOOL_ARE_PARADOXAL_ORDERS_TESTED} == False"
+    ).head(int_paradoxal_orders_count)
 
     return (
-        new_paradox_groups_df[cols.PARADOX_GROUPS_COLUMN]
-        .apply(transform_ids_paradox_groups_list_to_dict)
+        new_paradoxal_orders_df[cols.PARADOXAL_ORDERS_COLUMN]
+        .apply(transform_ids_paradoxal_orders_list_to_dict)
         .tolist()
     )
 
 
-def define_new_paradox_groups_list(
-    trials_df: pd.DataFrame,
-    det_cab_date: pd.DataFrame,
-    all_paradox_groups: dict,
-    int_paradox_groups_count: int = 1,
+def define_new_paradoxal_orders_list(
+    iterations_df: pd.DataFrame,
+    det_cab: pd.DataFrame,
+    all_paradoxal_orders: dict,
+    int_paradoxal_orders_count: int = 1,
 ) -> list[dict]:
     """
-    Defines a new combination of paradox groups with MIC to try in the next trial.
+    Defines a new combination of paradox groups with MIC to try in the next iteration.
 
-    Based on previous trial results, either adds promising left-out paradox groups or removes underperforming ones, ensuring combinations are not repeated.
+    Based on previous iteration results, either adds promising left-out paradox groups or removes underperforming ones, ensuring combinations are not repeated.
 
     Args:
-        trials_df (pd.DataFrame): DataFrame of previous trial results.
-        det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
-        all_paradox_groups (dict): Dictionary of all paradox groups with MIC.
-        int_paradox_groups_count (int, optional): Maximum number of MIC paradox group combinations to propose. Defaults to 1.
+        iterations_df (pd.DataFrame): DataFrame of previous iteration results.
+        det_cab (pd.DataFrame): Full DET/CAB DataFrame.
+        all_paradoxal_orders (dict): Dictionary of all paradox groups with MIC.
+        int_paradoxal_orders_count (int, optional): Maximum number of MIC paradox group combinations to propose. Defaults to 1.
 
     Returns:
-        list[dict]: List of paradox groups for the next trial.
+        list[dict]: List of paradox groups for the next iteration.
     """
 
-    # Get the most promising trial
-    sorted_promising_trials_df = sort_trials_df_by_most_promising(trials_df)
-    int_paradox_groups_count_start = int_paradox_groups_count
-    new_paradox_groups_list = []
-    for index, row in sorted_promising_trials_df.iterrows():
+    # Get the most promising iteration
+    sorted_promising_iterations_df = sort_iterations_df_by_most_promising(iterations_df)
+    int_paradoxal_orders_count_start = int_paradoxal_orders_count
+    new_paradoxal_orders_list = []
+    for index, row in sorted_promising_iterations_df.iterrows():
 
         logger.info(
-            f"--ALGORITHM--: Most promising combination: {row[cols.PARADOX_GROUPS_COLUMN]}"
+            f"--ALGORITHM--: Most promising combination: {row[cols.PARADOXAL_ORDERS_COLUMN]}"
         )
 
         cleared_energy = row[cols.CLEARED_ENERGY_COLUMN]
         clearing_prices = row[cols.CLEARING_PRICES_COLUMN]
-        paradox_groups = row[cols.PARADOX_GROUPS_COLUMN]
+        paradoxal_orders = row[cols.PARADOXAL_ORDERS_COLUMN]
         is_expected_income_respected = row[cols.BOOL_IS_EXPECTED_INCOME_RESPECTED]
 
         if is_expected_income_respected:
             logger.info("--ALGORITHM--: MIC is respected")
-            leftout_paradox_groups_summary = get_leftout_paradox_groups_summary(
-                det_cab_date, all_paradox_groups, paradox_groups, clearing_prices
+            leftout_paradoxal_orders_summary = get_leftout_paradoxal_orders_summary(
+                det_cab, all_paradoxal_orders, paradoxal_orders, clearing_prices
             ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
-            det_cab_date_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
-                det_cab_date, paradox_groups
+            det_cab_paradoxal_orders_filtered = filter_paradoxal_orders_from_det_cab(
+                det_cab, paradoxal_orders
             )
-            trial_cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
-                det_cab_date_paradox_groups_filtered,
-                cleared_energy,
-                clearing_prices,
+            iteration_cleared_paradoxal_orders_summary = (
+                get_cleared_paradoxal_orders_summary(
+                    det_cab_paradoxal_orders_filtered,
+                    cleared_energy,
+                    clearing_prices,
+                )
             )
-            new_paradox_groups_list.extend(
-                get_new_paradox_groups_list_adding_and_removing(
-                    leftout_paradox_groups_summary,
-                    trial_cleared_paradox_groups_summary,
-                    trials_df,
-                    paradox_groups,
-                    int_paradox_groups_count,
+            new_paradoxal_orders_list.extend(
+                get_new_paradoxal_orders_list_adding_and_removing(
+                    leftout_paradoxal_orders_summary,
+                    iteration_cleared_paradoxal_orders_summary,
+                    iterations_df,
+                    paradoxal_orders,
+                    int_paradoxal_orders_count,
                 )
             )
 
         else:
-            det_cab_date_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
-                det_cab_date, paradox_groups
+            det_cab_paradoxal_orders_filtered = filter_paradoxal_orders_from_det_cab(
+                det_cab, paradoxal_orders
             )
-            trial_cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
-                det_cab_date_paradox_groups_filtered,
-                cleared_energy,
-                clearing_prices,
+            iteration_cleared_paradoxal_orders_summary = (
+                get_cleared_paradoxal_orders_summary(
+                    det_cab_paradoxal_orders_filtered,
+                    cleared_energy,
+                    clearing_prices,
+                )
             )
-            new_paradox_groups_list.extend(
-                get_new_paradox_groups_list_by_removing_underperforming_ones(
-                    trial_cleared_paradox_groups_summary,
-                    trials_df,
-                    paradox_groups,
-                    int_paradox_groups_count,
+            new_paradoxal_orders_list.extend(
+                get_new_paradoxal_orders_list_by_removing_underperforming_ones(
+                    iteration_cleared_paradoxal_orders_summary,
+                    iterations_df,
+                    paradoxal_orders,
+                    int_paradoxal_orders_count,
                 )
             )
 
-        int_paradox_groups_count = int_paradox_groups_count_start - len(
-            new_paradox_groups_list
+        int_paradoxal_orders_count = int_paradoxal_orders_count_start - len(
+            new_paradoxal_orders_list
         )
-        if int_paradox_groups_count <= 0:
+        if int_paradoxal_orders_count <= 0:
             break
 
-    return new_paradox_groups_list
+    return new_paradoxal_orders_list
 
 
 def iterative_function(
@@ -474,67 +485,67 @@ def iterative_function(
     ],
 ) -> pd.DataFrame:
     """
-    Runs a single market clearing trial for a given combination of SCOs with MIC.
+    Runs a single market clearing iteration for a given combination of SCOs with MIC.
 
     This function filters the DET/CAB data for the current SCOs with MIC, runs the market model,
-    extracts relevant results, and returns a DataFrame summarizing the trial.
+    extracts relevant results, and returns a DataFrame summarizing the iteration.
 
     Args:
         args (tuple): Tuple containing:
-            - det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
-            - capacidad_inter_PT_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
-            - paradox_groups (list): List of SCO order IDs with MIC for this trial.
+            - det_cab (pd.DataFrame): Full DET/CAB DataFrame.
+            - capacidad_inter_PBC_pt (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
+            - paradoxal_orders (list): List of SCO order IDs with MIC for this iteration.
             - france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
 
     Returns:
-        pd.DataFrame: DataFrame with the results of the trial (one row).
+        pd.DataFrame: DataFrame with the results of the iteration (one row).
     """
 
     (
-        det_cab_date,
-        capacidad_inter_PT_date,
-        paradox_groups,
+        det_cab,
+        capacidad_inter_PBC_pt,
+        paradoxal_orders,
         france_fixed_exchange,
     ) = args
 
-    # Keep only SCOs in the current trial
-    det_cab_date_paradox_groups_filtered = filter_paradox_groups_from_det_cab(
-        det_cab_date, paradox_groups
+    # Keep only SCOs in the current iteration
+    det_cab_paradoxal_orders_filtered = filter_paradoxal_orders_from_det_cab(
+        det_cab, paradoxal_orders
     )
 
     # Run market model
     model, _, results = run_model(
-        det_cab_date_paradox_groups_filtered,
-        capacidad_inter_PT_date,
+        det_cab_paradoxal_orders_filtered,
+        capacidad_inter_PBC_pt,
         france_fixed_exchange,
     )
 
     # Extract information from the model
     cleared_energy = get_cleared_energy_series(model)
     clearing_prices = get_clearing_prices_df(model)
-    cleared_paradox_groups_summary = get_cleared_paradox_groups_summary(
-        det_cab_date_paradox_groups_filtered, cleared_energy, clearing_prices
+    cleared_paradoxal_orders_summary = get_cleared_paradoxal_orders_summary(
+        det_cab_paradoxal_orders_filtered, cleared_energy, clearing_prices
     )
     welfare = pyo.value(model.OBJ)
     bool_is_expected_income_respected = (
-        cleared_paradox_groups_summary[cols.FLOAT_NET_INCOME] >= 0
+        cleared_paradoxal_orders_summary[cols.FLOAT_NET_INCOME] >= 0
     ).all()
 
-    ids_mic_scos = paradox_groups[cols.IDS_MIC_SCOS]
-    ids_bid_blocks = paradox_groups[cols.IDS_BID_BLOCKS]
+    ids_mic_scos = paradoxal_orders[cols.IDS_MIC_SCOS]
+    ids_bid_blocks = paradoxal_orders[cols.IDS_BID_BLOCKS]
 
-    # Update trials_df with current trial results
-    trial_df_entry = {
-        cols.PARADOX_GROUPS_COLUMN: [paradox_groups],
+    # Update iterations_df with current iteration results
+    iteration_df_entry = {
+        cols.PARADOXAL_ORDERS_COLUMN: [paradoxal_orders],
         cols.IDS_MIC_SCOS: [ids_mic_scos],
         cols.IDS_BID_BLOCKS: [ids_bid_blocks],
-        cols.IDS_PARADOX_GROUPS: [ids_mic_scos + ids_bid_blocks],
+        cols.IDS_PARADOXAL_ORDERS: [ids_mic_scos + ids_bid_blocks],
         cols.FLOAT_OBJECTIVE_VALUE: [welfare],
         cols.BOOL_IS_EXPECTED_INCOME_RESPECTED: [bool_is_expected_income_respected],
         cols.SOLVER_RESULTS_COLUMN: [results],
         cols.INT_MIC_SCOS_COUNT: [len(ids_mic_scos)],
         cols.INT_BID_BLOCKS_COUNT: [len(ids_bid_blocks)],
-        cols.INT_PARADOX_GROUPS_COUNT: [len(ids_mic_scos) + len(ids_bid_blocks)],
+        cols.INT_PARADOXAL_ORDERS_COUNT: [len(ids_mic_scos) + len(ids_bid_blocks)],
         cols.CLEARED_ENERGY_COLUMN: [cleared_energy],
         cols.CLEARING_PRICES_COLUMN: [clearing_prices],
         cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [
@@ -542,195 +553,195 @@ def iterative_function(
         ],
     }
 
-    return pd.DataFrame(trial_df_entry)
+    return pd.DataFrame(iteration_df_entry)
 
 
-def check_if_success_at_first_trial(
-    first_trial_df: pd.Series,
-    is_trials_df_provided: bool,
-    is_trial_paradox_groups_provided: bool,
+def check_if_success_at_first_iteration(
+    first_iteration_df: pd.Series,
+    is_iterations_df_provided: bool,
+    is_iteration_paradoxal_orders_provided: bool,
 ) -> bool:
     """
-    Checks if the first trial was successful, i.e., all SCOs with MIC were correctly cleared on the first attempt.
+    Checks if the first iteration was successful, i.e., all SCOs with MIC were correctly cleared on the first attempt.
 
     Args:
-        results (list): List of DataFrames with trial results, where each DataFrame contains the results of a single trial.
-        is_trials_df_provided (bool): Indicates if a previous trials DataFrame was provided (i.e., not the first run).
-        is_trial_paradox_groups_provided (bool): Indicates if an initial paradox orders combination was provided.
+        results (list): List of DataFrames with iteration results, where each DataFrame contains the results of a single iteration.
+        is_iterations_df_provided (bool): Indicates if a previous iterations DataFrame was provided (i.e., not the first run).
+        is_iteration_paradoxal_orders_provided (bool): Indicates if an initial paradox orders combination was provided.
 
     Returns:
-        bool: True if the first trial was successful and it was the initial run (no previous trials or initial combination provided), False otherwise.
+        bool: True if the first iteration was successful and it was the initial run (no previous iterations or initial combination provided), False otherwise.
     """
-    success_at_first_trial = (
-        not is_trials_df_provided
-        and not is_trial_paradox_groups_provided
-        and first_trial_df[cols.BOOL_IS_EXPECTED_INCOME_RESPECTED]
+    success_at_first_iteration = (
+        not is_iterations_df_provided
+        and not is_iteration_paradoxal_orders_provided
+        and first_iteration_df[cols.BOOL_IS_EXPECTED_INCOME_RESPECTED]
     )
-    if success_at_first_trial:
+    if success_at_first_iteration:
         logger.info(
-            "--ALGORITHM--: First trial with all SCOs correctly cleared, finishing"
+            "--ALGORITHM--: First iteration with all SCOs correctly cleared, finishing"
         )
-    return success_at_first_trial
+    return success_at_first_iteration
 
 
-@pa.check_input(DETCABSchema, "det_cab_date", lazy=True)
-@pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pt_date", lazy=True)
+@pa.check_input(DETCABSchema, "det_cab", lazy=True)
+@pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pbc_pt", lazy=True)
 def run_iterative_loop(
-    det_cab_date: DataFrame,
-    capacidad_inter_pt_date: DataFrame,
+    det_cab: DataFrame,
+    capacidad_inter_pbc_pt: DataFrame,
     france_fixed_exchange: pd.Series | None = None,
-    trials_count: int = 100,
-    trial_ids_mic_scos: list | None = None,
-    trial_ids_bid_blocks: list | None = None,
-    trials_df: pd.DataFrame | None = None,
+    iterations_count: int = 100,
+    iteration_ids_mic_scos: list | None = None,
+    iteration_ids_bid_blocks: list | None = None,
+    iterations_df: pd.DataFrame | None = None,
     n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, pyo.ConcreteModel, pyo.ConcreteModel]:
     """
     Runs the iterative clearing process, optimizing combinations of SCOs with MIC.
 
-    For each trial, filters SCOs, runs the market model, collects results, and updates the trial DataFrame. Continues until all combinations are tested or a successful result is found.
+    For each iteration, filters SCOs, runs the market model, collects results, and updates the iteration DataFrame. Continues until all combinations are tested or a successful result is found.
 
     Args:
-        det_cab_date (pd.DataFrame): Full DET/CAB DataFrame.
-        capacidad_inter_pt_date (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
+        det_cab (pd.DataFrame): Full DET/CAB DataFrame.
+        capacidad_inter_pbc_pt (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
         france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
-        trial_ids_mic_scos (list, optional): Initial SCOs with MIC for the first trial.
-        trial_ids_bid_blocks (list, optional): Initial bid blocks for the first trial.
-        trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from.
+        iteration_ids_mic_scos (list, optional): Initial SCOs with MIC for the first iteration.
+        iteration_ids_bid_blocks (list, optional): Initial bid blocks for the first iteration.
+        iterations_df (pd.DataFrame, optional): Existing iterations DataFrame to continue from.
 
     Returns:
-        tuple: (trials_df, best_model, best_model_binary)
-            trials_df (pd.DataFrame): DataFrame of all trial results.
-            best_model: Pyomo model object for the best trial.
-            best_model_binary: Pyomo model object for the best trial (binary version).
+        tuple: (iterations_df, best_model, best_model_binary)
+            iterations_df (pd.DataFrame): DataFrame of all iteration results.
+            best_model: Pyomo model object for the best iteration.
+            best_model_binary: Pyomo model object for the best iteration (binary version).
     """
 
-    is_trials_df_provided = trials_df is not None
-    is_trial_ids_mic_scos_provided = trial_ids_mic_scos is not None
-    is_trial_ids_bid_blocks_provided = trial_ids_bid_blocks is not None
-    if is_trial_ids_mic_scos_provided != is_trial_ids_bid_blocks_provided:
+    is_iterations_df_provided = iterations_df is not None
+    is_iteration_ids_mic_scos_provided = iteration_ids_mic_scos is not None
+    is_iteration_ids_bid_blocks_provided = iteration_ids_bid_blocks is not None
+    if is_iteration_ids_mic_scos_provided != is_iteration_ids_bid_blocks_provided:
         raise ValueError(
-            "Both trial_ids_mic_scos and trial_ids_bid_blocks must be provided together or none at all."
+            "Both iteration_ids_mic_scos and iteration_ids_bid_blocks must be provided together or none at all."
         )
-    are_trial_ids_paradox_groups_provided = (
-        is_trial_ids_mic_scos_provided and is_trial_ids_bid_blocks_provided
+    are_iteration_ids_paradoxal_orders_provided = (
+        is_iteration_ids_mic_scos_provided and is_iteration_ids_bid_blocks_provided
     )
 
-    all_paradox_groups = get_all_paradox_groups(det_cab_date)
+    all_paradoxal_orders = get_all_paradoxal_orders(det_cab)
 
-    if trials_count // n_jobs < 5 and not is_trials_df_provided:
+    if iterations_count // n_jobs < 5 and not is_iterations_df_provided:
         logger.warning(
-            "--ALGORITHM--: It is recommended trials_count to be at least 5 times n_jobs."
+            "--ALGORITHM--: It is recommended iterations_count to be at least 5 times n_jobs."
         )
 
     #### INITIALIZATION ####
-    # Initialize trials_df if not provided
-    if trials_df is None:
-        trials_df = pd.DataFrame(columns=TRIALS_DF_COLUMNS)
+    # Initialize iterations_df if not provided
+    if iterations_df is None:
+        iterations_df = pd.DataFrame(columns=ITERATIONS_DF_COLUMNS)
 
-    # If trial_paradox_groups is provided, start with that combination
-    if are_trial_ids_paradox_groups_provided:
-        next_trials_paradox_groups = [
+    # If iteration_paradoxal_orders is provided, start with that combination
+    if are_iteration_ids_paradoxal_orders_provided:
+        next_iterations_paradoxal_orders = [
             {
-                cols.IDS_MIC_SCOS: trial_ids_mic_scos,
-                cols.IDS_BID_BLOCKS: trial_ids_bid_blocks,
+                cols.IDS_MIC_SCOS: iteration_ids_mic_scos,
+                cols.IDS_BID_BLOCKS: iteration_ids_bid_blocks,
             }
         ]
-    # If trials_df is defined, define a new combination based on previous trials
-    elif not trials_df.empty:
-        next_trials_paradox_groups = define_new_paradox_groups_list(
-            trials_df, det_cab_date, all_paradox_groups, min(n_jobs, trials_count)
+    # If iterations_df is defined, define a new combination based on previous iterations
+    elif not iterations_df.empty:
+        next_iterations_paradoxal_orders = define_new_paradoxal_orders_list(
+            iterations_df, det_cab, all_paradoxal_orders, min(n_jobs, iterations_count)
         )
-        if next_trials_paradox_groups is False:
+        if next_iterations_paradoxal_orders is False:
             logger.info("--ALGORITHM--: All combinations tried, finishing")
-            return trials_df
+            return iterations_df
     # Otherwise start with all paradox orders
     else:
-        next_trials_paradox_groups = [all_paradox_groups]
+        next_iterations_paradoxal_orders = [all_paradoxal_orders]
 
     #### ITERATIVE LOOP ####
 
-    completed_trials = 0
+    completed_iterations = 0
 
-    while completed_trials < trials_count:
+    while completed_iterations < iterations_count:
 
         args_list = [
             (
-                det_cab_date,
-                capacidad_inter_pt_date,
-                trial_paradox_groups,
+                det_cab,
+                capacidad_inter_pbc_pt,
+                iteration_paradoxal_orders,
                 france_fixed_exchange,
             )
-            for trial_paradox_groups in next_trials_paradox_groups
+            for iteration_paradoxal_orders in next_iterations_paradoxal_orders
         ]
         with multiprocessing.Pool(processes=n_jobs) as pool:
             results = pool.map(iterative_function, args_list)
-            completed_trials += len(results)
-            trials_df = pd.concat([trials_df] + results, ignore_index=True)
+            completed_iterations += len(results)
+            iterations_df = pd.concat([iterations_df] + results, ignore_index=True)
 
-            if check_if_success_at_first_trial(
-                trials_df.iloc[0],
-                is_trials_df_provided,
-                are_trial_ids_paradox_groups_provided,
+            if check_if_success_at_first_iteration(
+                iterations_df.iloc[0],
+                is_iterations_df_provided,
+                are_iteration_ids_paradoxal_orders_provided,
             ):
-                logger.info("--ALGORITHM--: Success at first trial, finishing")
+                logger.info("--ALGORITHM--: Success at first iteration, finishing")
                 break
 
             ### hasta aqui
-        new_trial_int_paradox_groups_count = min(
-            n_jobs, trials_count - completed_trials
+        new_iteration_int_paradoxal_orders_count = min(
+            n_jobs, iterations_count - completed_iterations
         )
         logger.info(
-            f"--ALGORITHM--: Completed trials: {completed_trials}/{trials_count}"
+            f"--ALGORITHM--: Completed iterations: {completed_iterations}/{iterations_count}"
         )
-        next_trials_paradox_groups = define_new_paradox_groups_list(
-            trials_df,
-            det_cab_date,
-            all_paradox_groups,
-            new_trial_int_paradox_groups_count,
+        next_iterations_paradoxal_orders = define_new_paradoxal_orders_list(
+            iterations_df,
+            det_cab,
+            all_paradoxal_orders,
+            new_iteration_int_paradoxal_orders_count,
         )
         # TODO: this is a quickfix so the loop ends when no new combinations are found
         # but it should iterate with other options too
-        if len(next_trials_paradox_groups) == 0:
+        if len(next_iterations_paradoxal_orders) == 0:
             break
 
     try:
-        TrialsSchema.validate(trials_df, lazy=True)
+        IterationsSchema.validate(iterations_df, lazy=True)
     except pa.errors.SchemaErrors as e:
         warnings.warn(f"Pandera validation warning: {e}")
 
-    best_trial = get_best_trial(trials_df, mic_respected_only=False)
+    best_iteration = get_best_iteration(iterations_df, mic_respected_only=False)
 
-    det_cab_date_scos_filtered = filter_paradox_groups_from_det_cab(
-        det_cab_date, best_trial[cols.PARADOX_GROUPS_COLUMN]
+    det_cab_scos_filtered = filter_paradoxal_orders_from_det_cab(
+        det_cab, best_iteration[cols.PARADOXAL_ORDERS_COLUMN]
     )
 
     # Run market model
     best_model, best_model_binary, results = run_model(
-        det_cab_date=det_cab_date_scos_filtered,
-        capacidad_inter_PT_date=capacidad_inter_pt_date,
+        det_cab=det_cab_scos_filtered,
+        capacidad_inter_PBC_pt=capacidad_inter_pbc_pt,
         france_fixed_exchange=france_fixed_exchange,
     )
 
-    return trials_df, best_model, best_model_binary
+    return iterations_df, best_model, best_model_binary
 
 
-def clear_OMIE_market(
-    det_date: pd.DataFrame | str,
-    cab_date: pd.DataFrame | str,
-    capacidad_inter_date: pd.DataFrame | str,
-    price_france_date: pd.DataFrame,
-    uof_zones: pd.DataFrame | None = None,
-    trials_count: int = 100,
-    starting_trials_df: pd.DataFrame = None,
+def run_mibel_simulator(
+    det: pd.DataFrame | str,
+    cab: pd.DataFrame | str,
+    capacidad_inter_pbc: pd.DataFrame | str,
+    france_day_ahead_prices: pd.DataFrame,
+    participants_bidding_zones: pd.DataFrame | None = None,
+    iterations_count: int = 100,
+    starting_iterations_df: pd.DataFrame = None,
     france_fixed_exchange: pd.Series | None = None,
-    zones_default_to_spain: bool = False,
-    trial_ids_mic_scos: list | None = None,
-    trial_ids_bid_blocks: list | None = None,
+    spain_as_default_bidding_zone: bool = False,
+    iteration_ids_mic_scos: list | None = None,
+    iteration_ids_bid_blocks: list | None = None,
     n_jobs: int = 1,
 ) -> dict:
     """
-    Runs the full OMIE market clearing process for a given day, including data
+    Runs the full MIBEL clearing process for a given day, including data
     preprocessing, structure building, and iterative optimization.
 
     This function prepares all necessary data structures from the provided DET,
@@ -739,69 +750,73 @@ def clear_OMIE_market(
     with MIC, and returns the results and best models.
 
     Args:
-        det_date (pd.DataFrame | str): DET DataFrame for the studied day or path to DET file.
-        cab_date (pd.DataFrame | str): CAB DataFrame for the studied day or path to CAB file.
-        capacidad_inter_date (pd.DataFrame | str): DataFrame of interconnection capacities for the studied day or path to file.
-        price_france_date (pd.DataFrame): DataFrame of France prices for the studied day.
-        uof_zones (pd.DataFrame | None): DataFrame mapping units to zones.
-        trials_count (int, optional): Maximum number of optimization trials to run. Defaults to 100.
-        starting_trials_df (pd.DataFrame, optional): Existing trials DataFrame to continue from. Defaults to None.
+        det (pd.DataFrame | str): DET DataFrame for the studied day or path to DET file.
+        cab (pd.DataFrame | str): CAB DataFrame for the studied day or path to CAB file.
+        capacidad_inter_pbc (pd.DataFrame | str): DataFrame of interconnection capacities for the studied day or path to file.
+        france_day_ahead_prices (pd.DataFrame): DataFrame of France prices for the studied day.
+        participants_bidding_zones (pd.DataFrame | None): DataFrame mapping units to zones.
+        iterations_count (int, optional): Maximum number of optimization iterations to run. Defaults to 100.
+        starting_iterations_df (pd.DataFrame, optional): Existing iterations DataFrame to continue from. Defaults to None.
         france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
-        zones_default_to_spain (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
-        trial_ids_mic_scos (list | None, optional): List of MIC SCOs for trial. Defaults to None.
-        trial_ids_bid_blocks (list | None, optional): List of bid blocks for trial. Defaults to None.
+        spain_as_default_bidding_zone (bool, optional): Whether the missing uof zones are assumed to be Spain. Defaults to False.
+        iteration_ids_mic_scos (list | None, optional): List of MIC SCOs for iteration. Defaults to None.
+        iteration_ids_bid_blocks (list | None, optional): List of bid blocks for iteration. Defaults to None.
         n_jobs (int, optional): Number of parallel jobs to run. Defaults to 1.
     Returns:
-        tuple: (trials_df, best_model, best_model_binary)
-            trials_df (pd.DataFrame): DataFrame of all trial results.
-            best_model (pyo.ConcreteModel): Pyomo model object for the best trial.
-            best_model_binary (pyo.ConcreteModel): Pyomo model object for the best trial (binary version).
+        tuple: (iterations_df, best_model, best_model_binary)
+            iterations_df (pd.DataFrame): DataFrame of all iteration results.
+            best_model (pyo.ConcreteModel): Pyomo model object for the best iteration.
+            best_model_binary (pyo.ConcreteModel): Pyomo model object for the best iteration (binary version).
     """
 
-    if isinstance(det_date, str):
-        det_date = parse_det_file(det_date)
-    if isinstance(cab_date, str):
-        cab_date = parse_cab_file(cab_date)
-    if isinstance(capacidad_inter_date, str):
-        capacidad_inter_date = parse_capacidad_inter_file(capacidad_inter_date)
+    if isinstance(det, str):
+        det = parse_det_file(det)
+    if isinstance(cab, str):
+        cab = parse_cab_file(cab)
+    if isinstance(capacidad_inter_pbc, str):
+        capacidad_inter_pbc = parse_capacidad_inter_file(capacidad_inter_pbc)
 
-    DETSchema.validate(det_date, lazy=True)
-    CABSchema.validate(cab_date, lazy=True)
-    CapacidadInterPTSchema.validate(capacidad_inter_date, lazy=True)
+    DETSchema.validate(det, lazy=True)
+    CABSchema.validate(cab, lazy=True)
+    CapacidadInterPTSchema.validate(capacidad_inter_pbc, lazy=True)
 
-    if isinstance(uof_zones, pd.DataFrame):
-        uof_zones = concat_provided_uof_zones_with_existing_data(uof_zones)
+    if isinstance(participants_bidding_zones, pd.DataFrame):
+        participants_bidding_zones = (
+            concat_provided_participants_bidding_zones_with_existing_data(
+                participants_bidding_zones
+            )
+        )
     else:
-        uof_zones = pd.read_csv(UOF_ZONES_FILEPATH)
+        participants_bidding_zones = pd.read_csv(PARTICIPANTS_BIDDING_ZONES_FILEPATH)
 
-    capacidad_inter_pt_date = capacidad_inter_date.query(
+    capacidad_inter_pbc_pt = capacidad_inter_pbc.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
-    det_cab_fr_date = get_france_det_cab_date_from_price(
-        price_france_date, capacidad_inter_date
+    det_cab_fr = get_france_det_cab_from_price(
+        france_day_ahead_prices, capacidad_inter_pbc
     )
-    det_cab_date = get_det_cab_date_for_simulation(
-        det_date=det_date,
-        cab_date=cab_date,
-        uof_zones=uof_zones,
-        det_cab_fr_date=det_cab_fr_date,
-        zones_default_to_spain=zones_default_to_spain,
+    det_cab = get_det_cab_for_simulation(
+        det=det,
+        cab=cab,
+        participants_bidding_zones=participants_bidding_zones,
+        det_cab_fr=det_cab_fr,
+        spain_as_default_bidding_zone=spain_as_default_bidding_zone,
     )
 
-    trials_df, model, model_binary = run_iterative_loop(
-        det_cab_date=det_cab_date,
-        capacidad_inter_pt_date=capacidad_inter_pt_date,
-        trials_count=trials_count,
-        trials_df=starting_trials_df,
-        trial_ids_mic_scos=trial_ids_mic_scos,
-        trial_ids_bid_blocks=trial_ids_bid_blocks,
+    iterations_df, model, model_binary = run_iterative_loop(
+        det_cab=det_cab,
+        capacidad_inter_pbc_pt=capacidad_inter_pbc_pt,
+        iterations_count=iterations_count,
+        iterations_df=starting_iterations_df,
+        iteration_ids_mic_scos=iteration_ids_mic_scos,
+        iteration_ids_bid_blocks=iteration_ids_bid_blocks,
         france_fixed_exchange=france_fixed_exchange,
         n_jobs=n_jobs,
     )
 
-    best_trial = get_best_trial(trials_df, mic_respected_only=False)
-    cleared_energy = best_trial.cleared_energy
-    cleared_det_cab_date = det_cab_date.merge(
+    best_iteration = get_best_iteration(iterations_df, mic_respected_only=False)
+    cleared_energy = best_iteration.cleared_energy
+    cleared_det_cab = det_cab.merge(
         cleared_energy,
         left_on=cols.ID_INDIVIDUAL_BID,
         right_index=True,
@@ -811,16 +826,16 @@ def clear_OMIE_market(
     )
 
     try:
-        ClearedDetCabSchema.validate(cleared_det_cab_date, lazy=True)
+        ClearedDetCabSchema.validate(cleared_det_cab, lazy=True)
     except pa.errors.SchemaErrors as e:
         warnings.warn(f"Pandera validation warning in ClearedDetCabSchema: {e}")
     try:
-        ClearingPricesSchema.validate(best_trial.clearing_prices, lazy=True)
+        ClearingPricesSchema.validate(best_iteration.clearing_prices, lazy=True)
     except pa.errors.SchemaErrors as e:
         warnings.warn(f"Pandera validation warning in ClearingPricesSchema: {e}")
     try:
         SpainPortugaLTransmissionsSchema.validate(
-            best_trial.spain_portugal_transmissions, lazy=True
+            best_iteration.spain_portugal_transmissions, lazy=True
         )
     except pa.errors.SchemaErrors as e:
         warnings.warn(
@@ -830,11 +845,11 @@ def clear_OMIE_market(
     results_dict = {
         "model_binary_fixed": model,
         "model_binary_not_fixed": model_binary,
-        "model_trial_info": best_trial,
-        "cleared_det_cab_date": cleared_det_cab_date,
-        "clearing_prices": best_trial.clearing_prices,
-        "spain_portugal_transmissions": best_trial.spain_portugal_transmissions,
-        "trials_df": trials_df,
+        "model_iteration_info": best_iteration,
+        "cleared_det_cab": cleared_det_cab,
+        "clearing_prices": best_iteration.clearing_prices,
+        "spain_portugal_transmissions": best_iteration.spain_portugal_transmissions,
+        "iterations_df": iterations_df,
     }
 
     return results_dict

@@ -3,7 +3,7 @@ import pandera.pandas as pa
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
     BLOCK_UNIQUE_IDENTIFIERS,
-    DET_CAB_DATE_UNIQUE_IDENTIFIERS,
+    DET_CAB_UNIQUE_IDENTIFIERS,
 )
 from .columns_dict import columns_dict
 from .cab import CABSchema
@@ -12,28 +12,28 @@ from .det import (
     exclusive_group_must_be_block_offer,
     mar_only_in_block_offers,
     mav_only_in_scos,
-    multiple_tramos_only_scos,
+    multiple_suborders_only_scos,
 )
 
 
 same_block_order_price = pa.Check(
-    lambda df: df.query(f"{cols.INT_NUM_BLOQ} > 0")
-    .groupby([cols.ID_ORDER, cols.INT_NUM_BLOQ], observed=True)[cols.FLOAT_BID_PRICE]
+    lambda df: df.query(f"{cols.INT_NUM_BLOCK} > 0")
+    .groupby([cols.ID_ORDER, cols.INT_NUM_BLOCK], observed=True)[cols.FLOAT_BID_PRICE]
     .nunique()
     .eq(1)
     .all(),
     element_wise=False,
-    error="All block (same id_order, same int_num_bloq) must have the same price across all periods",
+    error="All block (same id_order, same int_num_block) must have the same price across all periods",
 )
 
 same_block_mar = pa.Check(
-    lambda df: df.query(f"{cols.INT_NUM_BLOQ} > 0")
-    .groupby([cols.ID_ORDER, cols.INT_NUM_BLOQ], observed=True)[cols.FLOAT_MAR]
+    lambda df: df.query(f"{cols.INT_NUM_BLOCK} > 0")
+    .groupby([cols.ID_ORDER, cols.INT_NUM_BLOCK], observed=True)[cols.FLOAT_MAR]
     .nunique()
     .eq(1)
     .all(),
     element_wise=False,
-    error="All block (same id_order, same int_num_bloq) must have the same MAR across all periods",
+    error="All block (same id_order, same int_num_block) must have the same MAR across all periods",
 )
 
 buy_bids_cannot_have_scos = pa.Check(
@@ -50,18 +50,18 @@ buy_bids_cannot_have_mar = pa.Check(
 
 buy_bids_exclusive_block_offers = pa.Check(
     lambda df: df.query(
-        f"{cols.CAT_BUY_SELL} == 'C' and {cols.INT_NUM_BLOQ} > 0"
+        f"{cols.CAT_BUY_SELL} == 'C' and {cols.INT_NUM_BLOCK} > 0"
     ).empty,
     element_wise=False,
-    error=f"Buy bids {cols.CAT_BUY_SELL} == 'C' cannot be block offers ({cols.INT_NUM_BLOQ} > 0)",
+    error=f"Buy bids {cols.CAT_BUY_SELL} == 'C' cannot be block offers ({cols.INT_NUM_BLOCK} > 0)",
 )
 
 buy_bids_exclusive_offers = pa.Check(
     lambda df: df.query(
-        f"{cols.CAT_BUY_SELL} == 'C' and {cols.INT_NUM_GRUPO_EXCL} > 0"
+        f"{cols.CAT_BUY_SELL} == 'C' and {cols.INT_NUM_EXCL_GROUP} > 0"
     ).empty,
     element_wise=False,
-    error=f"Buy bids {cols.CAT_BUY_SELL} == 'C' cannot be exclusive offers ({cols.INT_NUM_GRUPO_EXCL} > 0)",
+    error=f"Buy bids {cols.CAT_BUY_SELL} == 'C' cannot be exclusive offers ({cols.INT_NUM_EXCL_GROUP} > 0)",
 )
 
 buy_bids_cannot_have_mav = pa.Check(
@@ -71,14 +71,14 @@ buy_bids_cannot_have_mav = pa.Check(
 )
 
 mic_only_in_scos = pa.Check(
-    lambda df: (df[cols.INT_NUM_BLOQ] == 0) | (df[cols.FLOAT_MIC] == 0),
+    lambda df: (df[cols.INT_NUM_BLOCK] == 0) | (df[cols.FLOAT_MIC] == 0),
     element_wise=True,
     error=f"{cols.FLOAT_MIC} > 0 block offers cannot have MIC > 0",
 )
 
 check_not_exclusive_groups_max_power_not_exceeded = pa.Check(
-    lambda df: df.query(f"{cols.INT_NUM_GRUPO_EXCL} == 0")
-    .groupby([cols.ID_ORDER, cols.INT_PERIODO], observed=True)
+    lambda df: df.query(f"{cols.INT_NUM_EXCL_GROUP} == 0")
+    .groupby([cols.ID_ORDER, cols.INT_PERIOD], observed=True)
     .agg(
         {
             cols.FLOAT_BID_POWER: "sum",
@@ -93,9 +93,9 @@ check_not_exclusive_groups_max_power_not_exceeded = pa.Check(
 )
 
 check_exclusive_groups_max_power_not_exceeded = pa.Check(
-    lambda df: df.query(f"{cols.INT_NUM_GRUPO_EXCL} > 0")
+    lambda df: df.query(f"{cols.INT_NUM_EXCL_GROUP} > 0")
     .groupby(
-        [cols.ID_ORDER, cols.INT_NUM_GRUPO_EXCL, cols.INT_NUM_BLOQ, cols.INT_PERIODO],
+        [cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP, cols.INT_NUM_BLOCK, cols.INT_PERIOD],
         observed=True,
     )
     .agg(
@@ -126,14 +126,14 @@ DETCABSchema = pa.DataFrameSchema(
         cols.FLOAT_BID_POWER_CUMSUM:                columns_dict[cols.FLOAT_BID_POWER_CUMSUM],
         cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY:     columns_dict[cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY],
     },
-    unique=DET_CAB_DATE_UNIQUE_IDENTIFIERS,
+    unique=DET_CAB_UNIQUE_IDENTIFIERS,
     checks=[
         same_block_order_price,
         exclusive_group_must_be_block_offer,
         mar_only_in_block_offers,
         mav_only_in_scos,
         mic_only_in_scos,
-        multiple_tramos_only_scos,
+        multiple_suborders_only_scos,
         buy_bids_cannot_have_scos,
         buy_bids_cannot_have_mar,
         buy_bids_exclusive_block_offers,
