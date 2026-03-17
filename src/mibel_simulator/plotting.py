@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+
 import mibel_simulator.columns as cols
 
 
@@ -38,14 +39,14 @@ def plot_period_curves(
         "linewidth": 2,
     }
 
-    det_cab_period_results_V.query(f'Descripcion != "INTERCAMBIO ES-PT"').plot(
+    det_cab_period_results_V.query('Descripcion != "INTERCAMBIO ES-PT"').plot(
         x=potencia_cumsum_column,
         y=cols.FLOAT_BID_PRICE,
         label="Demand curve",
         **line_properties,
     )
 
-    det_cab_period_results_C.query(f'Descripcion != "INTERCAMBIO ES-PT"').plot(
+    det_cab_period_results_C.query('Descripcion != "INTERCAMBIO ES-PT"').plot(
         x=potencia_cumsum_column,
         y=cols.FLOAT_BID_PRICE,
         label="Supply curve",

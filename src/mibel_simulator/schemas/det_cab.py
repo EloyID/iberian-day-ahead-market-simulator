@@ -1,12 +1,12 @@
-import pandas as pd
 import pandera.pandas as pa
+
 import mibel_simulator.columns as cols
 from mibel_simulator.const import (
-    BLOCK_UNIQUE_IDENTIFIERS,
     DET_CAB_UNIQUE_IDENTIFIERS,
 )
-from .columns_dict import columns_dict
+
 from .cab import CABSchema
+from .columns_dict import columns_dict
 from .det import (
     DETSchema,
     exclusive_group_must_be_block_offer,
@@ -14,7 +14,6 @@ from .det import (
     mav_only_in_scos,
     multiple_suborders_only_scos,
 )
-
 
 same_block_order_price = pa.Check(
     lambda df: df.query(f"{cols.INT_NUM_BLOCK} > 0")
