@@ -87,6 +87,10 @@ src/mibel_simulator/
 └── data/                      # Bundled reference data
 ```
 
+## Data Documentation
+
+For a complete data dictionary of inputs, transformed datasets, outputs, enums, and validation rules, see [docs/data_book.md](docs/data_book.md).
+
 ## Development
 
 ```bash
