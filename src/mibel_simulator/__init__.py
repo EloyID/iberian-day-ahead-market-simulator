@@ -20,6 +20,12 @@ from mibel_simulator.parse_omie_files import (
     parse_cab_file,
     parse_capacidad_inter_file,
     parse_det_file,
+    parse_price_france_from_entsoe_file,
+    parse_marginalpdbc_file,
+)
+from mibel_simulator.plot_helpers import (
+    plot_clearing_prices,
+    plot_spain_portugal_transmissions,
 )
 
 __all__ = [
@@ -27,4 +33,8 @@ __all__ = [
     "parse_cab_file",
     "parse_det_file",
     "parse_capacidad_inter_file",
+    "parse_price_france_from_entsoe_file",
+    "parse_marginalpdbc_file",
+    "plot_clearing_prices",
+    "plot_spain_portugal_transmissions",
 ]

@@ -1,9 +1,11 @@
 import os
+from typing import Literal
 
 import pandas as pd
 import logging
 
 import mibel_simulator.columns as cols
+from mibel_simulator.const import FRONTIER_MAPPING, FRONTIER_MAPPING_REVERSE
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +104,21 @@ CAPACIDAD_INTER_TYPING = {
     cols.FLOAT_EXPORT_CAPACITY:    float,
 }
 
+COMPLETE_CAPACIDAD_INTER_RENAMING = {
+    **CAPACIDAD_INTER_RENAMING,
+    "Ocupación Importación":            cols.FLOAT_IMPORT_CACACITY_OCCUPATION,
+    "Capacidad libre de importación":   cols.FLOAT_IMPORT_CAPACITY_FREE,
+    "Ocupación exportación":            cols.FLOAT_EXPORT_CAPACITY_OCCUPATION,
+    "Capacidad libre de exportación":   cols.FLOAT_EXPORT_CAPACITY_FREE,
+}
+COMPLETE_CAPACIDAD_INTER_TYPING = {
+    **CAPACIDAD_INTER_TYPING,
+    cols.FLOAT_IMPORT_CACACITY_OCCUPATION:   float,
+    cols.FLOAT_IMPORT_CAPACITY_FREE:          float,
+    cols.FLOAT_EXPORT_CAPACITY_OCCUPATION:    float,
+    cols.FLOAT_EXPORT_CAPACITY_FREE:          float,
+}
+
 PRICE_FRANCE_RENAMING = {
     "Day-ahead Price (EUR/MWh)":    cols.FLOAT_PRICE_FR,
     "MTU (CET/CEST)":               cols.DATETIME_SESION,
@@ -116,6 +133,7 @@ PRICE_FRANCE_TYPING = {
 
 CURVA_PBC_UOF_COLUMNS = list(CURVA_PBC_UOF_RENAMING.values())
 CAPACIDAD_INTER_COLUMNS = list(CAPACIDAD_INTER_RENAMING.values())
+COMPLETE_CAPACIDAD_INTER_COLUMNS = list(COMPLETE_CAPACIDAD_INTER_RENAMING.values())
 PARTICIPANTS_BIDDING_ZONES_COLUMNS = [cols.CAT_BIDDING_ZONE, cols.ID_UNIDAD]
 DET_COLUMNS = list(DET_RENAMING.values())
 CAB_COLUMNS = list(CAB_RENAMING.values())
@@ -329,13 +347,17 @@ def det_files_to_parquet(det_folder, output_path="det.parquet"):
     return det
 
 
-def parse_capacidad_inter_file(capacidad_inter_filepath: str) -> pd.DataFrame:
+def parse_capacidad_inter_file(
+    capacidad_inter_filepath: str,
+    bidding_zone: Literal["ES", "PT", "FR", "MA"] = None,
+    only_capacity_columns: bool = False,
+) -> pd.DataFrame:
     """
     Parses a single capacidad_inter CSV file and returns a DataFrame.
 
     Args:
         capacidad_inter_filepath (str): Path to the capacidad_inter CSV file.
-
+        bidding_zone (Literal["ES", "PT", "FR", "MA"], optional): If provided, filters the DataFrame to only include rows for the specified bidding zone. Defaults to None.
     Returns:
         pd.DataFrame: The parsed capacidad_inter DataFrame.
     """
@@ -360,9 +382,20 @@ def parse_capacidad_inter_file(capacidad_inter_filepath: str) -> pd.DataFrame:
             .astype(int)
         )
 
-    capacidad_inter_data = capacidad_inter_data.rename(
-        columns=CAPACIDAD_INTER_RENAMING, errors="raise"
-    )[CAPACIDAD_INTER_COLUMNS].astype(CAPACIDAD_INTER_TYPING)
+    if only_capacity_columns:
+        capacidad_inter_data = capacidad_inter_data.rename(
+            columns=CAPACIDAD_INTER_RENAMING, errors="raise"
+        )[CAPACIDAD_INTER_COLUMNS].astype(CAPACIDAD_INTER_TYPING)
+    else:
+        capacidad_inter_data = capacidad_inter_data.rename(
+            columns=COMPLETE_CAPACIDAD_INTER_RENAMING, errors="raise"
+        )[COMPLETE_CAPACIDAD_INTER_COLUMNS].astype(COMPLETE_CAPACIDAD_INTER_TYPING)
+
+    if bidding_zone is not None:
+        capacidad_inter_data = capacidad_inter_data[
+            capacidad_inter_data[cols.CAT_FRONTIER]
+            == FRONTIER_MAPPING_REVERSE[bidding_zone]
+        ]
 
     return capacidad_inter_data
 
@@ -415,15 +448,15 @@ def capacidad_inter_files_to_parquet(capacidad_inter_folder: str, output_path: s
     return capacidad_inter_data
 
 
-def price_france_from_entsoe_file_to_parquet(
-    prices_france_filepath: str, output_path: str, use_qh_frequency: bool = False
+def parse_price_france_from_entsoe_file(
+    prices_france_filepath: str, use_qh_frequency: bool = False
 ):
     """
-    Reads the France prices CSV file, cleans and transforms the data, and saves the result as a parquet file.
+    Reads the France prices CSV file, cleans and transforms the data.
 
     Args:
         prices_france_filepath (str): Path to the France prices CSV file.
-        output_path (str): Path to save the parquet file.
+        use_qh_frequency (bool): Whether to use quarter-hourly frequency.
     Returns:
         pd.Series: The cleaned France prices DataFrame.
     """
@@ -470,6 +503,25 @@ def price_france_from_entsoe_file_to_parquet(
         price_france[cols.INT_PERIOD] = price_france["Hour"] + 1
     price_france = price_france[PRICE_FRANCE_COLUMNS].astype(PRICE_FRANCE_TYPING)
 
+    return price_france
+
+
+def price_france_from_entsoe_file_to_parquet(
+    prices_france_filepath: str, output_path: str, use_qh_frequency: bool = False
+):
+    """
+    Reads the France prices CSV file, cleans and transforms the data, and saves the result as a parquet file.
+
+    Args:
+        prices_france_filepath (str): Path to the France prices CSV file.
+        output_path (str): Path to save the parquet file.
+    Returns:
+        pd.Series: The cleaned France prices DataFrame.
+    """
+
+    price_france = parse_price_france_from_entsoe_file(
+        prices_france_filepath, use_qh_frequency=use_qh_frequency
+    )
     logger.info("Saving France prices to parquet at %s", output_path)
     price_france.to_parquet(output_path)
 
@@ -516,3 +568,41 @@ def generate_participants_bidding_zones_parquet_from_uof_files(
     curva_pbc_uof_unidad_pais.to_parquet(output_path, index=False)
 
     return curva_pbc_uof_unidad_pais
+
+
+MARGINAL_PDBC_COLUMNS = ["Año", "Mes", "Día", cols.INT_PERIOD, "PT", "ES"]
+
+
+def parse_marginalpdbc_file(marginalpdbc_filepath: str) -> pd.DataFrame:
+    """
+    Parses a single marginalpdbc CSV file and returns a DataFrame.
+
+    Args:
+        marginalpdbc_filepath (str): Path to the marginalpdbc CSV file.
+
+    Returns:
+        pd.DataFrame: The parsed marginalpdbc DataFrame.
+    """
+
+    marginalpdbc_data = pd.read_csv(
+        marginalpdbc_filepath,
+        sep=";",
+        skiprows=1,
+        encoding="latin1",
+        decimal=".",
+        dayfirst=True,
+        skipfooter=1,
+        header=None,
+        engine="python",
+    ).drop(columns=[6], errors="ignore")
+
+    marginalpdbc_data.columns = MARGINAL_PDBC_COLUMNS
+
+    marginalpdbc_data = marginalpdbc_data.melt(
+        id_vars=[cols.INT_PERIOD],
+        value_vars=["PT", "ES"],
+        var_name=cols.CAT_BIDDING_ZONE,
+        value_name=cols.FLOAT_CLEARED_PRICE,
+    )
+
+    return marginalpdbc_data

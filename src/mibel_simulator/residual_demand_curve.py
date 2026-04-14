@@ -205,7 +205,9 @@ def calculate_residual_demand_curves(
     if isinstance(cab, str):
         cab = parse_cab_file(cab)
     if isinstance(capacidad_inter_pbc, str):
-        capacidad_inter_pbc = parse_capacidad_inter_file(capacidad_inter_pbc)
+        capacidad_inter_pbc = parse_capacidad_inter_file(
+            capacidad_inter_pbc, only_capacity_columns=True
+        )
 
     DETSchema.validate(det)
     CABSchema.validate(cab)

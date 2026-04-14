@@ -170,6 +170,16 @@ def plot_clearing_prices(
     Plot clearing prices DataFrame following ClearingPricesSchema.
     By default, splits by country (CAT_BIDDING_ZONE).
     """
+
+    # if it is a dict
+    if isinstance(clearing_prices, dict):
+        try:
+            clearing_prices = clearing_prices[cols.CLEARING_PRICES_COLUMN]
+        except KeyError:
+            raise ValueError(
+                f"Expected a Dataframe or a dict with key '{cols.CLEARING_PRICES_COLUMN}' for clearing prices."
+            )
+
     created_fig = False
     if ax is None:
         fig, ax = plt.subplots(figsize=plot_kwargs.pop("figsize", (10, 5)))
@@ -201,7 +211,7 @@ def plot_clearing_prices(
     ax.set_xlabel(xlabel)
     ax.grid(True, which="both", linestyle="--", alpha=0.5)
     if legend:
-        ax.legend(title=hue)
+        ax.legend()
     if created_fig:
         plt.tight_layout()
         plt.show()
@@ -211,7 +221,7 @@ def plot_spain_portugal_transmissions(
     transmissions_df,
     ax=None,
     title="Spain-Portugal Hourly Transmission",
-    ylabel="Transmission ES→PT (MW)",
+    ylabel="Transmission ES→PT (MWh)",
     xlabel="Hour of the day",
     legend=False,
     marker="o",
@@ -222,6 +232,17 @@ def plot_spain_portugal_transmissions(
     """
     Plot a DataFrame following SpainPortugaLTransmissionsSchema.
     """
+
+    if isinstance(transmissions_df, dict):
+        try:
+            transmissions_df = transmissions_df[
+                cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN
+            ]
+        except KeyError:
+            raise ValueError(
+                f"Expected a Dataframe or a dict with key '{cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN}' for Spain-Portugal transmissions."
+            )
+
     created_fig = False
     if ax is None:
         fig, ax = plt.subplots(figsize=plot_kwargs.pop("figsize", (10, 5)))
