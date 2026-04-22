@@ -20,3 +20,4 @@ data/**
 !data/
 !data/**/
 !data/**/.gitkeep
+notebooks/wandb
