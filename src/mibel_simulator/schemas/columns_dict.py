@@ -48,7 +48,7 @@ columns_dict = {
     cols.IDS_PARADOXAL_ORDERS:        pa.Column(object                                   ),
     cols.PARADOXAL_ORDERS_COLUMN:     pa.Column(object                                   ),
     cols.BOOL_IS_EXPECTED_INCOME_RESPECTED:  pa.Column(bool,                coerce=True),
-    cols.SOLVER_RESULTS_COLUMN:     pa.Column(object                                   ),
+    cols.SOLVER_RESULTS_COLUMN:     pa.Column(object                                   , nullable=True, required=False),
     cols.INT_MIC_SCOS_COUNT:        pa.Column(int, checks=[pa.Check.ge(0)], coerce=True),
     cols.INT_BID_BLOCKS_COUNT:      pa.Column(int, checks=[pa.Check.ge(0)], coerce=True),
     cols.INT_PARADOXAL_ORDERS_COUNT:  pa.Column(int, checks=[pa.Check.ge(0)], coerce=True),

@@ -547,7 +547,6 @@ def iterative_function(
         cols.IDS_PARADOXAL_ORDERS: [ids_mic_scos + ids_bid_blocks],
         cols.FLOAT_OBJECTIVE_VALUE: [welfare],
         cols.BOOL_IS_EXPECTED_INCOME_RESPECTED: [bool_is_expected_income_respected],
-        cols.SOLVER_RESULTS_COLUMN: [results],
         cols.INT_MIC_SCOS_COUNT: [len(ids_mic_scos)],
         cols.INT_BID_BLOCKS_COUNT: [len(ids_bid_blocks)],
         cols.INT_PARADOXAL_ORDERS_COUNT: [len(ids_mic_scos) + len(ids_bid_blocks)],
@@ -557,6 +556,8 @@ def iterative_function(
             get_spain_portugal_transmissions(model)
         ],
     }
+    if solver_factory_type == "gurobi":
+        iteration_df_entry[cols.SOLVER_RESULTS_COLUMN] = [results]
 
     return pd.DataFrame(iteration_df_entry)
 

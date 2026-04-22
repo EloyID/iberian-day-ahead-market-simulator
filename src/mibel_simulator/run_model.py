@@ -5,6 +5,7 @@ from collections.abc import Mapping
 
 from pyomo.environ import Suffix
 from pyomo.opt import SolverFactory
+from pyomo.environ import Suffix, TransformationFactory
 
 from mibel_simulator.make_model import make_model
 
@@ -17,8 +18,7 @@ _SOLVER_ALLOWED_OPTIONS: dict[str, set[str]] = {
         "Method",
         "Presolve",
     },
-    "cbc": {"seconds", "ratio", "threads"},
-    "glpk": {"tmlim", "mipgap"},
+    "highs": {"mip_rel_gap", "time_limit", "threads"},
 }
 
 
@@ -26,10 +26,8 @@ def _normalize_solver_name(solver_factory_type: str) -> str:
     solver_name = solver_factory_type.lower()
     if "gurobi" in solver_name:
         return "gurobi"
-    if solver_name.startswith("cbc"):
-        return "cbc"
-    if solver_name.startswith("glpk"):
-        return "glpk"
+    if solver_name.startswith("highs"):
+        return "highs"
     return solver_name
 
 
@@ -37,6 +35,8 @@ def _default_solver_options(solver_factory_type: str) -> dict:
     # Keep historical behavior only for gurobi-like solvers.
     if _normalize_solver_name(solver_factory_type) == "gurobi":
         return {"MIPGap": 0}
+    if _normalize_solver_name(solver_factory_type) == "highs":
+        return {"mip_rel_gap": 0}
     return {}
 
 
@@ -100,7 +100,6 @@ def run_model(
 
     ########################### Solve ########################
 
-    model.dual = Suffix(direction=Suffix.IMPORT)
     opt = _build_solver(
         solver_factory_type=solver_factory_type,
         solver_options=solver_options,
@@ -114,6 +113,10 @@ def run_model(
     model.v_u_activated_SCO_ORDERS.fix()
     model.v_u_activated_FRANCE_EXPORT_BIDS.fix()
     model.v_u_activated_FRANCE_IMPORT_BIDS.fix()
+    model.dual = Suffix(direction=Suffix.IMPORT)
+
+    if solver_factory_type == "highs":
+        TransformationFactory("core.relax_integer_vars").apply_to(model)
 
     opt = _build_solver(
         solver_factory_type=solver_factory_type,
