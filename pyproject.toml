@@ -4,25 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iberian-day-ahead-market-simulator"
-dynamic = ["version"]
-description = "MIBEL Iberian day-ahead electricity market clearing simulator"
+version = "0.1.0"
+description = "Iberian day-ahead electricity market clearing simulator"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [
-    {name = "EloyID"},
+    {name = "Eloy Insunza", email = "einsunza@comillas.edu"},
 ]
 keywords = [
-    "electricity markets",
+    "electricity-market",
     "MIBEL",
     "OMIE",
     "Euphemia",
     "day-ahead market",
-    "market clearing",
+    "market-clearing",
     "energy",
+    "optimization",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
     "Programming Language :: Python :: 3",
@@ -41,6 +41,7 @@ dependencies = [
 [project.optional-dependencies]
 solver = [
     "gurobipy",
+    "highspy",
 ]
 dev = [
     "pytest>=7.0",
@@ -68,9 +69,3 @@ minversion = "7.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-v --strict-markers --tb=short --disable-warnings"
-markers = [
-    "unit: Unit tests for individual functions",
-    "integration: Integration tests combining multiple components",
-    "slow: Tests that take a long time to run",
-    "requires_data: Tests that require external data files",
-]

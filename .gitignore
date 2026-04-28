@@ -6,10 +6,11 @@ __pycache__/
 .vscode/
 
 old/
+examples_/wandb
+examples_/results
+examples_/results_old
+examples_/
 examples/wandb
-examples/results
-examples/results_old
-examples/
 src/iberian_day_ahead_market_simulator.egg-info
 *.txt
 # Ignore notebook checkpoint artifacts, not requirements.txt
