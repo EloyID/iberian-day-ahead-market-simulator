@@ -9,3 +9,18 @@ from .iterations import IterationsSchema
 from .residual_demand_curves import ResidualDemandCurvesSchema
 from .sell_profiles import SellProfilesSchema
 from .spain_portugal_transmissions import SpainPortugaLTransmissionsSchema
+
+
+__all__ = [
+    "CABSchema",
+    "CapacidadInterPTSchema",
+    "ClearedDetCabSchema",
+    "ClearingPricesSchema",
+    "DETSchema",
+    "DETCABSchema",
+    "ExclusiveBlockOrdersGroupedSchema",
+    "IterationsSchema",
+    "ResidualDemandCurvesSchema",
+    "SellProfilesSchema",
+    "SpainPortugaLTransmissionsSchema",
+]

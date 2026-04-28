@@ -127,7 +127,7 @@ def compare_det_cab_and_curva_pbc_uof(
         .sum()
     ).unstack()
 
-    display(
+    print(
         "Total cleared energy in det_cab by complex orders",
         det_cab_energy_cleared_by_hour_and_unidad,
     )
@@ -136,7 +136,7 @@ def compare_det_cab_and_curva_pbc_uof(
         curva_pbc_uof_casada.groupby(["id_unidad", "qua_hora"])["qua_energia"].sum()
     ).unstack()
 
-    display(
+    print(
         "Total cleared energy in curva_pbc_uof_casada by complex orders",
         curva_pbc_uof_energy_cleared_by_hour_and_unidad,
     )
@@ -188,16 +188,16 @@ def compare_det_cab_and_curva_pbc_uof(
     ).index.tolist()
     different_cleared_energy_groups_count = len(different_cleared_energy_groups)
 
-    display(
+    print(
         f"Paradox groups with same cleared energy ({same_cleared_energy_groups_count}): {same_cleared_energy_groups}"
     )
-    display(
+    print(
         f"Paradox groups with different cleared energy ({different_cleared_energy_groups_count}): {different_cleared_energy_groups}"
     )
     columns_zipped = zip(calculated_columns, reference_columns)
     columns_zipped = [[col1, col2] for col1, col2 in columns_zipped]
     columns_zipped_flattened = sum(columns_zipped, [])
-    display(
+    print(
         cleared_energy_merged.query("same_cleared_energy == False")[
             columns_zipped_flattened
         ]
@@ -231,15 +231,15 @@ def compare_det_cab_and_curva_pbc_uof(
     )
     C04_groups = set(reference_C04_groups).union(set(calculated_C04_groups))
 
-    display(f"========== Reference C01 groups: {reference_C01_groups}")
+    print(f"========== Reference C01 groups: {reference_C01_groups}")
     if set(reference_C01_groups) != set(calculated_C01_groups):
-        display("Discrepancy in C01 (BLOCKS) groups:")
-        display(f"Calculated C01 groups: {calculated_C01_groups}")
+        print("Discrepancy in C01 (BLOCKS) groups:")
+        print(f"Calculated C01 groups: {calculated_C01_groups}")
 
     cleared_energy_merged_C01_discrepating = cleared_energy_merged.query(
         "same_cleared_energy == False and id_unidad in @C01_groups"
     )
-    display("Cleared energy discrepancies C01:", cleared_energy_merged_C01_discrepating)
+    print("Cleared energy discrepancies C01:", cleared_energy_merged_C01_discrepating)
     if not cleared_energy_merged_C01_discrepating.empty:
         cleared_energy_merged_C01_discrepating_reference = (
             cleared_energy_merged_C01_discrepating[reference_columns]
@@ -267,7 +267,7 @@ def compare_det_cab_and_curva_pbc_uof(
             .swaplevel(0, 1, axis=1)
             .sort_index(axis=1)
         )
-        display(
+        print(
             "Cleared energy discrepancies reference pivoted:",
             # column coolwarm style to highlight differences only zdifference columns
             cleared_energy_merged_C01_discrepating.style.background_gradient(
@@ -280,12 +280,12 @@ def compare_det_cab_and_curva_pbc_uof(
             ),
         )
     else:
-        display("No discrepancies in cleared energy for C01 orders.")
+        print("No discrepancies in cleared energy for C01 orders.")
 
-    display(f"========== Reference C02 groups: {reference_C02_groups}")
+    print(f"========== Reference C02 groups: {reference_C02_groups}")
     if set(reference_C02_groups) != set(calculated_C02_groups):
-        display("Discrepancy in C02 (SCO) groups:")
-        display(f"Calculated C02 groups: {calculated_C02_groups}")
+        print("Discrepancy in C02 (SCO) groups:")
+        print(f"Calculated C02 groups: {calculated_C02_groups}")
 
     cleared_energy_merged_C02_discrepating = cleared_energy_merged.query(
         "same_cleared_energy == False and id_unidad in @C02_groups"
@@ -320,7 +320,7 @@ def compare_det_cab_and_curva_pbc_uof(
             .sort_index(axis=1)
         )
 
-        display(
+        print(
             "Cleared energy discrepancies reference pivoted:",
             # column coolwarm style to highlight differences only zdifference columns
             cleared_energy_merged_C02_discrepating.style.background_gradient(
@@ -333,12 +333,12 @@ def compare_det_cab_and_curva_pbc_uof(
             ),
         )
     else:
-        display("No discrepancies in cleared energy for C02 orders.")
+        print("No discrepancies in cleared energy for C02 orders.")
 
-    display(f"========== Reference C04 groups: {reference_C04_groups}")
+    print(f"========== Reference C04 groups: {reference_C04_groups}")
     if set(reference_C04_groups) != set(calculated_C04_groups):
-        display("Discrepancy in C04 (EXCLUSIVE BLOCK) groups:")
-        display(f"Calculated C04 groups: {calculated_C04_groups}")
+        print("Discrepancy in C04 (EXCLUSIVE BLOCK) groups:")
+        print(f"Calculated C04 groups: {calculated_C04_groups}")
 
     cleared_energy_merged_C04_discrepating = cleared_energy_merged.query(
         "same_cleared_energy == False and id_unidad in @C04_groups"
@@ -371,7 +371,7 @@ def compare_det_cab_and_curva_pbc_uof(
             .swaplevel(0, 1, axis=1)
             .sort_index(axis=1)
         )
-        display(
+        print(
             "Cleared energy discrepancies reference pivoted:",
             # column coolwarm style to highlight differences only zdifference columns
             cleared_energy_merged_C04_discrepating.style.background_gradient(
@@ -385,14 +385,14 @@ def compare_det_cab_and_curva_pbc_uof(
         )
 
     else:
-        display("No discrepancies in cleared energy for C04 orders.")
+        print("No discrepancies in cleared energy for C04 orders.")
 
     if "MIEU" in same_cleared_energy_groups:
-        display(
+        print(
             "========== MIEU (Exchange with France9 group has matching cleared energy."
         )
     else:
-        display(
+        print(
             "========== MIEU (Exchange with France9 group has DISCREPANT cleared energy."
         )
 
@@ -426,7 +426,7 @@ def compare_det_cab_and_curva_pbc_uof(
         MIEU_cleared_energy_merged_columns_sorted
     ]
 
-    display(
+    print(
         "MIEU cleared energy details:",
         MIEU_cleared_energy_merged.style.background_gradient(cmap="coolwarm"),
     )
@@ -790,8 +790,6 @@ def calculate_welfare_from_cleared_det_cab(
         ],
         axis=0,
     )
-
-    total_welfare = welfare_by_unidad.sum()
 
     if any(welfare_by_unidad < -0.1):
         print("Warning: Some unidades have negative welfare:")

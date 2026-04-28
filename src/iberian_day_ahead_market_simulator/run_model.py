@@ -1,7 +1,6 @@
 import warnings
 from collections.abc import Mapping
 
-from pyomo.environ import Suffix
 from pyomo.opt import SolverFactory
 from pyomo.environ import Suffix, TransformationFactory
 
