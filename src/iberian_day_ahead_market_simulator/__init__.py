@@ -18,6 +18,7 @@ __author__ = "EloyID"
 from iberian_day_ahead_market_simulator.clearing_process import (
     run_iberian_day_ahead_market_simulator,
 )
+from iberian_day_ahead_market_simulator.const import FRONTIER_MAPPING_REVERSE
 from iberian_day_ahead_market_simulator.parse_omie_files import (
     parse_cab_file,
     parse_capacidad_inter_file,
@@ -30,6 +31,11 @@ from iberian_day_ahead_market_simulator.plot_helpers import (
     plot_spain_portugal_transmissions,
 )
 
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.results_analyze_tools import (
+    summary_det_cab_and_curva_pbc_uof,
+)
+
 __all__ = [
     "run_iberian_day_ahead_market_simulator",
     "parse_cab_file",
@@ -39,4 +45,7 @@ __all__ = [
     "parse_marginalpdbc_file",
     "plot_clearing_prices",
     "plot_spain_portugal_transmissions",
+    "cols",
+    "summary_det_cab_and_curva_pbc_uof",
+    "FRONTIER_MAPPING_REVERSE",
 ]
