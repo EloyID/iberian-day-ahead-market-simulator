@@ -3,7 +3,7 @@
 Main entry points
 -----------------
 run_iberian_day_ahead_market_simulator
-    Full iterative clearing of the MIBEL day-ahead market for a single session.
+    Full iterative clearing of the Iberian day-ahead market for a single session.
 calculate_residual_demand_curves
     Compute residual demand curves for a set of sessions.
 interpolate_residual_demand_curves
