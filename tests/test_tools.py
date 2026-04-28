@@ -1,5 +1,5 @@
 """
-Tests for mibel_simulator.tools module.
+Tests for iberian_day_ahead_market_simulator.tools module.
 
 Tests the utility functions for bid processing and analysis.
 """
@@ -7,9 +7,11 @@ Tests the utility functions for bid processing and analysis.
 import numpy as np
 import pandas as pd
 
-from mibel_simulator import columns as cols
-from mibel_simulator import tools
-from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
+from iberian_day_ahead_market_simulator import columns as cols
+from iberian_day_ahead_market_simulator import tools
+from iberian_day_ahead_market_simulator.file_paths import (
+    PARTICIPANTS_BIDDING_ZONES_FILEPATH,
+)
 
 
 class TestGetFloatBidPowerCumsum:

@@ -4,8 +4,11 @@ from typing import Literal
 import pandas as pd
 import logging
 
-import mibel_simulator.columns as cols
-from mibel_simulator.const import FRONTIER_MAPPING, FRONTIER_MAPPING_REVERSE
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.const import (
+    FRONTIER_MAPPING,
+    FRONTIER_MAPPING_REVERSE,
+)
 
 logger = logging.getLogger(__name__)
 

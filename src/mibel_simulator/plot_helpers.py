@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import mibel_simulator.columns as cols
+import iberian_day_ahead_market_simulator.columns as cols
 
 
 def plot_sell_profiles(

@@ -2,8 +2,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mibel_simulator.const import RDC_ENERGY_COLUMNS, RDC_PRICE_COLUMNS
-from mibel_simulator.residual_demand_curve import (
+from iberian_day_ahead_market_simulator.const import (
+    RDC_ENERGY_COLUMNS,
+    RDC_PRICE_COLUMNS,
+)
+from iberian_day_ahead_market_simulator.residual_demand_curve import (
     interpolate_residual_demand_curves,
 )
 

@@ -1,31 +1,37 @@
 import numpy as np
 import pandas as pd
 
-from mibel_simulator.clear_mibel_with_price_curve import (
+from iberian_day_ahead_market_simulator.clear_mibel_with_price_curve import (
     get_cleared_power_as_simple_bids_with_price_curve,
     get_cleared_power_with_price_curve,
 )
-from mibel_simulator.const import (
+from iberian_day_ahead_market_simulator.const import (
     FRONTIER_MAPPING_REVERSE,
     PORTUGAL_ZONE,
     RDC_ENERGY_COLUMNS,
     RDC_PRICE_COLUMNS,
     SPAIN_ZONE,
 )
-from mibel_simulator.data_preprocessor import get_det_cab_for_simulation
-from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
-from mibel_simulator.parse_omie_files import (
+from iberian_day_ahead_market_simulator.data_preprocessor import (
+    get_det_cab_for_simulation,
+)
+from iberian_day_ahead_market_simulator.file_paths import (
+    PARTICIPANTS_BIDDING_ZONES_FILEPATH,
+)
+from iberian_day_ahead_market_simulator.parse_omie_files import (
     parse_cab_file,
     parse_capacidad_inter_file,
     parse_det_file,
 )
-from mibel_simulator.schemas.cab import CABSchema
-from mibel_simulator.schemas.capacidad_inter_pt import CapacidadInterPTSchema
-from mibel_simulator.schemas.det import DETSchema
-from mibel_simulator.tools import (
+from iberian_day_ahead_market_simulator.schemas.cab import CABSchema
+from iberian_day_ahead_market_simulator.schemas.capacidad_inter_pt import (
+    CapacidadInterPTSchema,
+)
+from iberian_day_ahead_market_simulator.schemas.det import DETSchema
+from iberian_day_ahead_market_simulator.tools import (
     concat_provided_participants_bidding_zones_with_existing_data,
 )
-import mibel_simulator.columns as cols
+import iberian_day_ahead_market_simulator.columns as cols
 
 
 def format_price_curves(

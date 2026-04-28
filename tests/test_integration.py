@@ -13,8 +13,8 @@ Run locally with:
 import pandas as pd
 import pytest
 
-import mibel_simulator.columns as cols
-from mibel_simulator.clearing_process import run_iterative_loop
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.clearing_process import run_iterative_loop
 from tests.const import STANDARD_TESTING_DATE
 
 # ---------------------------------------------------------------------------

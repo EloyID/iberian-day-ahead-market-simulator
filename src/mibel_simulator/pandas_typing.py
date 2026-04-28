@@ -1,5 +1,5 @@
 from numpy import dtype
-import mibel_simulator.columns as cols
+import iberian_day_ahead_market_simulator.columns as cols
 
 
 DET_TYPING = {

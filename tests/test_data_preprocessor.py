@@ -1,15 +1,15 @@
 import pandas as pd
 import pytest
 
-from mibel_simulator import columns as cols
-from mibel_simulator.data_preprocessor import (
+from iberian_day_ahead_market_simulator import columns as cols
+from iberian_day_ahead_market_simulator.data_preprocessor import (
     get_det_cab_for_simulation,
     get_det_cab_id_block_order,
     get_det_cab_id_individual_bid,
     get_det_cab_id_sco,
     get_france_det_cab_from_price,
 )
-from mibel_simulator.tools import get_cat_order_type_column
+from iberian_day_ahead_market_simulator.tools import get_cat_order_type_column
 
 
 @pytest.fixture

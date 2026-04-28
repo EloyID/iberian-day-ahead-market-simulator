@@ -58,10 +58,10 @@ Repository = "https://github.com/EloyID/iberian-day-ahead-market-simulator"
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = {attr = "mibel_simulator.__version__"}
+version = {attr = "iberian_day_ahead_market_simulator.__version__"}
 
 [tool.setuptools.package-data]
-"mibel_simulator" = ["data/*.csv"]
+"iberian_day_ahead_market_simulator" = ["data/*.csv"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

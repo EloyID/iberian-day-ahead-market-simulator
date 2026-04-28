@@ -3,8 +3,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-import mibel_simulator.columns as cols
-from mibel_simulator.const import (
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.const import (
     CAT_BIDDING_ZONE_FRANCE,
     CAT_BIDDING_ZONE_SPAIN,
     CAT_BUY,
@@ -16,8 +16,13 @@ from mibel_simulator.const import (
     PORTUGAL_ZONE,
     SPAIN_ZONE,
 )
-from mibel_simulator.pandas_typing import DET_CAB_DAM_SIMULATOR_TYPING
-from mibel_simulator.tools import get_cat_order_type_column, get_float_bid_power_cumsum
+from iberian_day_ahead_market_simulator.pandas_typing import (
+    DET_CAB_DAM_SIMULATOR_TYPING,
+)
+from iberian_day_ahead_market_simulator.tools import (
+    get_cat_order_type_column,
+    get_float_bid_power_cumsum,
+)
 
 logger = logging.getLogger(__name__)
 

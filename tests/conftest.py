@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mibel_simulator import columns as cols
+from iberian_day_ahead_market_simulator import columns as cols
 from tests.const import STANDARD_TESTING_DATE
 
 # ---------------------------------------------------------------------------

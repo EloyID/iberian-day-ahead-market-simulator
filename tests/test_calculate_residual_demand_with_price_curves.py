@@ -1,5 +1,5 @@
 """
-Tests for mibel_simulator.calculate_residual_demand_with_price_curves module.
+Tests for iberian_day_ahead_market_simulator.calculate_residual_demand_with_price_curves module.
 
 Tests the price curve formatting and residual demand calculation functions.
 """
@@ -8,15 +8,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mibel_simulator import columns as cols
-from mibel_simulator.calculate_residual_demand_with_price_curves import (
+from iberian_day_ahead_market_simulator import columns as cols
+from iberian_day_ahead_market_simulator.calculate_residual_demand_with_price_curves import (
     calculate_complex_residual_demand_I_without_market_split,
     calculate_complex_residual_demand_II_with_market_split,
     calculate_only_simple_submitted_relaxed_residual_demand,
     calculate_submitted_relaxed_residual_demand,
     format_price_curves,
 )
-from mibel_simulator.const import PORTUGAL_ZONE, SPAIN_ZONE
+from iberian_day_ahead_market_simulator.const import PORTUGAL_ZONE, SPAIN_ZONE
 
 
 class TestFormatPriceCurves:

@@ -5,9 +5,11 @@ import numpy as np
 import pandas as pd
 import pandera.pandas as pa
 
-import mibel_simulator.columns as cols
-from mibel_simulator.clearing_process import run_mibel_simulator
-from mibel_simulator.const import (
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.clearing_process import (
+    run_iberian_day_ahead_market_simulator,
+)
+from iberian_day_ahead_market_simulator.const import (
     COD_OFERTA_RESIDUAL_DEMAND_C,
     COD_OFERTA_RESIDUAL_DEMAND_V,
     CODIGO_UNIDAD_RESIDUAL_DEMAND_C,
@@ -18,16 +20,20 @@ from mibel_simulator.const import (
     RDC_PRICE_COLUMNS,
 )
 
-from mibel_simulator.parse_omie_files import (
+from iberian_day_ahead_market_simulator.parse_omie_files import (
     parse_cab_file,
     parse_capacidad_inter_file,
     parse_det_file,
 )
-from mibel_simulator.schemas.cab import CABSchema
-from mibel_simulator.schemas.capacidad_inter_pt import CapacidadInterPTSchema
-from mibel_simulator.schemas.det import DETSchema
-from mibel_simulator.schemas.residual_demand_curves import ResidualDemandCurvesSchema
-from mibel_simulator.schemas.sell_profiles import SellProfilesSchema
+from iberian_day_ahead_market_simulator.schemas.cab import CABSchema
+from iberian_day_ahead_market_simulator.schemas.capacidad_inter_pt import (
+    CapacidadInterPTSchema,
+)
+from iberian_day_ahead_market_simulator.schemas.det import DETSchema
+from iberian_day_ahead_market_simulator.schemas.residual_demand_curves import (
+    ResidualDemandCurvesSchema,
+)
+from iberian_day_ahead_market_simulator.schemas.sell_profiles import SellProfilesSchema
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +247,7 @@ def calculate_residual_demand_curves(
         else:
             participants_bidding_zones_modified = None
 
-        results = run_mibel_simulator(
+        results = run_iberian_day_ahead_market_simulator(
             det=det_modified,
             cab=cab_modified,
             capacidad_inter_pbc=capacidad_inter_pbc,

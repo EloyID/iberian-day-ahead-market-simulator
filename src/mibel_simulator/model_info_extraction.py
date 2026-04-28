@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pyomo.environ as pyo
 
-import mibel_simulator.columns as cols
-from mibel_simulator.tools import get_float_bid_power_cumsum
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.tools import get_float_bid_power_cumsum
 
 from .const import PORTUGAL_ZONE, SPAIN_ZONE
 

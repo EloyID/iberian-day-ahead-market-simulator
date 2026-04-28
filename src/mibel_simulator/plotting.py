@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 
-import mibel_simulator.columns as cols
+import iberian_day_ahead_market_simulator.columns as cols
 
 
 def plot_period_curves(

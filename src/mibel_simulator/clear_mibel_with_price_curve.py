@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-import mibel_simulator.columns as cols
-from mibel_simulator.tools import get_is_not_exclusive_block
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.tools import get_is_not_exclusive_block
 
 
 def get_cleared_energy_from_non_exclusive_block_order(df):

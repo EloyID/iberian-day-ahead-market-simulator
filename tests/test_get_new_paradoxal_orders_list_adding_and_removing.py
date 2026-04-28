@@ -1,12 +1,12 @@
 import pandas as pd
 import pytest
 
-from mibel_simulator import columns as cols
-from mibel_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
+from iberian_day_ahead_market_simulator import columns as cols
+from iberian_day_ahead_market_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
     get_new_paradoxal_orders_list_adding_and_removing,
     get_paradoxal_orders_combinations,
 )
-from mibel_simulator.paradoxal_orders_tools import (
+from iberian_day_ahead_market_simulator.paradoxal_orders_tools import (
     transform_ids_paradoxal_orders_list_to_dict,
     transform_paradoxal_orders_dict_to_ids_list,
 )

@@ -47,8 +47,8 @@ pip install -e .
 ## Quick Start
 
 ```python
-from mibel_simulator.clearing_process import run_mibel_simulator
-from mibel_simulator.plot_helpers import (
+from iberian_day_ahead_market_simulator.clearing_process import run_iberian_day_ahead_market_simulator
+from iberian_day_ahead_market_simulator.plot_helpers import (
     plot_clearing_prices,
     plot_spain_portugal_transmissions,
 )
@@ -63,7 +63,7 @@ capacidad_inter_date = "path/to/capacidad_inter_file.1"
 # float_price_fr columns
 price_france_date = "path/to/price_france_file.parquet"
 
-results = run_mibel_simulator(
+results = run_iberian_day_ahead_market_simulator(
     det_date=det_date,
     cab_date=cab_date,
     capacidad_inter_date=capacidad_inter_date,
@@ -80,7 +80,7 @@ plot_spain_portugal_transmissions(
 ## Project Structure
 
 ```
-src/mibel_simulator/
+src/iberian_day_ahead_market_simulator/
 ├── clearing_process.py        # Main iterative clearing loop
 ├── make_model.py              # Pyomo MILP model builder
 ├── run_model.py               # Pyomo solver wrapper (configurable solver)

@@ -12,7 +12,7 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org):
 
 ### Tagging and releasing
 
-1. Update `__version__` in `src/mibel_simulator/__init__.py`.
+1. Update `__version__` in `src/iberian_day_ahead_market_simulator/__init__.py`.
 2. Add a dated section to this file under `## [X.Y.Z] - YYYY-MM-DD`.
 3. Commit and push: `git commit -m "chore: release vX.Y.Z"`.
 4. Create and push a tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.

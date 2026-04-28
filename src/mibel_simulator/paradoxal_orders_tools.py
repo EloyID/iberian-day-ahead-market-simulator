@@ -1,5 +1,5 @@
 import pandas as pd
-from mibel_simulator import columns as cols
+from iberian_day_ahead_market_simulator import columns as cols
 
 
 def check_are_paradoxal_orders_tested(

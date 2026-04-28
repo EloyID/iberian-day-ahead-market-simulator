@@ -1,4 +1,4 @@
-import mibel_simulator.columns as cols
+import iberian_day_ahead_market_simulator.columns as cols
 
 
 SPAIN_ZONE = "ES"

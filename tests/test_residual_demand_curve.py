@@ -1,13 +1,13 @@
 """
-Tests for mibel_simulator.residual_demand_curve module.
+Tests for iberian_day_ahead_market_simulator.residual_demand_curve module.
 
 Tests the residual demand curve generation and profile creation functions.
 """
 
 import pandas as pd
 
-from mibel_simulator import columns as cols
-from mibel_simulator import residual_demand_curve as rdc
+from iberian_day_ahead_market_simulator import columns as cols
+from iberian_day_ahead_market_simulator import residual_demand_curve as rdc
 
 
 class TestCreateHomotheticSellProfiles:

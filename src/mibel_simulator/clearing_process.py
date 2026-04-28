@@ -11,34 +11,39 @@ import pandera.pandas as pa
 import pyomo.environ as pyo
 from pandera.typing import DataFrame
 
-import mibel_simulator.columns as cols
-from mibel_simulator.const import FRONTIER_MAPPING_REVERSE, ITERATIONS_DF_COLUMNS
-from mibel_simulator.data_preprocessor import (
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.const import (
+    FRONTIER_MAPPING_REVERSE,
+    ITERATIONS_DF_COLUMNS,
+)
+from iberian_day_ahead_market_simulator.data_preprocessor import (
     get_all_paradoxal_orders,
     get_det_cab_for_simulation,
     get_france_det_cab_from_price,
 )
-from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
-from mibel_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
+from iberian_day_ahead_market_simulator.file_paths import (
+    PARTICIPANTS_BIDDING_ZONES_FILEPATH,
+)
+from iberian_day_ahead_market_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
     get_new_paradoxal_orders_list_adding_and_removing,
 )
-from mibel_simulator.model_info_extraction import (
+from iberian_day_ahead_market_simulator.model_info_extraction import (
     get_cleared_energy_series,
     get_clearing_prices_df,
     get_spain_portugal_transmissions,
 )
-from mibel_simulator.paradoxal_orders_tools import (
+from iberian_day_ahead_market_simulator.paradoxal_orders_tools import (
     check_are_paradoxal_orders_tested,
     transform_ids_paradoxal_orders_list_to_dict,
     transform_paradoxal_orders_dict_to_ids_list,
 )
-from mibel_simulator.parse_omie_files import (
+from iberian_day_ahead_market_simulator.parse_omie_files import (
     parse_cab_file,
     parse_capacidad_inter_file,
     parse_det_file,
 )
-from mibel_simulator.run_model import run_model
-from mibel_simulator.schemas import (
+from iberian_day_ahead_market_simulator.run_model import run_model
+from iberian_day_ahead_market_simulator.schemas import (
     CABSchema,
     CapacidadInterPTSchema,
     ClearingPricesSchema,
@@ -46,11 +51,13 @@ from mibel_simulator.schemas import (
     DETSchema,
     IterationsSchema,
 )
-from mibel_simulator.schemas.cleared_det_cab import ClearedDetCabSchema
-from mibel_simulator.schemas.spain_portugal_transmissions import (
+from iberian_day_ahead_market_simulator.schemas.cleared_det_cab import (
+    ClearedDetCabSchema,
+)
+from iberian_day_ahead_market_simulator.schemas.spain_portugal_transmissions import (
     SpainPortugaLTransmissionsSchema,
 )
-from mibel_simulator.tools import (
+from iberian_day_ahead_market_simulator.tools import (
     concat_provided_participants_bidding_zones_with_existing_data,
     filter_paradoxal_orders_from_det_cab,
 )
@@ -740,7 +747,7 @@ def run_iterative_loop(
     return iterations_df, best_model, best_model_binary
 
 
-def run_mibel_simulator(
+def run_iberian_day_ahead_market_simulator(
     det: pd.DataFrame | str,
     cab: pd.DataFrame | str,
     capacidad_inter_pbc: pd.DataFrame | str,

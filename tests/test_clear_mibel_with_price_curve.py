@@ -1,5 +1,5 @@
 """
-Tests for mibel_simulator.clear_mibel_with_price_curve module.
+Tests for iberian_day_ahead_market_simulator.clear_mibel_with_price_curve module.
 
 Tests the market clearing logic for different order types with price curves.
 """
@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mibel_simulator import columns as cols
-from mibel_simulator.clear_mibel_with_price_curve import (
+from iberian_day_ahead_market_simulator import columns as cols
+from iberian_day_ahead_market_simulator.clear_mibel_with_price_curve import (
     calculate_cleared_energy_from_exclusive_block_order_groups,
     calculate_cleared_energy_from_SCOs,
     get_cleared_energy_from_non_exclusive_block_order,

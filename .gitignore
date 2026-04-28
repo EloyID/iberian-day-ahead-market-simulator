@@ -10,7 +10,7 @@ examples/wandb
 examples/results
 examples/results_old
 examples/
-src/mibel_simulator.egg-info
+src/iberian_day_ahead_market_simulator.egg-info
 *.txt
 # Ignore notebook checkpoint artifacts, not requirements.txt
 *.nbconvert.txt

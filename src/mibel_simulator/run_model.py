@@ -7,7 +7,7 @@ from pyomo.environ import Suffix
 from pyomo.opt import SolverFactory
 from pyomo.environ import Suffix, TransformationFactory
 
-from mibel_simulator.make_model import make_model
+from iberian_day_ahead_market_simulator.make_model import make_model
 
 _SOLVER_ALLOWED_OPTIONS: dict[str, set[str]] = {
     "gurobi": {

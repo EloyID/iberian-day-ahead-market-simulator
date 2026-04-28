@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-import mibel_simulator.columns as cols
-from mibel_simulator.columns import INT_NUM_BLOCK
-from mibel_simulator.const import FRANCE_ID_UNIDAD
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.columns import INT_NUM_BLOCK
+from iberian_day_ahead_market_simulator.const import FRANCE_ID_UNIDAD
 
 
 def summary_det_cab(det_cab: pd.DataFrame):

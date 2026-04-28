@@ -2,7 +2,7 @@
 
 Main entry points
 -----------------
-run_mibel_simulator
+run_iberian_day_ahead_market_simulator
     Full iterative clearing of the MIBEL day-ahead market for a single session.
 calculate_residual_demand_curves
     Compute residual demand curves for a set of sessions.
@@ -15,21 +15,23 @@ parse_cab_file / parse_det_file / parse_capacidad_inter_file
 __version__ = "0.1.0"
 __author__ = "EloyID"
 
-from mibel_simulator.clearing_process import run_mibel_simulator
-from mibel_simulator.parse_omie_files import (
+from iberian_day_ahead_market_simulator.clearing_process import (
+    run_iberian_day_ahead_market_simulator,
+)
+from iberian_day_ahead_market_simulator.parse_omie_files import (
     parse_cab_file,
     parse_capacidad_inter_file,
     parse_det_file,
     parse_price_france_from_entsoe_file,
     parse_marginalpdbc_file,
 )
-from mibel_simulator.plot_helpers import (
+from iberian_day_ahead_market_simulator.plot_helpers import (
     plot_clearing_prices,
     plot_spain_portugal_transmissions,
 )
 
 __all__ = [
-    "run_mibel_simulator",
+    "run_iberian_day_ahead_market_simulator",
     "parse_cab_file",
     "parse_det_file",
     "parse_capacidad_inter_file",

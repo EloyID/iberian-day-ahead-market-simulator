@@ -1,7 +1,7 @@
 import pandera.pandas as pa
 
-import mibel_simulator.columns as cols
-from mibel_simulator.const import (
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.const import (
     BIDDING_ZONES_OPTIONS,
     BUY_SELL_OPTIONS,
     CAT_FRONTIER_OPTIONS,

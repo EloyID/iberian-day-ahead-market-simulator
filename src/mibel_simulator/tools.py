@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
 
-import mibel_simulator.columns as cols
-from mibel_simulator.file_paths import PARTICIPANTS_BIDDING_ZONES_FILEPATH
-from mibel_simulator.schemas.participants_bidding_zones import (
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.file_paths import (
+    PARTICIPANTS_BIDDING_ZONES_FILEPATH,
+)
+from iberian_day_ahead_market_simulator.schemas.participants_bidding_zones import (
     ParticipantBiddingZonesSchema,
 )
 

@@ -57,7 +57,7 @@ jobs:
 
       - name: Generate coverage report
         run: |
-          pytest --cov=src/mibel_simulator --cov-report=xml --cov-report=term
+          pytest --cov=src/iberian_day_ahead_market_simulator --cov-report=xml --cov-report=term
 
       # - name: Upload coverage to Codecov
       #   uses: codecov/codecov-action@v3

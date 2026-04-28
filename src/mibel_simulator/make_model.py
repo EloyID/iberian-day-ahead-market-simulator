@@ -14,10 +14,16 @@ from pyomo.environ import (
     maximize,
 )
 
-import mibel_simulator.columns as cols
-from mibel_simulator.const import PORTUGAL_ZONE, SPAIN_ZONE, FRANCE_ID_UNIDAD
-from mibel_simulator.data_preprocessor import get_exclusive_block_orders_grouped
-from mibel_simulator.schemas.exclusive_block_order_grouped import (
+import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.const import (
+    PORTUGAL_ZONE,
+    SPAIN_ZONE,
+    FRANCE_ID_UNIDAD,
+)
+from iberian_day_ahead_market_simulator.data_preprocessor import (
+    get_exclusive_block_orders_grouped,
+)
+from iberian_day_ahead_market_simulator.schemas.exclusive_block_order_grouped import (
     ExclusiveBlockOrdersGroupedSchema,
 )
 

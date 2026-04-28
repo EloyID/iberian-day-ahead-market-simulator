@@ -1,6 +1,6 @@
 import pandera.pandas as pa
 
-import mibel_simulator.columns as cols
+import iberian_day_ahead_market_simulator.columns as cols
 
 # fmt: off
 

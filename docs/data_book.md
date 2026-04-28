@@ -19,7 +19,7 @@ This document describes the main datasets used and produced by `iberian-day-ahea
   - `datetime_` timestamp
 - **Paradoxical orders:** orders that can be subject to paradoxical rejection/acceptance by the optimization problem. These include block orders and SCOs that include a fixed MIC term (`float_mic > 0`).
 
-Canonical names are defined in [src/mibel_simulator/columns.py](../src/mibel_simulator/columns.py).
+Canonical names are defined in [src/iberian_day_ahead_market_simulator/columns.py](../src/iberian_day_ahead_market_simulator/columns.py).
 
 ---
 
@@ -31,7 +31,7 @@ A thorough description of original OMIE files can be found [here](https://www.om
 
 **Original OMIE file:** `CAB_YYYYMMDD.1` from *Cabecera de las ofertas al mercado diario* [link](https://www.omie.es/es/file-access-list?parents=/Mercado%20Diario/4.%20Ofertas&dir=Cabecera%20de%20las%20ofertas%20al%20mercado%20diario&realdir=cab).
 
-**OMIE file parser:** `parse_cab_file()` in [src/mibel_simulator/parse_omie_files.py](../src/mibel_simulator/parse_omie_files.py)
+**OMIE file parser:** `parse_cab_file()` in [src/iberian_day_ahead_market_simulator/parse_omie_files.py](../src/iberian_day_ahead_market_simulator/parse_omie_files.py)
 
 | Column            | Type               | Meaning                                     | Corresponding OMIE field name |
 | ----------------- | ------------------ | ------------------------------------------- | ----------------------------- |
@@ -42,7 +42,7 @@ A thorough description of original OMIE files can be found [here](https://www.om
 | `float_mic`       | float              | Fixed MIC term (used for SCO)               | Fijoeuro                      |
 | `float_max_power` | float              | Maximum power of the unit                   | MaxPot                        |
 
-**Schema reference:** [src/mibel_simulator/schemas/cab.py](../src/mibel_simulator/schemas/cab.py)
+**Schema reference:** [src/iberian_day_ahead_market_simulator/schemas/cab.py](../src/iberian_day_ahead_market_simulator/schemas/cab.py)
 
 ---
 
@@ -50,7 +50,7 @@ A thorough description of original OMIE files can be found [here](https://www.om
 
 **Original OMIE file:** `DET_YYYYMMDD.1` from *Detalle de las ofertas al mercado diario* [link](https://www.omie.es/es/file-access-list?parents=/Mercado%20Diario/4.%20Ofertas&dir=Detalle%20de%20las%20ofertas%20al%20mercado%20diario&realdir=det).
 
-**OMIE file parser:** `parse_det_file()` in [src/mibel_simulator/parse_omie_files.py](../src/mibel_simulator/parse_omie_files.py)
+**OMIE file parser:** `parse_det_file()` in [src/iberian_day_ahead_market_simulator/parse_omie_files.py](../src/iberian_day_ahead_market_simulator/parse_omie_files.py)
 
 | Column               | Type     | Meaning                                     | Corresponding OMIE field name |
 | -------------------- | -------- | ------------------------------------------- | ----------------------------- |
@@ -67,7 +67,7 @@ A thorough description of original OMIE files can be found [here](https://www.om
 
 **Special handling:** if some bids include period `25` appears, but the quantity of bids is very small, it will be dropped. 
 
-**Schema reference:** [src/mibel_simulator/schemas/det.py](../src/mibel_simulator/schemas/det.py)
+**Schema reference:** [src/iberian_day_ahead_market_simulator/schemas/det.py](../src/iberian_day_ahead_market_simulator/schemas/det.py)
 
 ---
 
@@ -75,7 +75,7 @@ A thorough description of original OMIE files can be found [here](https://www.om
 
 **Original OMIE file:** `capacidad_inter_pbc_YYYYMMDD.1` from *Capacidad y ocupación de las interconexiones tras la casación del mercado diario* [link](https://www.omie.es/es/file-access-list?parents=/Mercado%20Diario/6.%20Capacidades&dir=Capacidad%20y%20ocupaci%C3%B3n%20de%20las%20interconexiones%20tras%20la%20casaci%C3%B3n%20del%20mercado%20diario&realdir=capacidad_inter_pbc).
 
-**OMIE file parser:** `parse_capacidad_inter_file()` in [src/mibel_simulator/parse_omie_files.py](../src/mibel_simulator/parse_omie_files.py)
+**OMIE file parser:** `parse_capacidad_inter_file()` in [src/iberian_day_ahead_market_simulator/parse_omie_files.py](../src/iberian_day_ahead_market_simulator/parse_omie_files.py)
 
 Supports:
 - optional `bidding_zone` filter (`"ES"`, `"PT"`, `"FR"`, `"MA"`)
@@ -101,7 +101,7 @@ Adds:
 - `float_export_capacity_occupation`: corresponds to *Ocupación Exportación* in OMIE
 - `float_export_capacity_free`: corresponds to *Capacidad libre de exportación* in OMIE
 
-**Schema reference (base):** [src/mibel_simulator/schemas/capacidad_inter_pt.py](../src/mibel_simulator/schemas/capacidad_inter_pt.py)
+**Schema reference (base):** [src/iberian_day_ahead_market_simulator/schemas/capacidad_inter_pt.py](../src/iberian_day_ahead_market_simulator/schemas/capacidad_inter_pt.py)
 
 ---
 
@@ -109,7 +109,7 @@ Adds:
 
 **Original ENTSO-E file:** CSV file from [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) > FR > Market > Energy Prices > Export
 
-**Parser:** `parse_price_france_from_entsoe_file()` in [src/mibel_simulator/parse_omie_files.py](../src/mibel_simulator/parse_omie_files.py)
+**Parser:** `parse_price_france_from_entsoe_file()` in [src/iberian_day_ahead_market_simulator/parse_omie_files.py](../src/iberian_day_ahead_market_simulator/parse_omie_files.py)
 
 | Column           | Type     | Meaning                                 |
 | ---------------- | -------- | --------------------------------------- |
@@ -126,7 +126,7 @@ Adds:
 
 **Original OMIE file:** `marginalpdbc_YYYYMMDD.1` from *Precios horarios del mercado diario en España* [link](https://www.omie.es/es/file-access-list?parents=/Mercado%20Diario/1.%20Precios&dir=Precios%20horarios%20del%20mercado%20diario%20en%20Espa%C3%B1a&realdir=marginalpdbc).
 
-**OMIE file parser:** `parse_marginalpdbc_file()` in [src/mibel_simulator/parse_omie_files.py](../src/mibel_simulator/parse_omie_files.py)
+**OMIE file parser:** `parse_marginalpdbc_file()` in [src/iberian_day_ahead_market_simulator/parse_omie_files.py](../src/iberian_day_ahead_market_simulator/parse_omie_files.py)
 
 Input has PT and ES values per period; parser returns long format:
 
@@ -145,13 +145,13 @@ Input has PT and ES values per period; parser returns long format:
 | `id_unidad`        | str      | Unit id           |
 | `cat_bidding_zone` | category | Unit bidding zone |
 
-**Schema reference:** [src/mibel_simulator/schemas/participants_bidding_zones.py](../src/mibel_simulator/schemas/participants_bidding_zones.py)
+**Schema reference:** [src/iberian_day_ahead_market_simulator/schemas/participants_bidding_zones.py](../src/iberian_day_ahead_market_simulator/schemas/participants_bidding_zones.py)
 
 ---
 
 ## 3) Core simulation dataset: `det_cab`
 
-Built by `get_det_cab_for_simulation()` in [src/mibel_simulator/data_preprocessor.py](../src/mibel_simulator/data_preprocessor.py).
+Built by `get_det_cab_for_simulation()` in [src/iberian_day_ahead_market_simulator/data_preprocessor.py](../src/iberian_day_ahead_market_simulator/data_preprocessor.py).
 
 This table merges DET + CAB + zone mapping (and optionally synthetic France bids), then enriches with derived identifiers and cumulative metrics.
 
@@ -174,11 +174,11 @@ This table merges DET + CAB + zone mapping (and optionally synthetic France bids
 | `float_bid_power_cumsum_by_country` | float                | Zone-wise cumulative power                        |
 | `cat_bidding_zone`                  | category (`ES`/`PT`) | Unit bidding zone                                 |
 
-**Schema reference:** [src/mibel_simulator/schemas/det_cab.py](../src/mibel_simulator/schemas/det_cab.py)
+**Schema reference:** [src/iberian_day_ahead_market_simulator/schemas/det_cab.py](../src/iberian_day_ahead_market_simulator/schemas/det_cab.py)
 
 ### 3.2 Important modeling rules validated
 
-From schema checks in [src/mibel_simulator/schemas/det.py](../src/mibel_simulator/schemas/det.py) and [src/mibel_simulator/schemas/det_cab.py](../src/mibel_simulator/schemas/det_cab.py):
+From schema checks in [src/iberian_day_ahead_market_simulator/schemas/det.py](../src/iberian_day_ahead_market_simulator/schemas/det.py) and [src/iberian_day_ahead_market_simulator/schemas/det_cab.py](../src/iberian_day_ahead_market_simulator/schemas/det_cab.py):
 
 - Exclusive group implies block order.
 - `float_mar > 0` only for block offers.
@@ -189,16 +189,16 @@ From schema checks in [src/mibel_simulator/schemas/det.py](../src/mibel_simulato
 
 ---
 
-## 4) Main outputs from `run_mibel_simulator`
+## 4) Main outputs from `run_iberian_day_ahead_market_simulator`
 
-Returned keys are assembled in [src/mibel_simulator/clearing_process.py](../src/mibel_simulator/clearing_process.py).
+Returned keys are assembled in [src/iberian_day_ahead_market_simulator/clearing_process.py](../src/iberian_day_ahead_market_simulator/clearing_process.py).
 
 ### 4.1 `cleared_det_cab`
 
 `det_cab` plus:
 - `float_cleared_power`
 
-Schema: [src/mibel_simulator/schemas/cleared_det_cab.py](../src/mibel_simulator/schemas/cleared_det_cab.py)
+Schema: [src/iberian_day_ahead_market_simulator/schemas/cleared_det_cab.py](../src/iberian_day_ahead_market_simulator/schemas/cleared_det_cab.py)
 
 ### 4.2 `clearing_prices`
 
@@ -208,7 +208,7 @@ Schema: [src/mibel_simulator/schemas/cleared_det_cab.py](../src/mibel_simulator/
 | `cat_bidding_zone`    | category | Zone (`ES`/`PT`)                |
 | `float_cleared_price` | float    | Simulated market clearing price |
 
-Schema: [src/mibel_simulator/schemas/clearing_prices.py](../src/mibel_simulator/schemas/clearing_prices.py)
+Schema: [src/iberian_day_ahead_market_simulator/schemas/clearing_prices.py](../src/iberian_day_ahead_market_simulator/schemas/clearing_prices.py)
 
 ### 4.3 `spain_portugal_transmissions`
 
@@ -217,7 +217,7 @@ Schema: [src/mibel_simulator/schemas/clearing_prices.py](../src/mibel_simulator/
 | index               | int (`1..24`) | Period                                          |
 | `Transmision_ES_PT` | float         | Net ES→PT transmission convention used by model |
 
-Schema: [src/mibel_simulator/schemas/spain_portugal_transmissions.py](../src/mibel_simulator/schemas/spain_portugal_transmissions.py)
+Schema: [src/iberian_day_ahead_market_simulator/schemas/spain_portugal_transmissions.py](../src/iberian_day_ahead_market_simulator/schemas/spain_portugal_transmissions.py)
 
 ### 4.4 `iterations_df`
 
@@ -228,13 +228,13 @@ Iteration diagnostics and optimization outcomes:
 - solver artifacts,
 - snapshots of cleared energy / prices / transmission by iteration.
 
-Schema: [src/mibel_simulator/schemas/iterations.py](../src/mibel_simulator/schemas/iterations.py)
+Schema: [src/iberian_day_ahead_market_simulator/schemas/iterations.py](../src/iberian_day_ahead_market_simulator/schemas/iterations.py)
 
 ---
 
 ## 5) Enumerations and code lists
 
-Defined in [src/mibel_simulator/const.py](../src/mibel_simulator/const.py):
+Defined in [src/iberian_day_ahead_market_simulator/const.py](../src/iberian_day_ahead_market_simulator/const.py):
 
 - `cat_buy_sell`: `C` (buy), `V` (sell)
 - bidding zones: `ES`, `PT` (plus `FR`, `MI` in specific contexts)
@@ -285,9 +285,9 @@ Before publishing a run:
 
 When adding/changing fields:
 
-1. Update constants in [src/mibel_simulator/columns.py](../src/mibel_simulator/columns.py)
-2. Update parser renaming/typing in [src/mibel_simulator/parse_omie_files.py](../src/mibel_simulator/parse_omie_files.py)
-3. Update schema checks in [src/mibel_simulator/schemas/](../src/mibel_simulator/schemas/)
+1. Update constants in [src/iberian_day_ahead_market_simulator/columns.py](../src/iberian_day_ahead_market_simulator/columns.py)
+2. Update parser renaming/typing in [src/iberian_day_ahead_market_simulator/parse_omie_files.py](../src/iberian_day_ahead_market_simulator/parse_omie_files.py)
+3. Update schema checks in [src/iberian_day_ahead_market_simulator/schemas/](../src/iberian_day_ahead_market_simulator/schemas/)
 4. Update this document
 
 This file is intended to be the canonical data dictionary for users and contributors.
