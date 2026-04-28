@@ -4,7 +4,7 @@ This document describes the main datasets used and produced by `iberian-day-ahea
 
 ## 1) Scope and conventions
 
-- **Business scope:** MIBEL day-ahead market clearing (Spain/Portugal), with explicit handling of France exchange modeling.
+- **Business scope:** Iberian day-ahead market clearing (Spain/Portugal), with explicit handling of France exchange modeling.
 - **Time resolution:** hourly by default (`int_period` in `1..24`, occasionally `25` in DST/raw OMIE files).
 - **Units:**
   - Price: **€/MWh**
