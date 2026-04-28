@@ -36,6 +36,7 @@ dependencies = [
     "pandas",
     "pandera",
     "pyomo",
+    "matplotlib",
 ]
 
 [project.optional-dependencies]
