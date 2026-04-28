@@ -19,5 +19,5 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org):
 5. The `publish.yml` GitHub Actions workflow will automatically build and
    upload the distribution to PyPI via Trusted Publishing.
 
-[Unreleased]: https://github.com/EloyID/mibel-simulator/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/EloyID/mibel-simulator/releases/tag/v0.1.0
+[Unreleased]: https://github.com/EloyID/iberian-day-ahead-market-simulator/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/EloyID/iberian-day-ahead-market-simulator/releases/tag/v0.1.0

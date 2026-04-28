@@ -2,7 +2,7 @@
 Shared pytest fixtures and configuration for all tests.
 
 This module provides reusable test fixtures for common data structures
-used across the mibel-simulator test suite.
+used across the iberian-day-ahead-market-simulator test suite.
 """
 
 import numpy as np

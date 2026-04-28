@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mibel-simulator"
+name = "iberian-day-ahead-market-simulator"
 dynamic = ["version"]
 description = "MIBEL Iberian day-ahead electricity market clearing simulator"
 readme = "README.md"
@@ -50,9 +50,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/EloyID/mibel-simulator"
-Repository = "https://github.com/EloyID/mibel-simulator"
-"Bug Tracker" = "https://github.com/EloyID/mibel-simulator/issues"
+Homepage = "https://github.com/EloyID/iberian-day-ahead-market-simulator"
+Repository = "https://github.com/EloyID/iberian-day-ahead-market-simulator"
+"Bug Tracker" = "https://github.com/EloyID/iberian-day-ahead-market-simulator/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

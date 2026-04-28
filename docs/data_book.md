@@ -1,6 +1,6 @@
-# Data Book — mibel-simulator
+# Data Book — iberian-day-ahead-market-simulator
 
-This document describes the main datasets used and produced by `mibel-simulator`, including field meanings, data types, allowed values, and key validation rules.
+This document describes the main datasets used and produced by `iberian-day-ahead-market-simulator`, including field meanings, data types, allowed values, and key validation rules.
 
 ## 1) Scope and conventions
 

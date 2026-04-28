@@ -1,4 +1,4 @@
-"""mibel-simulator: MIBEL Iberian day-ahead electricity market clearing simulator.
+"""iberian-day-ahead-market-simulator: MIBEL Iberian day-ahead electricity market clearing simulator.
 
 Main entry points
 -----------------

@@ -1,4 +1,4 @@
-# mibel-simulator
+# iberian-day-ahead-market-simulator
 
 A Python simulator for the **MIBEL** (Mercado Ibérico de Electricidad) Iberian day-ahead electricity market clearing process.
 
@@ -15,7 +15,7 @@ The package replicates the OMIE/MIBEL market-clearing algorithm, including:
 The simulator uses Pyomo `SolverFactory`, so you can choose the solver with `solver_factory_type`.
 
 - Recommended/default: **Gurobi** (`solver_factory_type="gurobi"`)
-- Also possible: **CBC**, **GLPK**, or any solver plugin available in your Pyomo environment
+- Also possible: **HiGHS**, or any solver plugin available in your Pyomo environment
 
 > Note: model performance and feasibility behavior can vary by solver. Gurobi is the most tested option in this project.
 
@@ -24,18 +24,23 @@ If you use Gurobi, install `gurobipy` and configure your licence:
 pip install gurobipy
 ```
 
-If you use CBC/GLPK, install the corresponding solver binaries in your system and use the appropriate `solver_factory_type`.
+If you use HiGHS, install `highspy`:
+```bash
+pip install highspy
+```
+
+If you use other solvers, install the corresponding solver binaries in your system and use the appropriate `solver_factory_type`.
 
 ## Installation
 
 ```bash
-pip install mibel-simulator
+pip install iberian-day-ahead-market-simulator
 ```
 
 Or install from source:
 ```bash
-git clone https://github.com/EloyID/mibel-simulator.git
-cd mibel-simulator
+git clone https://github.com/EloyID/iberian-day-ahead-market-simulator.git
+cd iberian-day-ahead-market-simulator
 pip install -e .
 ```
 
@@ -90,13 +95,6 @@ src/mibel_simulator/
 ## Data Documentation
 
 For a complete data dictionary of inputs, transformed datasets, outputs, enums, and validation rules, see [docs/data_book.md](docs/data_book.md).
-
-## Development
-
-```bash
-pip install -e ".[dev]"
-pytest
-```
 
 ## Licence
 
