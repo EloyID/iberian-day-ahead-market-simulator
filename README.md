@@ -15,7 +15,7 @@ The package replicates the OMIE/MIBEL market-clearing algorithm, including:
 The simulator uses Pyomo `SolverFactory`, so you can choose the solver with `solver_factory_type`.
 
 - Recommended/default: **Gurobi** (`solver_factory_type="gurobi"`)
-- Also possible: **HiGHS**, or any solver plugin available in your Pyomo environment
+- Also possible: **HiGHS** (`solver_factory_type="highs"`), or any solver plugin available in your Pyomo environment
 
 > Note: model performance and feasibility behavior can vary by solver. Gurobi is the most tested option in this project.
 
@@ -68,6 +68,8 @@ results = run_iberian_day_ahead_market_simulator(
     cab_date=cab_date,
     capacidad_inter_date=capacidad_inter_date,
     price_france_date=price_france_date,
+    n_jobs=10, # Number of parallel processes for scenario analysis
+    solver_factory_type="gurobi", # "gurobi" or "highs"
 )
 
 # Now you can analyze the results, for example:
@@ -76,6 +78,17 @@ plot_spain_portugal_transmissions(
     results["spain_portugal_transmissions"]
 )
 ```
+
+## Data sources
+
+OMIE files used by this project are:
+
+- [Cabecera de las ofertas](https://www.omie.es/en/file-access-list?parents=/Day-ahead%20Market/4.%20Bids&dir=Header%20of%20bids%20for%20Day-ahead%20Market&realdir=cab) (Header of bids for Day-ahead Market, CAB files). Contains one entry per bidding unit (e.g., unit identifier, buy/sell flag, and fixed-cost parameter)
+- [Detalle de las ofertas](https://www.omie.es/en/file-access-list?parents=/Day-ahead%20Market/4.%20Bids&dir=Day-ahead%20market%20bids%20detail&realdir=det) (Day-ahead market bid details, DET files). Contains the detailed bid curves and non-convex information, with one entry per bid element (period, price, quantity, block identifier, exclusive-group identifier, and additional SCO parameters when applicable).
+- [Capacidad y ocupación de las interconexiones tras la casación del mercado diario](https://www.omie.es/en/file-access-list?parents=/Day-ahead%20Market/6.%20Capacities&dir=%20Capacity%20and%20occupation%20of%20the%20interconnectors%20after%20Day-ahead%20matching%20process&realdir=capacidad_inter_pbc) (Capacity and occupation of the interconnectors after Day-ahead matching process, capacidad_inter files). Contains the information about the interconnection flows and available capacities.
+
+French day-ahead prices can be obtained from the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/).
+
 
 ## Project Structure
 
