@@ -22,3 +22,6 @@ data/**
 !data/**/
 !data/**/.gitkeep
 notebooks/wandb
+*.whl
+*.tar.gz
+PKG-INFO
