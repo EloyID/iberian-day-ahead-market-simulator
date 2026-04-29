@@ -79,6 +79,14 @@ plot_spain_portugal_transmissions(
 )
 ```
 
+## Usage examples
+
+Some examples can be found in the [examples/](https://github.com/EloyID/iberian-day-ahead-market-simulator/tree/main/examples) directory:
+
+- [application_examples.ipynb](https://github.com/EloyID/iberian-day-ahead-market-simulator/tree/main/examples/application_examples.ipynb): Example of how to run the simulator and analyze results
+- [paper_replication.ipynb](https://github.com/EloyID/iberian-day-ahead-market-simulator/tree/main/examples/paper_replication.ipynb): Replication of the results from the paper "iberian-day-ahead-market-simulator: A Python Package to Simulate the MIBEL Day-Ahead Market Clearing"
+- [download_omie_data.ipynb](https://github.com/EloyID/iberian-day-ahead-market-simulator/tree/main/examples/download_omie_data.ipynb): Example of how to download OMIE data files
+
 ## Data sources
 
 OMIE files used by this project are:
@@ -107,7 +115,7 @@ src/iberian_day_ahead_market_simulator/
 
 ## Data Documentation
 
-For a complete data dictionary of inputs, transformed datasets, outputs, enums, and validation rules, see [docs/data_book.md](docs/data_book.md).
+For a complete data dictionary of inputs, transformed datasets, outputs, enums, and validation rules, see [docs/data_book.md](https://github.com/EloyID/iberian-day-ahead-market-simulator/tree/main/docs/data_book.md).
 
 ## Licence
 
