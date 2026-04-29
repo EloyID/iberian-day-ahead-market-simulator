@@ -33,7 +33,7 @@ def _default_solver_options(solver_factory_type: str) -> dict:
     if _normalize_solver_name(solver_factory_type) == "gurobi":
         return {"MIPGap": 0}
     if _normalize_solver_name(solver_factory_type) == "highs":
-        return {"mip_rel_gap": 0}
+        return {"mip_rel_gap": 0, "threads": 1}
     return {}
 
 
