@@ -120,3 +120,11 @@ For a complete data dictionary of inputs, transformed datasets, outputs, enums, 
 ## Licence
 
 [MIT](LICENSE)
+
+## Citation
+
+If you use this software, please cite the project using the metadata in [CITATION.cff](CITATION.cff).
+
+You can also cite the associated paper:
+
+Insunza, E., Portela, J., and Muñoz, A. (2026). "iberian-day-ahead-market-simulator: A Python Package to Simulate the MIBEL Day-Ahead Market Clearing". DOI: 10.2139/ssrn.6722443
