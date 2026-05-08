@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software or cite the associated paper, please cite it using the metadata below."
+title: "iberian-day-ahead-market-simulator"
+abstract: "A Python package to simulate the MIBEL day-ahead market clearing."
+license: MIT
+authors:
+  - family-names: Insunza
+    given-names: Eloy
+    orcid: "https://orcid.org/0009-0005-9347-4559"
+  - family-names: Portela
+    given-names: José
+    orcid: "https://orcid.org/0000-0002-7839-8982"
+  - family-names: Muñoz
+    given-names: Antonio
+    orcid: "https://orcid.org/0000-0002-8844-441X"
+contact:
+  email: einsunza@comillas.edu
+repository-code: "https://github.com/EloyID/iberian-day-ahead-market-simulator"
+preferred-citation:
+  type: article
+  title: "iberian-day-ahead-market-simulator: A Python Package to Simulate the MIBEL Day-Ahead Market Clearing"
+  authors:
+    - family-names: Insunza
+      given-names: Eloy
+      orcid: "https://orcid.org/0009-0005-9347-4559"
+    - family-names: Portela
+      given-names: José
+      orcid: "https://orcid.org/0000-0002-7839-8982"
+    - family-names: Muñoz
+      given-names: Antonio
+      orcid: "https://orcid.org/0000-0002-8844-441X"
+  doi: "10.2139/ssrn.6722443"
+  url: "http://dx.doi.org/10.2139/ssrn.6722443"
