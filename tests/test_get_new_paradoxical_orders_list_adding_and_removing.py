@@ -2,17 +2,17 @@ import pandas as pd
 import pytest
 
 from iberian_day_ahead_market_simulator import columns as cols
-from iberian_day_ahead_market_simulator.get_new_paradoxal_orders_list_adding_and_removing import (
-    get_new_paradoxal_orders_list_adding_and_removing,
-    get_paradoxal_orders_combinations,
+from iberian_day_ahead_market_simulator.get_new_paradoxical_orders_list_adding_and_removing import (
+    get_new_paradoxical_orders_list_adding_and_removing,
+    get_paradoxical_orders_combinations,
 )
-from iberian_day_ahead_market_simulator.paradoxal_orders_tools import (
-    transform_ids_paradoxal_orders_list_to_dict,
-    transform_paradoxal_orders_dict_to_ids_list,
+from iberian_day_ahead_market_simulator.paradoxical_orders_tools import (
+    transform_ids_paradoxical_orders_list_to_dict,
+    transform_paradoxical_orders_dict_to_ids_list,
 )
 
 
-class TestGetParadoxalOrdersCombinations:
+class TestGetParadoxicalOrdersCombinations:
     """Test function for generating paradox group combinations."""
 
     def test_basic_combinations(self):
@@ -22,7 +22,7 @@ class TestGetParadoxalOrdersCombinations:
             index=["A", "B", "C", "D"],
         )
 
-        combos = get_paradoxal_orders_combinations(df, "A", elements_in_combinations=2)
+        combos = get_paradoxical_orders_combinations(df, "A", elements_in_combinations=2)
 
         # Should return all pairs including 'A'
         assert all("A" in c for c in combos)
@@ -35,7 +35,7 @@ class TestGetParadoxalOrdersCombinations:
             index=["A", "B", "C", "D"],
         )
 
-        combos = get_paradoxal_orders_combinations(df, "A", elements_in_combinations=2)
+        combos = get_paradoxical_orders_combinations(df, "A", elements_in_combinations=2)
 
         # First combo should have highest sum (A=10, D=40 => 50)
         assert "D" in combos[0]
@@ -49,7 +49,7 @@ class TestGetParadoxalOrdersCombinations:
             index=["A", "B", "C", "D", "E"],
         )
 
-        combos = get_paradoxal_orders_combinations(df, "A", elements_in_combinations=3)
+        combos = get_paradoxical_orders_combinations(df, "A", elements_in_combinations=3)
 
         assert all("A" in c for c in combos)
         assert all(len(c) == 3 for c in combos)
@@ -63,7 +63,7 @@ class TestGetParadoxalOrdersCombinations:
         )
 
         with pytest.raises(AssertionError, match="Not enough paradox groups"):
-            get_paradoxal_orders_combinations(df, "A", elements_in_combinations=3)
+            get_paradoxical_orders_combinations(df, "A", elements_in_combinations=3)
 
     def test_single_element_combination(self):
         """Test with single element combinations."""
@@ -72,12 +72,12 @@ class TestGetParadoxalOrdersCombinations:
             index=["A", "B", "C"],
         )
 
-        combos = get_paradoxal_orders_combinations(df, "A", elements_in_combinations=1)
+        combos = get_paradoxical_orders_combinations(df, "A", elements_in_combinations=1)
 
         assert combos == [["A"]]
 
 
-class TestGetNewParadoxalOrdersListAddingAndRemoving:
+class TestGetNewParadoxicalOrdersListAddingAndRemoving:
     """Test function for proposing new paradox group combinations."""
 
     def test_basic_new_combination(self):
@@ -90,15 +90,15 @@ class TestGetNewParadoxalOrdersListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5]},
             index=["9708010_SCO"],
         )
-        iterations_df = pd.DataFrame({cols.PARADOXAL_ORDERS_COLUMN: []})
-        starting = transform_ids_paradoxal_orders_list_to_dict(["9708010_SCO"])
+        iterations_df = pd.DataFrame({cols.PARADOXICAL_ORDERS_COLUMN: []})
+        starting = transform_ids_paradoxical_orders_list_to_dict(["9708010_SCO"])
 
-        result = get_new_paradoxal_orders_list_adding_and_removing(
+        result = get_new_paradoxical_orders_list_adding_and_removing(
             leftout,
             cleared,
             iterations_df,
             starting,
-            paradoxal_orders_combinations_count=2,
+            paradoxical_orders_combinations_count=2,
         )
 
         assert isinstance(result, list)
@@ -106,7 +106,7 @@ class TestGetNewParadoxalOrdersListAddingAndRemoving:
         assert all(isinstance(r, dict) for r in result)
         # Should propose combinations that add leftout groups
         result_ids = [
-            set(transform_paradoxal_orders_dict_to_ids_list(d)) for d in result
+            set(transform_paradoxical_orders_dict_to_ids_list(d)) for d in result
         ]
         assert any("9706994_SCO" in ids or "9707198_SCO" in ids for ids in result_ids)
 
@@ -122,23 +122,23 @@ class TestGetNewParadoxalOrdersListAddingAndRemoving:
         )
 
         # Mark one combination as already tested
-        tested_combo = transform_ids_paradoxal_orders_list_to_dict(
+        tested_combo = transform_ids_paradoxical_orders_list_to_dict(
             ["9708010_SCO", "9706994_SCO"]
         )
-        iterations_df = pd.DataFrame({cols.PARADOXAL_ORDERS_COLUMN: [tested_combo]})
-        starting = transform_ids_paradoxal_orders_list_to_dict(["9708010_SCO"])
+        iterations_df = pd.DataFrame({cols.PARADOXICAL_ORDERS_COLUMN: [tested_combo]})
+        starting = transform_ids_paradoxical_orders_list_to_dict(["9708010_SCO"])
 
-        result = get_new_paradoxal_orders_list_adding_and_removing(
+        result = get_new_paradoxical_orders_list_adding_and_removing(
             leftout,
             cleared,
             iterations_df,
             starting,
-            paradoxal_orders_combinations_count=5,
+            paradoxical_orders_combinations_count=5,
         )
 
         # Should not return the already tested combination
         for d in result:
-            ids = set(transform_paradoxal_orders_dict_to_ids_list(d))
+            ids = set(transform_paradoxical_orders_dict_to_ids_list(d))
             assert ids != {"9708010_SCO", "9706994_SCO"}
 
     def test_removes_cleared_groups(self):
@@ -151,20 +151,20 @@ class TestGetNewParadoxalOrdersListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5]},  # Low (negative) merit
             index=["9708010_SCO"],
         )
-        iterations_df = pd.DataFrame({cols.PARADOXAL_ORDERS_COLUMN: []})
-        starting = transform_ids_paradoxal_orders_list_to_dict(["9708010_SCO"])
+        iterations_df = pd.DataFrame({cols.PARADOXICAL_ORDERS_COLUMN: []})
+        starting = transform_ids_paradoxical_orders_list_to_dict(["9708010_SCO"])
 
-        result = get_new_paradoxal_orders_list_adding_and_removing(
+        result = get_new_paradoxical_orders_list_adding_and_removing(
             leftout,
             cleared,
             iterations_df,
             starting,
-            paradoxal_orders_combinations_count=5,
+            paradoxical_orders_combinations_count=5,
         )
 
         # Should propose swapping out low-merit cleared for high-merit leftout
         result_ids = [
-            set(transform_paradoxal_orders_dict_to_ids_list(d)) for d in result
+            set(transform_paradoxical_orders_dict_to_ids_list(d)) for d in result
         ]
         # At least one result should have leftout but not cleared
         assert any(
@@ -175,15 +175,15 @@ class TestGetNewParadoxalOrdersListAddingAndRemoving:
         """Test with empty leftout and cleared DataFrames."""
         empty_leftout = pd.DataFrame({cols.FLOAT_RATIO_NET_INCOME_BID_POWER: []})
         empty_cleared = pd.DataFrame({cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: []})
-        iterations_df = pd.DataFrame({cols.PARADOXAL_ORDERS_COLUMN: []})
-        starting = transform_ids_paradoxal_orders_list_to_dict([])
+        iterations_df = pd.DataFrame({cols.PARADOXICAL_ORDERS_COLUMN: []})
+        starting = transform_ids_paradoxical_orders_list_to_dict([])
 
-        result = get_new_paradoxal_orders_list_adding_and_removing(
+        result = get_new_paradoxical_orders_list_adding_and_removing(
             empty_leftout,
             empty_cleared,
             iterations_df,
             starting,
-            paradoxal_orders_combinations_count=1,
+            paradoxical_orders_combinations_count=1,
         )
 
         assert result == []
@@ -198,15 +198,15 @@ class TestGetNewParadoxalOrdersListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5]},
             index=["C1_SCO"],
         )
-        iterations_df = pd.DataFrame({cols.PARADOXAL_ORDERS_COLUMN: []})
-        starting = transform_ids_paradoxal_orders_list_to_dict(["C1_SCO"])
+        iterations_df = pd.DataFrame({cols.PARADOXICAL_ORDERS_COLUMN: []})
+        starting = transform_ids_paradoxical_orders_list_to_dict(["C1_SCO"])
 
-        result = get_new_paradoxal_orders_list_adding_and_removing(
+        result = get_new_paradoxical_orders_list_adding_and_removing(
             leftout,
             cleared,
             iterations_df,
             starting,
-            paradoxal_orders_combinations_count=3,
+            paradoxical_orders_combinations_count=3,
         )
 
         assert len(result) <= 3
@@ -221,17 +221,17 @@ class TestGetNewParadoxalOrdersListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5, 8]},
             index=["9708010_SCO", "9707925_B_1_GE_0"],
         )
-        iterations_df = pd.DataFrame({cols.PARADOXAL_ORDERS_COLUMN: []})
-        starting = transform_ids_paradoxal_orders_list_to_dict(
+        iterations_df = pd.DataFrame({cols.PARADOXICAL_ORDERS_COLUMN: []})
+        starting = transform_ids_paradoxical_orders_list_to_dict(
             ["9708010_SCO", "9707925_B_1_GE_0"]
         )
 
-        result = get_new_paradoxal_orders_list_adding_and_removing(
+        result = get_new_paradoxical_orders_list_adding_and_removing(
             leftout,
             cleared,
             iterations_df,
             starting,
-            paradoxal_orders_combinations_count=3,
+            paradoxical_orders_combinations_count=3,
         )
 
         assert len(result) > 0
@@ -250,20 +250,20 @@ class TestGetNewParadoxalOrdersListAddingAndRemoving:
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER: [5, 6]},
             index=["C1_SCO", "C2_SCO"],
         )
-        iterations_df = pd.DataFrame({cols.PARADOXAL_ORDERS_COLUMN: []})
-        starting = transform_ids_paradoxal_orders_list_to_dict(["C1_SCO", "C2_SCO"])
+        iterations_df = pd.DataFrame({cols.PARADOXICAL_ORDERS_COLUMN: []})
+        starting = transform_ids_paradoxical_orders_list_to_dict(["C1_SCO", "C2_SCO"])
 
-        result = get_new_paradoxal_orders_list_adding_and_removing(
+        result = get_new_paradoxical_orders_list_adding_and_removing(
             leftout,
             cleared,
             iterations_df,
             starting,
-            paradoxal_orders_combinations_count=10,
+            paradoxical_orders_combinations_count=10,
         )
 
         # Should include combinations that swap multiple groups
         result_ids = [
-            set(transform_paradoxal_orders_dict_to_ids_list(d)) for d in result
+            set(transform_paradoxical_orders_dict_to_ids_list(d)) for d in result
         ]
         # At least one should have both leftout groups
         assert any("L1_SCO" in ids and "L2_SCO" in ids for ids in result_ids)

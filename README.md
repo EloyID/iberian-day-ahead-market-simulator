@@ -107,7 +107,7 @@ src/iberian_day_ahead_market_simulator/
 ├── run_model.py               # Pyomo solver wrapper (configurable solver)
 ├── data_preprocessor.py       # Input data processing
 ├── parse_omie_files.py        # OMIE flat-file parsers
-├── paradoxal_orders_tools.py  # Paradoxical order utilities
+├── paradoxical_orders_tools.py  # Paradoxical order utilities
 ├── residual_demand_curve.py   # RDC computation & interpolation
 ├── schemas/                   # Pandera data-validation schemas
 └── data/                      # Bundled reference data

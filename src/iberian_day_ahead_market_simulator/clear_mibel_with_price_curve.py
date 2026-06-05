@@ -46,19 +46,29 @@ def get_cleared_energy_from_exclusive_block_order_group(df):
 
 def calculate_cleared_energy_from_exclusive_block_order_groups(df):
     df = df.copy()
-    df[cols.FLOAT_CLEARED_POWER] = (
+    if df.empty:
+        return pd.Series(dtype=float)
+    cleared_energy = (
         df.groupby([cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], observed=True)[df.columns]
         .apply(
             get_cleared_energy_from_exclusive_block_order_group, include_groups=False
         )
         .reset_index(level=[cols.ID_ORDER, cols.INT_NUM_EXCL_GROUP], drop=True)
     )
+    if cleared_energy.shape[0] != df.shape[0]:
+        df[cols.FLOAT_CLEARED_POWER] = cleared_energy.T
+    else:
+        df[cols.FLOAT_CLEARED_POWER] = cleared_energy
     return df[cols.FLOAT_CLEARED_POWER]
 
 
 def calculate_cleared_energy_from_non_exclusive_block_orders(df):
     df = df.copy()
     assert get_is_not_exclusive_block(df).all()
+
+    if df.empty:
+        return pd.Series(dtype=float)
+
     df[cols.FLOAT_CLEARED_POWER] = (
         df.groupby([cols.ID_ORDER, cols.INT_NUM_BLOCK], observed=True)
         .apply(lambda x: get_cleared_energy_from_non_exclusive_block_order(x))
