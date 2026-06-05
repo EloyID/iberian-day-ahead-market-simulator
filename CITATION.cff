@@ -1,5 +1,7 @@
 cff-version: 1.2.0
 title: iberian-day-ahead-market-simulator
+version: "0.1.0"
+doi: 10.2139/ssrn.6722443
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -15,9 +17,10 @@ authors:
   - family-names: Muñoz
     given-names: Antonio
     orcid: "https://orcid.org/0000-0002-8844-441X"
-identifiers:
-  - type: doi
-    value: 10.2139/ssrn.6722443
+preferred-citation:
+    type: article
+    title: "iberian-day-ahead-market-simulator: A Python Package to Simulate the MIBEL Day-Ahead Market Clearing"
+    doi: 10.2139/ssrn.6722443
 repository-code: >-
   https://github.com/EloyID/iberian-day-ahead-market-simulator
 abstract: >-
