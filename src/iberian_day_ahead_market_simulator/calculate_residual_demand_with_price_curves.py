@@ -158,6 +158,18 @@ def calculate_submitted_relaxed_residual_demand(det_cab):
     return energy_hourly_cleared_C.sub(energy_hourly_cleared_V, fill_value=0)
 
 
+def substract_reference_curve_from_all_curves(
+    curves_df: pd.DataFrame, reference_curve_index: int
+) -> pd.DataFrame:
+    curves_df = curves_df.copy()
+    corresponding_df_index = curves_df.index[reference_curve_index]
+    reference_energy_curve = curves_df.loc[corresponding_df_index, RDC_ENERGY_COLUMNS]
+    curves_df.loc[:, RDC_ENERGY_COLUMNS] = curves_df.loc[:, RDC_ENERGY_COLUMNS].sub(
+        reference_energy_curve
+    )
+    return curves_df
+
+
 def calculate_residual_demand_with_price_curves(
     price_curves: np.ndarray,
     det: pd.DataFrame | str,
@@ -165,9 +177,20 @@ def calculate_residual_demand_with_price_curves(
     capacidad_inter_pbc: pd.DataFrame | str,
     participants_bidding_zones: pd.DataFrame | None = None,
     spain_as_default_bidding_zone: bool = False,
+    reference_price_curve: np.ndarray | None = None,
 ) -> dict:
 
     price_curves = format_price_curves(price_curves)
+    if reference_price_curve is not None:
+        try:
+            reference_price_curve_index = np.where(
+                (price_curves == reference_price_curve).all(axis=1)
+            )[0][0]
+            print("reference_price_curve_index: ", reference_price_curve_index)
+        except Exception as e:
+            raise ValueError(
+                "Error while trying to find the reference price curve in the provided price curves."
+            ) from e
 
     if isinstance(det, str):
         det = parse_det_file(det)
@@ -279,6 +302,32 @@ def calculate_residual_demand_with_price_curves(
     complex_residual_demand_II_with_market_split_curves_df = pd.DataFrame(
         complex_residual_demands_II_with_market_split
     )
+
+    if reference_price_curve is not None:
+        # substract that curve from all curves
+        only_simple_submitted_relaxed_residual_demand_df = (
+            substract_reference_curve_from_all_curves(
+                only_simple_submitted_relaxed_residual_demand_df,
+                reference_price_curve_index,
+            )
+        )
+        submitted_relaxed_residual_demand_curves_df = (
+            substract_reference_curve_from_all_curves(
+                submitted_relaxed_residual_demand_curves_df, reference_price_curve_index
+            )
+        )
+        complex_residual_demand_I_without_market_split_curves_df = (
+            substract_reference_curve_from_all_curves(
+                complex_residual_demand_I_without_market_split_curves_df,
+                reference_price_curve_index,
+            )
+        )
+        complex_residual_demand_II_with_market_split_curves_df = (
+            substract_reference_curve_from_all_curves(
+                complex_residual_demand_II_with_market_split_curves_df,
+                reference_price_curve_index,
+            )
+        )
 
     return {
         "only_simple_submitted_relaxed_residual_demand": only_simple_submitted_relaxed_residual_demand_df,
