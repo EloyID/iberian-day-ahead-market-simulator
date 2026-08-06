@@ -170,7 +170,7 @@ def substract_reference_curve_from_all_curves(
     return curves_df
 
 
-def calculate_residual_demand_with_price_curves(
+def calculate_residual_demand_curves_from_bids(
     price_curves: np.ndarray,
     det: pd.DataFrame | str,
     cab: pd.DataFrame | str,
