@@ -322,6 +322,7 @@ def interpolate_residual_demand_curves(
                 logging.warning(
                     "Extrapolation detected in residual demand curve interpolation. Resulting values set to NaN."
                 )
+                interpolated_price[extrapolated_mask] = np.nan
             if extrapolate_action == "nan":
                 interpolated_price[extrapolated_mask] = np.nan
 

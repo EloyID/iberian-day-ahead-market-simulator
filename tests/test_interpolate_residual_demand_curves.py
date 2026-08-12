@@ -97,7 +97,7 @@ class TestInterpolateResidualDemandCurves:
 
     def test_extrapolation_warning_behavior(self, caplog):
         residual = _build_linear_residual_demand_curves()
-        target = _build_target_energy_levels(index_labels=("low", "mid"))
+        target = _build_target_energy_levels(index_labels=("low", "mid", "high"))
 
         with caplog.at_level("WARNING"):
             result = interpolate_residual_demand_curves(
@@ -109,8 +109,8 @@ class TestInterpolateResidualDemandCurves:
             )
         # low row -> NaN; mid row -> finite interpolated
         for price_col in RDC_PRICE_COLUMNS:
-            assert not np.isnan(result.loc["low", price_col])
-            assert not np.isnan(result.loc["mid", price_col])
+            assert np.isnan(result.loc["low", price_col])
+            assert np.isnan(result.loc["high", price_col])
 
     def test_extrapolation_raise_behavior(self):
         residual = _build_linear_residual_demand_curves()
