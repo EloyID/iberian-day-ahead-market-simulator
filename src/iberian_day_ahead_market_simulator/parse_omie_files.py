@@ -347,6 +347,36 @@ def det_files_to_parquet(det_folder, output_path="det.parquet"):
     return det
 
 
+def parse_curva_pbc_file(curva_pbc_filepath: str) -> pd.DataFrame:
+    """
+    Parses a single curva_pbc or curva_pbc_uof CSV file and returns a DataFrame.
+
+    Args:
+        curva_pbc_filepath (str): Path to the curva_pbc CSV file.
+    Returns:
+        pd.DataFrame: The parsed curva_pbc DataFrame.
+    """
+
+    curva_pbc_data = pd.read_csv(
+        curva_pbc_filepath,
+        sep=";",
+        skiprows=2,
+        encoding="latin1",
+        decimal=",",
+        thousands=".",
+        parse_dates=["Fecha"],
+        dayfirst=True,
+        skipfooter=1,
+        engine="python",
+    )
+
+    curva_pbc_data = curva_pbc_data.rename(
+        columns=CURVA_PBC_UOF_RENAMING, errors="raise"
+    )[CURVA_PBC_UOF_COLUMNS].astype(CURVA_PBC_UOF_TYPING)
+
+    return curva_pbc_data
+
+
 def parse_capacidad_inter_file(
     capacidad_inter_filepath: str,
     bidding_zone: Literal["ES", "PT", "FR", "MA"] = None,
