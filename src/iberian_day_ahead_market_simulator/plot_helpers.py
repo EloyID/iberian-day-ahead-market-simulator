@@ -122,15 +122,15 @@ def plot_residual_demand_curves(
             if use_colorbar:
                 for j, (ix, row) in enumerate(df.iterrows()):
                     ax.scatter(
-                        row[f"energy_{period}"],
+                        row[f"power_{period}"],
                         row[f"price_{period}"],
                         color=colors[j],
                         alpha=alpha,
                         **plot_kwargs,
                     )
-            df_aux = df.sort_values(by=f"energy_{period}")
+            df_aux = df.sort_values(by=f"power_{period}")
             ax.plot(
-                df_aux[f"energy_{period}"],
+                df_aux[f"power_{period}"],
                 df_aux[f"price_{period}"],
                 linewidth=linewidth,
                 alpha=alpha,
@@ -141,7 +141,7 @@ def plot_residual_demand_curves(
         if idx == 0:
             ax.legend()
         ax.set_title(f"Period {period}")
-        ax.set_xlabel("Energy (MWh)")
+        ax.set_xlabel("Power (MWh)")
         ax.set_ylabel("Price (€/MWh)")
 
     if use_colorbar:
@@ -174,10 +174,10 @@ def plot_clearing_prices(
     # if it is a dict
     if isinstance(clearing_prices, dict):
         try:
-            clearing_prices = clearing_prices[cols.CLEARING_PRICES_COLUMN]
+            clearing_prices = clearing_prices[cols.DF_CLEARING_PRICES_COLUMN]
         except KeyError:
             raise ValueError(
-                f"Expected a Dataframe or a dict with key '{cols.CLEARING_PRICES_COLUMN}' for clearing prices."
+                f"Expected a Dataframe or a dict with key '{cols.DF_CLEARING_PRICES_COLUMN}' for clearing prices."
             )
 
     created_fig = False
@@ -236,11 +236,11 @@ def plot_spain_portugal_transmissions(
     if isinstance(transmissions_df, dict):
         try:
             transmissions_df = transmissions_df[
-                cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN
+                cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN
             ]
         except KeyError:
             raise ValueError(
-                f"Expected a Dataframe or a dict with key '{cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN}' for Spain-Portugal transmissions."
+                f"Expected a Dataframe or a dict with key '{cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN}' for Spain-Portugal transmissions."
             )
 
     created_fig = False

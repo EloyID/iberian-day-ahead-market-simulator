@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from iberian_day_ahead_market_simulator.const import (
-    get_rdc_energy_columns,
+    get_rdc_power_columns,
     get_rdc_price_columns,
 )
 from iberian_day_ahead_market_simulator.parse_omie_files import parse_curva_pbc_file
@@ -31,16 +31,14 @@ def format_curva_pbc_rdc(
     pd.DataFrame
         The formatted residual demand curve DataFrame.
     """
-    rdc_energy_columns = get_rdc_energy_columns(market_periods_count)
+    rdc_power_columns = get_rdc_power_columns(market_periods_count)
     rdc_price_columns = get_rdc_price_columns(market_periods_count)
 
     cleared_bids_continued_with_submitted_residual_demand = pd.DataFrame(
         {col: price_points for col in rdc_price_columns}
     )
 
-    for energy_col, period in zip(
-        rdc_energy_columns, range(1, market_periods_count + 1)
-    ):
+    for power_col, period in zip(rdc_power_columns, range(1, market_periods_count + 1)):
         curva_pbc_period = curva_pbc_C_extended_rdc.query(
             f"{cols.INT_PERIOD} == {period}"
         )
@@ -49,7 +47,7 @@ def format_curva_pbc_rdc(
             curva_pbc_period[cols.FLOAT_BID_PRICE],
             curva_pbc_period["residual_demand"],
         )
-        cleared_bids_continued_with_submitted_residual_demand[energy_col] = (
+        cleared_bids_continued_with_submitted_residual_demand[power_col] = (
             residual_demand_period
         )
 

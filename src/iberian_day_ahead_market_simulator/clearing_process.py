@@ -28,7 +28,7 @@ from iberian_day_ahead_market_simulator.get_new_paradoxical_orders_list_adding_a
     get_new_paradoxical_orders_list_adding_and_removing,
 )
 from iberian_day_ahead_market_simulator.model_info_extraction import (
-    get_cleared_energy_series,
+    get_cleared_power_series,
     get_clearing_prices_df,
     get_spain_portugal_transmissions,
 )
@@ -69,18 +69,18 @@ logger = logging.getLogger(__name__)
 
 def get_cleared_paradoxical_orders_summary(
     det_cab_paradoxical_orders_filtered: pd.DataFrame,
-    cleared_energy_df: pd.DataFrame,
+    cleared_power_df: pd.DataFrame,
     clearing_price_df: pd.DataFrame,
     is_QH: bool,
 ) -> pd.DataFrame:
     """
     Aggregates results for paradox orders that were matched in the iteration.
 
-    Merges DET/CAB data with cleared energy and clearing prices, computes financial metrics, and groups by order ID.
+    Merges DET/CAB data with cleared power and clearing prices, computes financial metrics, and groups by order ID.
 
     Args:
         det_cab_paradoxical_orders_filtered (pd.DataFrame): DET/CAB DataFrame for paradox orders in the iteration.
-        cleared_energy_df (pd.DataFrame): DataFrame of cleared energy per bid.
+        cleared_power_df (pd.DataFrame): DataFrame of cleared power per bid.
         clearing_price_df (pd.DataFrame): DataFrame of clearing prices per period and zone.
 
     Returns:
@@ -93,7 +93,7 @@ def get_cleared_paradoxical_orders_summary(
 
     cleared_det_cab = (
         det_cab_paradoxical_orders_filtered.merge(
-            cleared_energy_df,
+            cleared_power_df,
             left_on=cols.ID_INDIVIDUAL_BID,
             right_index=True,
             how="outer",
@@ -125,8 +125,9 @@ def get_cleared_paradoxical_orders_summary(
     cleared_paradoxical_orders_df = cleared_paradoxical_orders_df.drop(columns="_merge")
 
     cleared_paradoxical_orders_df = cleared_paradoxical_orders_df.eval(f"""
-        {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_CLEARED_PRICE} / @power_energy_scalator
-        {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_BID_PRICE} / @power_energy_scalator
+        {cols.FLOAT_CLEARED_ENERGY} = {cols.FLOAT_CLEARED_POWER} / @power_energy_scalator
+        {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_CLEARED_ENERGY} * {cols.FLOAT_CLEARED_PRICE}
+        {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_CLEARED_ENERGY} * {cols.FLOAT_BID_PRICE}
         """)
     cleared_paradoxical_orders_df_grouped = (
         cleared_paradoxical_orders_df.groupby(
@@ -137,16 +138,12 @@ def get_cleared_paradoxical_orders_summary(
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
                 cols.FLOAT_VARIABLE_COST: "sum",
                 cols.FLOAT_MIC: "first",
-                cols.FLOAT_CLEARED_POWER: "sum",
+                cols.FLOAT_CLEARED_ENERGY: "sum",
             }
-        )
-        # TODO: rename power to energy since it is what you use for calculate income, also in similar functions
-        .eval(
-            f"{cols.FLOAT_CLEARED_POWER} = {cols.FLOAT_CLEARED_POWER} / @power_energy_scalator"
         )
         .eval(f"""
             {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
-            {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_CLEARED_POWER}
+            {cols.FLOAT_RATIO_NET_INCOME_CLEARED_ENERGY} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_CLEARED_ENERGY}
             """)
     )
 
@@ -234,8 +231,9 @@ def get_leftout_paradoxical_orders_summary(
             ignore_index=True,
         )
         .eval(f"""
-            {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_CLEARED_PRICE} / @power_energy_scalator
-            {cols.FLOAT_TOTAL_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_VARIABLE_COST} / @power_energy_scalator
+            {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_ENERGY} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} / @power_energy_scalator
+            {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_ENERGY} * {cols.FLOAT_CLEARED_PRICE}
+            {cols.FLOAT_TOTAL_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_ENERGY} * {cols.FLOAT_VARIABLE_COST}
             """)
         .groupby([cols.ID_PARADOXICAL_ORDERS], observed=True)
         .agg(
@@ -243,21 +241,18 @@ def get_leftout_paradoxical_orders_summary(
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
                 cols.FLOAT_TOTAL_VARIABLE_COST: "sum",
                 cols.FLOAT_FIX_COST: "first",
-                cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER: "sum",
+                cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_ENERGY: "sum",
             }
-        )
-        .eval(
-            f"{cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} / @power_energy_scalator"
         )
         .eval(f"""
             {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_TOTAL_VARIABLE_COST} + {cols.FLOAT_FIX_COST} )
-            {cols.FLOAT_RATIO_NET_INCOME_BID_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER}
+            {cols.FLOAT_RATIO_NET_INCOME_BID_ENERGY} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_ENERGY}
             """)
     )
 
     assert det_cab_paradoxical_orders[cols.FLOAT_NET_INCOME].notna().all()
     assert (
-        det_cab_paradoxical_orders[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
+        det_cab_paradoxical_orders[cols.FLOAT_RATIO_NET_INCOME_BID_ENERGY].notna().all()
     )
     return det_cab_paradoxical_orders
 
@@ -353,8 +348,8 @@ def get_new_paradoxical_orders_list_by_removing_underperforming_ones(
     """
     iteration_cleared_paradoxical_orders_summary = (
         iteration_cleared_paradoxical_orders_summary.query(
-            f"{cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} < 0"
-        ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER, ascending=True)
+            f"{cols.FLOAT_RATIO_NET_INCOME_CLEARED_ENERGY} < 0"
+        ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_CLEARED_ENERGY, ascending=True)
     )
     new_paradoxical_orders_df = pd.DataFrame(
         {
@@ -433,8 +428,8 @@ def define_new_paradoxical_orders_list(
             f"--ALGORITHM--: Most promising combination: {row[cols.PARADOXICAL_ORDERS_COLUMN]}"
         )
 
-        cleared_energy = row[cols.CLEARED_ENERGY_COLUMN]
-        clearing_prices = row[cols.CLEARING_PRICES_COLUMN]
+        cleared_power = row[cols.DF_CLEARED_POWER_COLUMN]
+        clearing_prices = row[cols.DF_CLEARING_PRICES_COLUMN]
         paradoxical_orders = row[cols.PARADOXICAL_ORDERS_COLUMN]
         is_expected_income_respected = row[cols.BOOL_IS_EXPECTED_INCOME_RESPECTED]
 
@@ -446,14 +441,14 @@ def define_new_paradoxical_orders_list(
                 paradoxical_orders,
                 clearing_prices,
                 is_QH,
-            ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
+            ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_ENERGY, ascending=False)
             det_cab_paradoxical_orders_filtered = (
                 filter_paradoxical_orders_from_det_cab(det_cab, paradoxical_orders)
             )
             iteration_cleared_paradoxical_orders_summary = (
                 get_cleared_paradoxical_orders_summary(
                     det_cab_paradoxical_orders_filtered,
-                    cleared_energy,
+                    cleared_power,
                     clearing_prices,
                     is_QH,
                 )
@@ -475,7 +470,7 @@ def define_new_paradoxical_orders_list(
             iteration_cleared_paradoxical_orders_summary = (
                 get_cleared_paradoxical_orders_summary(
                     det_cab_paradoxical_orders_filtered,
-                    cleared_energy,
+                    cleared_power,
                     clearing_prices,
                     is_QH,
                 )
@@ -556,10 +551,10 @@ def iterative_function(
     )
 
     # Extract information from the model
-    cleared_energy = get_cleared_energy_series(model)
-    clearing_prices = get_clearing_prices_df(model, market_periods_count)
+    cleared_power_df = get_cleared_power_series(model)
+    clearing_prices_df = get_clearing_prices_df(model, market_periods_count)
     cleared_paradoxical_orders_summary = get_cleared_paradoxical_orders_summary(
-        det_cab_paradoxical_orders_filtered, cleared_energy, clearing_prices, is_QH
+        det_cab_paradoxical_orders_filtered, cleared_power_df, clearing_prices_df, is_QH
     )
     welfare = pyo.value(model.OBJ)
     bool_is_expected_income_respected = (
@@ -580,9 +575,9 @@ def iterative_function(
         cols.INT_MIC_SCOS_COUNT: [len(ids_mic_scos)],
         cols.INT_BID_BLOCKS_COUNT: [len(ids_bid_blocks)],
         cols.INT_PARADOXICAL_ORDERS_COUNT: [len(ids_mic_scos) + len(ids_bid_blocks)],
-        cols.CLEARED_ENERGY_COLUMN: [cleared_energy],
-        cols.CLEARING_PRICES_COLUMN: [clearing_prices],
-        cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [
+        cols.DF_CLEARED_POWER_COLUMN: [cleared_power_df],
+        cols.DF_CLEARING_PRICES_COLUMN: [clearing_prices_df],
+        cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [
             get_spain_portugal_transmissions(model, market_periods_count)
         ],
     }
@@ -923,9 +918,9 @@ def run_iberian_day_ahead_market_simulator(
     )
 
     best_iteration = get_best_iteration(iterations_df, mic_respected_only=False)
-    cleared_energy = best_iteration.cleared_energy
+    cleared_power = best_iteration[cols.DF_CLEARED_POWER_COLUMN]
     cleared_det_cab = det_cab.merge(
-        cleared_energy,
+        cleared_power,
         left_on=cols.ID_INDIVIDUAL_BID,
         right_index=True,
         how="outer",
@@ -938,12 +933,14 @@ def run_iberian_day_ahead_market_simulator(
     except pa.errors.SchemaErrors as e:
         warnings.warn(f"Pandera validation warning in ClearedDetCabSchema: {e}")
     try:
-        ClearingPricesSchema.validate(best_iteration.clearing_prices, lazy=True)
+        ClearingPricesSchema.validate(
+            best_iteration[cols.DF_CLEARING_PRICES_COLUMN], lazy=True
+        )
     except pa.errors.SchemaErrors as e:
         warnings.warn(f"Pandera validation warning in ClearingPricesSchema: {e}")
     try:
         SpainPortugaLTransmissionsSchema.validate(
-            best_iteration.spain_portugal_transmissions, lazy=True
+            best_iteration[cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN], lazy=True
         )
     except pa.errors.SchemaErrors as e:
         warnings.warn(
@@ -955,8 +952,10 @@ def run_iberian_day_ahead_market_simulator(
         "model_binary_not_fixed": model_binary,
         "model_iteration_info": best_iteration,
         "cleared_det_cab": cleared_det_cab,
-        "clearing_prices": best_iteration.clearing_prices,
-        "spain_portugal_transmissions": best_iteration.spain_portugal_transmissions,
+        "clearing_prices": best_iteration[cols.DF_CLEARING_PRICES_COLUMN],
+        "spain_portugal_transmissions": best_iteration[
+            cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN
+        ],
         "iterations_df": iterations_df,
         "iterative_loop_inputs": {
             "det": det,

@@ -20,13 +20,13 @@ def get_float_bid_power_cumsum(
     period_column_name=cols.INT_PERIOD,
     cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
     cod_ofertada_casada_column_name=cols.CAT_OFERTADA_CASADA,
-    qua_energia_column_name=cols.FLOAT_BID_POWER,
+    qua_potencia_column_name=cols.FLOAT_BID_POWER,
     qua_precio_column_name=cols.FLOAT_BID_PRICE,
 ) -> pd.Series:
     """
     Calculates the cumulative sum of bid power for each period, buy/sell type, and price within the DET/CAB DataFrame.
 
-    Buy ('V') and sell ('C') bids are sorted and grouped separately, and their cumulative energy is calculated.
+    Buy ('V') and sell ('C') bids are sorted and grouped separately, and their cumulative power is calculated.
 
     Args:
         curva_pbc_df (pd.DataFrame): DataFrame containing bids.
@@ -34,7 +34,7 @@ def get_float_bid_power_cumsum(
         period_column_name (str): Name of the column with period.
         cod_tipo_oferta_column_name (str): Name of the column with buy/sell type.
         cod_ofertada_casada_column_name (str, optional): Name of the column with offered/matched type. Defaults to None.
-        qua_energia_column_name (str): Name of the column with bid power.
+        qua_potencia_column_name (str): Name of the column with bid power.
         qua_precio_column_name (str): Name of the column with bid price.
 
     Returns:
@@ -49,29 +49,29 @@ def get_float_bid_power_cumsum(
     curva_pbc_df_C = (
         curva_pbc_df.query(f"`{cod_tipo_oferta_column_name}` == 'C'")
         .sort_values(
-            [qua_precio_column_name, qua_energia_column_name], ascending=[False, True]
+            [qua_precio_column_name, qua_potencia_column_name], ascending=[False, True]
         )
-        .groupby(groupby_columns)[qua_energia_column_name]
+        .groupby(groupby_columns)[qua_potencia_column_name]
         .cumsum()
     )
     curva_pbc_df_V = (
         curva_pbc_df.query(f"`{cod_tipo_oferta_column_name}` == 'V'")
         .sort_values(
-            [qua_precio_column_name, qua_energia_column_name], ascending=[True, True]
+            [qua_precio_column_name, qua_potencia_column_name], ascending=[True, True]
         )
-        .groupby(groupby_columns)[qua_energia_column_name]
+        .groupby(groupby_columns)[qua_potencia_column_name]
         .cumsum()
     )
 
-    curva_pbc_energy_cumsum = pd.Series(
+    curva_pbc_power_cumsum = pd.Series(
         np.nan,
         index=curva_pbc_df.index,
     )
 
-    curva_pbc_energy_cumsum.loc[curva_pbc_df_V.index] = curva_pbc_df_V.values
-    curva_pbc_energy_cumsum.loc[curva_pbc_df_C.index] = curva_pbc_df_C.values
+    curva_pbc_power_cumsum.loc[curva_pbc_df_V.index] = curva_pbc_df_V.values
+    curva_pbc_power_cumsum.loc[curva_pbc_df_C.index] = curva_pbc_df_C.values
 
-    return curva_pbc_energy_cumsum
+    return curva_pbc_power_cumsum
 
 
 def get_is_simple_bid(

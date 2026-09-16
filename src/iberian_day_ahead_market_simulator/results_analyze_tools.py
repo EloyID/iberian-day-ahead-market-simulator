@@ -7,41 +7,41 @@ from iberian_day_ahead_market_simulator.const import FRANCE_ID_UNIDAD
 
 
 def summary_det_cab(det_cab: pd.DataFrame):
-    cleared_energy = det_cab[cols.FLOAT_CLEARED_POWER].sum()
+    cleared_power = det_cab[cols.FLOAT_CLEARED_POWER].sum()
     det_cab_V = det_cab.query(f'{cols.CAT_BUY_SELL} == "V"')
-    cleared_energy_simple = det_cab_V.query(
+    cleared_power_simple = det_cab_V.query(
         f'{cols.CAT_ORDER_TYPE} == "S" and {cols.ID_UNIDAD} != @FRANCE_ID_UNIDAD'
     )[cols.FLOAT_CLEARED_POWER].sum()
-    cleared_energy_C01 = det_cab_V.query(f'{cols.CAT_ORDER_TYPE} == "C01"')[
+    cleared_power_C01 = det_cab_V.query(f'{cols.CAT_ORDER_TYPE} == "C01"')[
         cols.FLOAT_CLEARED_POWER
     ].sum()
-    cleared_energy_C02 = det_cab_V.query(f'{cols.CAT_ORDER_TYPE} == "C02"')[
+    cleared_power_C02 = det_cab_V.query(f'{cols.CAT_ORDER_TYPE} == "C02"')[
         cols.FLOAT_CLEARED_POWER
     ].sum()
-    cleared_energy_C04 = det_cab_V.query(f'{cols.CAT_ORDER_TYPE} == "C04"')[
+    cleared_power_C04 = det_cab_V.query(f'{cols.CAT_ORDER_TYPE} == "C04"')[
         cols.FLOAT_CLEARED_POWER
     ].sum()
-    cleared_energy_france_import = det_cab_V.query(
+    cleared_power_france_import = det_cab_V.query(
         f"{cols.ID_UNIDAD} ==  @FRANCE_ID_UNIDAD"
     )[cols.FLOAT_CLEARED_POWER].sum()
 
     det_cab_C = det_cab.query(f'{cols.CAT_BUY_SELL} == "C"')
-    cleared_energy_buy_simple = det_cab_C.query(
+    cleared_power_buy_simple = det_cab_C.query(
         f'{cols.CAT_ORDER_TYPE} == "S" and {cols.ID_UNIDAD} != @FRANCE_ID_UNIDAD'
     )[cols.FLOAT_CLEARED_POWER].sum()
-    cleared_energy_france_export = det_cab_C.query(
+    cleared_power_france_export = det_cab_C.query(
         f"{cols.ID_UNIDAD} ==  @FRANCE_ID_UNIDAD"
     )[cols.FLOAT_CLEARED_POWER].sum()
 
     return {
-        "cleared_energy": np.round(cleared_energy, 2),
-        "cleared_energy_simple": np.round(cleared_energy_simple, 2),
-        "cleared_energy_C01": np.round(cleared_energy_C01, 2),
-        "cleared_energy_C02": np.round(cleared_energy_C02, 2),
-        "cleared_energy_C04": np.round(cleared_energy_C04, 2),
-        "cleared_energy_france_import": np.round(cleared_energy_france_import, 2),
-        "cleared_energy_buy_simple": np.round(cleared_energy_buy_simple, 2),
-        "cleared_energy_france_export": np.round(cleared_energy_france_export, 2),
+        "cleared_power": np.round(cleared_power, 2),
+        "cleared_power_simple": np.round(cleared_power_simple, 2),
+        "cleared_power_C01": np.round(cleared_power_C01, 2),
+        "cleared_power_C02": np.round(cleared_power_C02, 2),
+        "cleared_power_C04": np.round(cleared_power_C04, 2),
+        "cleared_power_france_import": np.round(cleared_power_france_import, 2),
+        "cleared_power_buy_simple": np.round(cleared_power_buy_simple, 2),
+        "cleared_power_france_export": np.round(cleared_power_france_export, 2),
     }
 
 
@@ -52,45 +52,45 @@ def summary_curva_pbc_uof(curva_pbc_uof: pd.DataFrame):
     curva_pbc_uof = curva_pbc_uof.copy().query(
         "cod_simple_block_orders not in @REDUNDANT_TYPES and not (cod_simple_block_orders in ['Imp FR', 'Exp FR'] and cod_pais == 'PT')"
     )
-    cleared_energy = curva_pbc_uof.query('cod_ofertada_casada == "C"')[
+    cleared_power = curva_pbc_uof.query('cod_ofertada_casada == "C"')[
         "qua_potencia"
     ].sum()
     curva_pbc_uof_C_V = curva_pbc_uof.query(
         'cod_ofertada_casada == "C" and cod_tipo_oferta == "V"'
     )
-    cleared_energy_simple = curva_pbc_uof_C_V.query('cod_simple_block_orders == "S"')[
+    cleared_power_simple = curva_pbc_uof_C_V.query('cod_simple_block_orders == "S"')[
         "qua_potencia"
     ].sum()
-    cleared_energy_C01 = curva_pbc_uof_C_V.query('cod_simple_block_orders == "C01"')[
+    cleared_power_C01 = curva_pbc_uof_C_V.query('cod_simple_block_orders == "C01"')[
         "qua_potencia"
     ].sum()
-    cleared_energy_C02 = curva_pbc_uof_C_V.query('cod_simple_block_orders == "C02"')[
+    cleared_power_C02 = curva_pbc_uof_C_V.query('cod_simple_block_orders == "C02"')[
         "qua_potencia"
     ].sum()
-    cleared_energy_C04 = curva_pbc_uof_C_V.query('cod_simple_block_orders == "C04"')[
+    cleared_power_C04 = curva_pbc_uof_C_V.query('cod_simple_block_orders == "C04"')[
         "qua_potencia"
     ].sum()
-    cleared_energy_france_import = curva_pbc_uof_C_V.query(
+    cleared_power_france_import = curva_pbc_uof_C_V.query(
         'cod_simple_block_orders == "Imp FR" and cod_pais in ["ES", "MI"]'
     )["qua_potencia"].sum()
     curva_pbc_uof_C_C = curva_pbc_uof.query(
         'cod_ofertada_casada == "C" and cod_tipo_oferta == "C"'
     )
-    cleared_energy_buy_simple = curva_pbc_uof_C_C.query(
+    cleared_power_buy_simple = curva_pbc_uof_C_C.query(
         'cod_simple_block_orders == "S"'
     )["qua_potencia"].sum()
-    cleared_energy_france_export = curva_pbc_uof_C_C.query(
+    cleared_power_france_export = curva_pbc_uof_C_C.query(
         'cod_simple_block_orders == "Exp FR" and cod_pais in ["ES", "MI"]'
     )["qua_potencia"].sum()
     return {
-        "cleared_energy": np.round(cleared_energy, 2),
-        "cleared_energy_simple": np.round(cleared_energy_simple, 2),
-        "cleared_energy_C01": np.round(cleared_energy_C01, 2),
-        "cleared_energy_C02": np.round(cleared_energy_C02, 2),
-        "cleared_energy_C04": np.round(cleared_energy_C04, 2),
-        "cleared_energy_france_import": np.round(cleared_energy_france_import, 2),
-        "cleared_energy_buy_simple": np.round(cleared_energy_buy_simple, 2),
-        "cleared_energy_france_export": np.round(cleared_energy_france_export, 2),
+        "cleared_power": np.round(cleared_power, 2),
+        "cleared_power_simple": np.round(cleared_power_simple, 2),
+        "cleared_power_C01": np.round(cleared_power_C01, 2),
+        "cleared_power_C02": np.round(cleared_power_C02, 2),
+        "cleared_power_C04": np.round(cleared_power_C04, 2),
+        "cleared_power_france_import": np.round(cleared_power_france_import, 2),
+        "cleared_power_buy_simple": np.round(cleared_power_buy_simple, 2),
+        "cleared_power_france_export": np.round(cleared_power_france_export, 2),
     }
 
 
@@ -128,36 +128,36 @@ def compare_det_cab_and_curva_pbc_uof(
         'cod_ofertada_casada == "C" and cod_simple_block_orders != "S"'
     )
 
-    det_cab_energy_cleared_by_period_and_unidad = (
+    det_cab_power_cleared_by_period_and_unidad = (
         det_cab.query("float_cleared_power > 0 and cat_order_type != 'S'")
         .groupby(["id_unidad", "int_period"])["float_cleared_power"]
         .sum()
     ).unstack()
 
-    print("Total cleared energy in det_cab by complex orders")
+    print("Total cleared power in det_cab by complex orders")
 
-    curva_pbc_uof_energy_cleared_by_period_and_unidad = (
+    curva_pbc_uof_power_cleared_by_period_and_unidad = (
         curva_pbc_uof_casada.groupby(["id_unidad", "qua_periodo"])["qua_potencia"].sum()
     ).unstack()
 
-    print("Total cleared energy in curva_pbc_uof_casada by complex orders")
+    print("Total cleared power in curva_pbc_uof_casada by complex orders")
 
     for i in range(1, market_periods_count + 1):
-        if i not in det_cab_energy_cleared_by_period_and_unidad.columns:
-            det_cab_energy_cleared_by_period_and_unidad[i] = np.nan
-        if i not in curva_pbc_uof_energy_cleared_by_period_and_unidad.columns:
-            curva_pbc_uof_energy_cleared_by_period_and_unidad[i] = np.nan
+        if i not in det_cab_power_cleared_by_period_and_unidad.columns:
+            det_cab_power_cleared_by_period_and_unidad[i] = np.nan
+        if i not in curva_pbc_uof_power_cleared_by_period_and_unidad.columns:
+            curva_pbc_uof_power_cleared_by_period_and_unidad[i] = np.nan
     ordered_columns = list(range(1, market_periods_count + 1))
-    det_cab_energy_cleared_by_period_and_unidad = (
-        det_cab_energy_cleared_by_period_and_unidad[ordered_columns]
+    det_cab_power_cleared_by_period_and_unidad = (
+        det_cab_power_cleared_by_period_and_unidad[ordered_columns]
     )
-    curva_pbc_uof_energy_cleared_by_period_and_unidad = (
-        curva_pbc_uof_energy_cleared_by_period_and_unidad[ordered_columns]
+    curva_pbc_uof_power_cleared_by_period_and_unidad = (
+        curva_pbc_uof_power_cleared_by_period_and_unidad[ordered_columns]
     )
 
-    cleared_energy_merged = pd.merge(
-        det_cab_energy_cleared_by_period_and_unidad,
-        curva_pbc_uof_energy_cleared_by_period_and_unidad,
+    cleared_power_merged = pd.merge(
+        det_cab_power_cleared_by_period_and_unidad,
+        curva_pbc_uof_power_cleared_by_period_and_unidad,
         left_index=True,
         right_index=True,
         suffixes=("_calculated", "_reference"),
@@ -165,14 +165,14 @@ def compare_det_cab_and_curva_pbc_uof(
     ).fillna(0)
 
     calculated_columns = [
-        col for col in cleared_energy_merged.columns if col.endswith("_calculated")
+        col for col in cleared_power_merged.columns if col.endswith("_calculated")
     ]
     reference_columns = [
-        col for col in cleared_energy_merged.columns if col.endswith("_reference")
+        col for col in cleared_power_merged.columns if col.endswith("_reference")
     ]
 
     # use np.close tol 0.001 to compare each row
-    cleared_energy_merged["same_cleared_energy"] = cleared_energy_merged.apply(
+    cleared_power_merged["same_cleared_power"] = cleared_power_merged.apply(
         lambda row: all(
             abs(row[calc_col] - row[ref_col]) < 0.001
             for calc_col, ref_col in zip(calculated_columns, reference_columns)
@@ -180,20 +180,20 @@ def compare_det_cab_and_curva_pbc_uof(
         axis=1,
     )
 
-    same_cleared_energy_groups = cleared_energy_merged.query(
-        "same_cleared_energy == True"
+    same_cleared_power_groups = cleared_power_merged.query(
+        "same_cleared_power == True"
     ).index.tolist()
-    same_cleared_energy_groups_count = len(same_cleared_energy_groups)
-    different_cleared_energy_groups = cleared_energy_merged.query(
-        "same_cleared_energy == False"
+    same_cleared_power_groups_count = len(same_cleared_power_groups)
+    different_cleared_power_groups = cleared_power_merged.query(
+        "same_cleared_power == False"
     ).index.tolist()
-    different_cleared_energy_groups_count = len(different_cleared_energy_groups)
+    different_cleared_power_groups_count = len(different_cleared_power_groups)
 
     print(
-        f"Paradox groups with same cleared energy ({same_cleared_energy_groups_count}): {same_cleared_energy_groups}"
+        f"Paradox groups with same cleared power ({same_cleared_power_groups_count}): {same_cleared_power_groups}"
     )
     print(
-        f"Paradox groups with different cleared energy ({different_cleared_energy_groups_count}): {different_cleared_energy_groups}"
+        f"Paradox groups with different cleared power ({different_cleared_power_groups_count}): {different_cleared_power_groups}"
     )
     columns_zipped = zip(calculated_columns, reference_columns)
     columns_zipped = [[col1, col2] for col1, col2 in columns_zipped]
@@ -232,83 +232,83 @@ def compare_det_cab_and_curva_pbc_uof(
         print("Discrepancy in C01 (BLOCKS) groups:")
         print(f"Calculated C01 groups: {calculated_C01_groups}")
 
-    cleared_energy_merged_C01_discrepating = cleared_energy_merged.query(
-        "same_cleared_energy == False and id_unidad in @C01_groups"
+    cleared_power_merged_C01_discrepating = cleared_power_merged.query(
+        "same_cleared_power == False and id_unidad in @C01_groups"
     )
-    print("Cleared energy discrepancies C01:")
-    if not cleared_energy_merged_C01_discrepating.empty:
-        cleared_energy_merged_C01_discrepating_reference = (
-            cleared_energy_merged_C01_discrepating[reference_columns]
+    print("Cleared power discrepancies C01:")
+    if not cleared_power_merged_C01_discrepating.empty:
+        cleared_power_merged_C01_discrepating_reference = (
+            cleared_power_merged_C01_discrepating[reference_columns]
             .T.eval('index = index.str.replace("_reference", "")')
             .set_index("index")
         )
-        cleared_energy_merged_C01_discrepating_calculated = (
-            cleared_energy_merged_C01_discrepating[calculated_columns]
+        cleared_power_merged_C01_discrepating_calculated = (
+            cleared_power_merged_C01_discrepating[calculated_columns]
             .T.eval('index = index.str.replace("_calculated", "")')
             .set_index("index")
         )
-        cleared_energy_merged_C01_discrepating_diff = (
-            cleared_energy_merged_C01_discrepating_calculated
-            - cleared_energy_merged_C01_discrepating_reference
+        cleared_power_merged_C01_discrepating_diff = (
+            cleared_power_merged_C01_discrepating_calculated
+            - cleared_power_merged_C01_discrepating_reference
         )
-        cleared_energy_merged_C01_discrepating = (
+        cleared_power_merged_C01_discrepating = (
             pd.concat(
                 {
-                    "calculated": cleared_energy_merged_C01_discrepating_calculated,
-                    "reference": cleared_energy_merged_C01_discrepating_reference,
-                    "zdifference": cleared_energy_merged_C01_discrepating_diff,
+                    "calculated": cleared_power_merged_C01_discrepating_calculated,
+                    "reference": cleared_power_merged_C01_discrepating_reference,
+                    "zdifference": cleared_power_merged_C01_discrepating_diff,
                 },
                 axis=1,
             )
             .swaplevel(0, 1, axis=1)
             .sort_index(axis=1)
         )
-        print("Cleared energy discrepancies reference pivoted:")
+        print("Cleared power discrepancies reference pivoted:")
         display(
             # column coolwarm style to highlight differences only zdifference columns
-            cleared_energy_merged_C01_discrepating.style.background_gradient(
+            cleared_power_merged_C01_discrepating.style.background_gradient(
                 cmap="coolwarm",
                 axis=0,
-                subset=cleared_energy_merged_C01_discrepating.columns[
-                    cleared_energy_merged_C01_discrepating.columns.get_level_values(1)
+                subset=cleared_power_merged_C01_discrepating.columns[
+                    cleared_power_merged_C01_discrepating.columns.get_level_values(1)
                     == "zdifference"
                 ],
             ),
         )
     else:
-        print("No discrepancies in cleared energy for C01 orders.")
+        print("No discrepancies in cleared power for C01 orders.")
 
     print(f"========== Reference C02 groups: {reference_C02_groups}")
     if set(reference_C02_groups) != set(calculated_C02_groups):
         print("Discrepancy in C02 (SCO) groups:")
         print(f"Calculated C02 groups: {calculated_C02_groups}")
 
-    cleared_energy_merged_C02_discrepating = cleared_energy_merged.query(
-        "same_cleared_energy == False and id_unidad in @C02_groups"
+    cleared_power_merged_C02_discrepating = cleared_power_merged.query(
+        "same_cleared_power == False and id_unidad in @C02_groups"
     )
-    if not cleared_energy_merged_C02_discrepating.empty:
+    if not cleared_power_merged_C02_discrepating.empty:
 
-        cleared_energy_merged_C02_discrepating_reference = (
-            cleared_energy_merged_C02_discrepating[reference_columns]
+        cleared_power_merged_C02_discrepating_reference = (
+            cleared_power_merged_C02_discrepating[reference_columns]
             .T.eval('index = index.str.replace("_reference", "")')
             .set_index("index")
         )
-        cleared_energy_merged_C02_discrepating_calculated = (
-            cleared_energy_merged_C02_discrepating[calculated_columns]
+        cleared_power_merged_C02_discrepating_calculated = (
+            cleared_power_merged_C02_discrepating[calculated_columns]
             .T.eval('index = index.str.replace("_calculated", "")')
             .set_index("index")
         )
-        cleared_energy_merged_C02_discrepating_diff = (
-            cleared_energy_merged_C02_discrepating_calculated
-            - cleared_energy_merged_C02_discrepating_reference
+        cleared_power_merged_C02_discrepating_diff = (
+            cleared_power_merged_C02_discrepating_calculated
+            - cleared_power_merged_C02_discrepating_reference
         )
 
-        cleared_energy_merged_C02_discrepating = (
+        cleared_power_merged_C02_discrepating = (
             pd.concat(
                 {
-                    "calculated": cleared_energy_merged_C02_discrepating_calculated,
-                    "reference": cleared_energy_merged_C02_discrepating_reference,
-                    "zdifference": cleared_energy_merged_C02_discrepating_diff,
+                    "calculated": cleared_power_merged_C02_discrepating_calculated,
+                    "reference": cleared_power_merged_C02_discrepating_reference,
+                    "zdifference": cleared_power_merged_C02_discrepating_diff,
                 },
                 axis=1,
             )
@@ -316,80 +316,80 @@ def compare_det_cab_and_curva_pbc_uof(
             .sort_index(axis=1)
         )
 
-        print("Cleared energy discrepancies reference pivoted:")
+        print("Cleared power discrepancies reference pivoted:")
         display(
             # column coolwarm style to highlight differences only zdifference columns
-            cleared_energy_merged_C02_discrepating.style.background_gradient(
+            cleared_power_merged_C02_discrepating.style.background_gradient(
                 cmap="coolwarm",
                 axis=0,
-                subset=cleared_energy_merged_C02_discrepating.columns[
-                    cleared_energy_merged_C02_discrepating.columns.get_level_values(1)
+                subset=cleared_power_merged_C02_discrepating.columns[
+                    cleared_power_merged_C02_discrepating.columns.get_level_values(1)
                     == "zdifference"
                 ],
             ),
         )
     else:
-        print("No discrepancies in cleared energy for C02 orders.")
+        print("No discrepancies in cleared power for C02 orders.")
 
     print(f"========== Reference C04 groups: {reference_C04_groups}")
     if set(reference_C04_groups) != set(calculated_C04_groups):
         print("Discrepancy in C04 (EXCLUSIVE BLOCK) groups:")
         print(f"Calculated C04 groups: {calculated_C04_groups}")
 
-    cleared_energy_merged_C04_discrepating = cleared_energy_merged.query(
-        "same_cleared_energy == False and id_unidad in @C04_groups"
+    cleared_power_merged_C04_discrepating = cleared_power_merged.query(
+        "same_cleared_power == False and id_unidad in @C04_groups"
     )
-    if not cleared_energy_merged_C04_discrepating.empty:
+    if not cleared_power_merged_C04_discrepating.empty:
 
-        cleared_energy_merged_C04_discrepating_reference = (
-            cleared_energy_merged_C04_discrepating[reference_columns]
+        cleared_power_merged_C04_discrepating_reference = (
+            cleared_power_merged_C04_discrepating[reference_columns]
             .T.eval('index = index.str.replace("_reference", "")')
             .set_index("index")
         )
-        cleared_energy_merged_C04_discrepating_calculated = (
-            cleared_energy_merged_C04_discrepating[calculated_columns]
+        cleared_power_merged_C04_discrepating_calculated = (
+            cleared_power_merged_C04_discrepating[calculated_columns]
             .T.eval('index = index.str.replace("_calculated", "")')
             .set_index("index")
         )
-        cleared_energy_merged_C04_discrepating_diff = (
-            cleared_energy_merged_C04_discrepating_calculated
-            - cleared_energy_merged_C04_discrepating_reference
+        cleared_power_merged_C04_discrepating_diff = (
+            cleared_power_merged_C04_discrepating_calculated
+            - cleared_power_merged_C04_discrepating_reference
         )
-        cleared_energy_merged_C04_discrepating = (
+        cleared_power_merged_C04_discrepating = (
             pd.concat(
                 {
-                    "calculated": cleared_energy_merged_C04_discrepating_calculated,
-                    "reference": cleared_energy_merged_C04_discrepating_reference,
-                    "zdifference": cleared_energy_merged_C04_discrepating_diff,
+                    "calculated": cleared_power_merged_C04_discrepating_calculated,
+                    "reference": cleared_power_merged_C04_discrepating_reference,
+                    "zdifference": cleared_power_merged_C04_discrepating_diff,
                 },
                 axis=1,
             )
             .swaplevel(0, 1, axis=1)
             .sort_index(axis=1)
         )
-        print("Cleared energy discrepancies reference pivoted:")
+        print("Cleared power discrepancies reference pivoted:")
         display(
             # column coolwarm style to highlight differences only zdifference columns
-            cleared_energy_merged_C04_discrepating.style.background_gradient(
+            cleared_power_merged_C04_discrepating.style.background_gradient(
                 cmap="coolwarm",
                 axis=0,
-                subset=cleared_energy_merged_C04_discrepating.columns[
-                    cleared_energy_merged_C04_discrepating.columns.get_level_values(1)
+                subset=cleared_power_merged_C04_discrepating.columns[
+                    cleared_power_merged_C04_discrepating.columns.get_level_values(1)
                     == "zdifference"
                 ],
             ),
         )
 
     else:
-        print("No discrepancies in cleared energy for C04 orders.")
+        print("No discrepancies in cleared power for C04 orders.")
 
-    if "MIEU" in same_cleared_energy_groups:
+    if "MIEU" in same_cleared_power_groups:
         print(
-            "========== MIEU (Exchange with France9 group has matching cleared energy."
+            "========== MIEU (Exchange with France9 group has matching cleared power."
         )
     else:
         print(
-            "========== MIEU (Exchange with France9 group has DISCREPANT cleared energy."
+            "========== MIEU (Exchange with France9 group has DISCREPANT cleared power."
         )
 
     MIEU_calculated = (
@@ -403,7 +403,7 @@ def compare_det_cab_and_curva_pbc_uof(
         .sum()
     ).unstack(level=0)
 
-    MIEU_cleared_energy_merged = (
+    MIEU_cleared_power_merged = (
         pd.merge(
             MIEU_calculated.reset_index(),
             MIEU_reference.reset_index(),
@@ -415,16 +415,14 @@ def compare_det_cab_and_curva_pbc_uof(
         .fillna(0)
         .set_index("int_period")
     )
-    MIEU_cleared_energy_merged_columns_sorted = sorted(
-        MIEU_cleared_energy_merged.columns
-    )
-    MIEU_cleared_energy_merged = MIEU_cleared_energy_merged[
-        MIEU_cleared_energy_merged_columns_sorted
+    MIEU_cleared_power_merged_columns_sorted = sorted(MIEU_cleared_power_merged.columns)
+    MIEU_cleared_power_merged = MIEU_cleared_power_merged[
+        MIEU_cleared_power_merged_columns_sorted
     ]
 
-    print("MIEU cleared energy details:")
+    print("MIEU cleared power details:")
     display(
-        MIEU_cleared_energy_merged.style.background_gradient(cmap="coolwarm"),
+        MIEU_cleared_power_merged.style.background_gradient(cmap="coolwarm"),
     )
 
 
@@ -451,7 +449,7 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
                 continue
 
             best_cost = np.nan
-            energy_matches = True
+            power_matches = True
             cost = 0
             for index, row in groups.iterrows():
                 int_period = row["qua_periodo"]
@@ -459,12 +457,12 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
                     "int_period == @int_period"
                 ).iloc[0]
                 if matching_det_cab_row.qua_potencia < row.qua_potencia:
-                    energy_matches = False
+                    power_matches = False
                     break
                 cost += (
                     row.qua_potencia * matching_det_cab_row.float_bid_price.values[0]
                 )
-            if energy_matches and cost < best_cost or np.isnan(best_cost):
+            if power_matches and cost < best_cost or np.isnan(best_cost):
                 best_cost = cost
                 best_int_num_block_cat = int_num_block_cat
 

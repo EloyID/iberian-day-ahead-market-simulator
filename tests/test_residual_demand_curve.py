@@ -32,7 +32,7 @@ class TestCreateHomotheticSellProfiles:
 
         result = rdc.create_homothetic_sell_profiles(base_profile, scaling_factors)
 
-        expected_cols = [f"energy_{i+1}" for i in range(24)]
+        expected_cols = [f"power_{i+1}" for i in range(24)]
         assert list(result.columns) == expected_cols
 
     def test_index_names(self):
@@ -62,7 +62,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_mixed_rdc_values(self):
         """Test RDC generation with mixed positive and negative values."""
-        rdc_data = {f"energy_{i+1}": 100.0 if i < 12 else -100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 if i < 12 else -100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -84,7 +84,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_zero_rdc_values(self):
         """Test RDC generation with zero values."""
-        rdc_data = {f"energy_{i+1}": 0.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 0.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -103,7 +103,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_date_assignment(self):
         """Test that date is correctly assigned."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-06-15")
 
@@ -121,7 +121,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_country_assignment(self):
         """Test that country is correctly assigned."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -138,7 +138,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_period_assignment(self):
         """Test that periods 1-24 are correctly assigned."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -155,7 +155,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_bid_prices_fixed_values(self):
         """Test that bid prices are assigned appropriately."""
-        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -175,7 +175,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_all_positive_values(self):
         """Test RDC generation with all positive values (sell orders)."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -195,7 +195,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_all_negative_values(self):
         """Test RDC generation with all negative values (buy orders)."""
-        rdc_data = {f"energy_{i+1}": -100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": -100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -215,7 +215,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_bid_power_absolute_values(self):
         """Test that bid power is the absolute value of the RDC."""
-        rdc_data = {f"energy_{i+1}": (-50.0 if i % 2 == 0 else 75.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (-50.0 if i % 2 == 0 else 75.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -249,7 +249,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_det_dataframe_structure(self):
         """Test that DET DataFrame has correct structure and columns."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -280,7 +280,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_cab_filtering(self):
         """Test that CAB is filtered to only include relevant ID_ORDERs."""
-        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -300,7 +300,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_uof_contains_correct_units(self):
         """Test that UOF zone contains correct unit codes."""
-        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -320,7 +320,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_no_nan_values_in_det(self):
         """Test that DET DataFrame contains no NaN values."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -338,7 +338,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_zero_filtering(self):
         """Test that zero power bids are filtered out from DET."""
-        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else 0.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (100.0 if i < 12 else 0.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -358,7 +358,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_multiple_countries(self):
         """Test RDC generation with different countries."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -376,7 +376,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_very_small_values(self):
         """Test RDC generation with very small values."""
-        rdc_data = {f"energy_{i+1}": 0.001 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 0.001 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
@@ -394,7 +394,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_very_large_values(self):
         """Test RDC generation with very large values."""
-        rdc_data = {f"energy_{i+1}": 100000.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100000.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 

@@ -17,7 +17,7 @@ from iberian_day_ahead_market_simulator.const import (
     RDC_CAB_C_BASE,
     RDC_CAB_V_BASE,
     TOTAL_PERIODS_OPTIONS,
-    get_rdc_energy_columns,
+    get_rdc_power_columns,
     get_rdc_price_columns,
 )
 
@@ -59,7 +59,7 @@ def generate_residual_demand_det_cab_and_participants_bidding_zone(
     Returns:
         tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: Residual demand DET, CAB, and UOF zone dataframes.
     """
-    rdc_sorted = rdc[[f"energy_{i+1}" for i in range(market_periods_count)]]
+    rdc_sorted = rdc[[f"power_{i+1}" for i in range(market_periods_count)]]
     rdc_cab_rows = []
     uof_ids = []
     if (rdc_sorted >= 0).any():
@@ -143,7 +143,7 @@ def create_homothetic_sell_profiles(
     sell_profiles = pd.DataFrame(
         sell_profiles_values,
         index=[f"scale_{factor:.2f}" for factor in scaling_factors],
-        columns=[f"energy_{i+1}" for i in range(market_periods)],
+        columns=[f"power_{i+1}" for i in range(market_periods)],
     )
     return sell_profiles
 
@@ -195,7 +195,7 @@ def calculate_residual_demand_curves(
     Calculates the residual demand curves for a set of sell profiles by simulating market clearing.
 
     Args:
-        sell_profiles (pd.DataFrame): DataFrame with index as profile names and columns as 'energy_1' to 'energy_XX' representing per period energy values.
+        sell_profiles (pd.DataFrame): DataFrame with index as profile names and columns as 'power_1' to 'power_XX' representing per period power values.
         det (pd.DataFrame | str): DataFrame or path to DET file containing market offer details.
         cab (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
         capacidad_inter_pbc (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
@@ -207,7 +207,7 @@ def calculate_residual_demand_curves(
         n_jobs (int, optional): Number of parallel jobs for simulation. Defaults to 1.
 
     Returns:
-        pd.DataFrame: DataFrame with index as profile names and columns 'price_1' to 'price_24' (clearing prices per period) and 'energy_1' to 'energy_XX' (energy values per period).
+        pd.DataFrame: DataFrame with index as profile names and columns 'price_1' to 'price_24' (clearing prices per period) and 'power_1' to 'power_XX' (power values per period).
     """
 
     # if det is istring
@@ -231,7 +231,7 @@ def calculate_residual_demand_curves(
 
     residual_demand_curves = pd.DataFrame(
         columns=[f"price_{i+1}" for i in range(market_periods_count)]
-        + [f"energy_{i+1}" for i in range(market_periods_count)],
+        + [f"power_{i+1}" for i in range(market_periods_count)],
         index=sell_profiles.index,
     )
 
@@ -276,49 +276,49 @@ def calculate_residual_demand_curves(
             spain_as_default_bidding_zone=spain_as_default_bidding_zone,
             n_jobs=n_jobs,
         )
-        energies_dict = profile.to_dict()
+        powers_dict = profile.to_dict()
         clearing_prices_dict = get_clearing_prices_dict(results, sell_country)
         residual_demand_curves.loc[idx] = {
             **clearing_prices_dict,
-            **energies_dict,
+            **powers_dict,
         }
 
     return residual_demand_curves
 
 
 def interpolate_residual_demand_curves(
-    target_energy_levels,
+    target_power_levels,
     residual_demand_curves,
-    target_energy_columns: list[str],
+    target_power_columns: list[str],
     target_price_columns: list[str],
-    residual_demand_energy_columns: list[str],
+    residual_demand_power_columns: list[str],
     residual_demand_price_columns: list[str],
     extrapolate_action: Literal["limit", "nan", "warning", "raise"] = "warning",
 ):
     interpolated_prices = {}
     for (
-        target_energy_column,
+        target_power_column,
         target_price_column,
-        residual_demand_energy_column,
+        residual_demand_power_column,
         residual_demand_price_column,
     ) in zip(
-        target_energy_columns,
+        target_power_columns,
         target_price_columns,
-        residual_demand_energy_columns,
+        residual_demand_power_columns,
         residual_demand_price_columns,
     ):
-        target_energy = target_energy_levels[target_energy_column]
+        target_power = target_power_levels[target_power_column]
         residual_demand_curve_df = (
             residual_demand_curves[
-                [residual_demand_energy_column, residual_demand_price_column]
+                [residual_demand_power_column, residual_demand_price_column]
             ]
             .dropna()
-            .sort_values(by=residual_demand_energy_column)
+            .sort_values(by=residual_demand_power_column)
         )
 
         interpolated_price = np.interp(
-            target_energy,
-            residual_demand_curve_df[residual_demand_energy_column],
+            target_power,
+            residual_demand_curve_df[residual_demand_power_column],
             residual_demand_curve_df[residual_demand_price_column],
         )
 
@@ -326,11 +326,11 @@ def interpolate_residual_demand_curves(
             pass
         else:
             extrapolated_mask = (
-                target_energy
-                < residual_demand_curve_df[residual_demand_energy_column].min()
+                target_power
+                < residual_demand_curve_df[residual_demand_power_column].min()
             ) | (
-                target_energy
-                > residual_demand_curve_df[residual_demand_energy_column].max()
+                target_power
+                > residual_demand_curve_df[residual_demand_power_column].max()
             )
 
             if extrapolate_action == "raise" and extrapolated_mask.any():
@@ -346,14 +346,14 @@ def interpolate_residual_demand_curves(
                 interpolated_price[extrapolated_mask] = np.nan
 
         interpolated_price = pd.Series(
-            interpolated_price, index=target_energy.index, name=target_price_column
+            interpolated_price, index=target_power.index, name=target_price_column
         )
 
         interpolated_prices[target_price_column] = interpolated_price
 
     interpolated_residual_demand_curves = pd.concat(
         [
-            target_energy_levels[target_energy_columns],
+            target_power_levels[target_power_columns],
             pd.DataFrame(interpolated_prices),
         ],
         axis=1,

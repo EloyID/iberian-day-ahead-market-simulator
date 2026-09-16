@@ -81,8 +81,8 @@ def test_run_iterative_loop_smoke_cbc(
     assert iterations_df[cols.FLOAT_OBJECTIVE_VALUE].notna().all()
 
     # Clearing prices must be present and non-empty in every iteration row
-    assert cols.CLEARING_PRICES_COLUMN in iterations_df.columns
-    for prices in iterations_df[cols.CLEARING_PRICES_COLUMN]:
+    assert cols.DF_CLEARING_PRICES_COLUMN in iterations_df.columns
+    for prices in iterations_df[cols.DF_CLEARING_PRICES_COLUMN]:
         assert isinstance(prices, pd.DataFrame)
         assert len(prices) > 0
 

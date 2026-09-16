@@ -4,36 +4,36 @@ import pytest
 
 from iberian_day_ahead_market_simulator.const import (
     get_rdc_price_columns,
-    get_rdc_energy_columns,
+    get_rdc_power_columns,
 )
 from iberian_day_ahead_market_simulator.residual_demand_curve import (
     interpolate_residual_demand_curves,
 )
 
-RDC_ENERGY_COLUMNS_HOURLY = get_rdc_energy_columns(24)
+RDC_POWER_COLUMNS_HOURLY = get_rdc_power_columns(24)
 RDC_PRICE_COLUMNS_HOURLY = get_rdc_price_columns(24)
 
 
 def _build_linear_residual_demand_curves():
     """
     Build a simple residual_demand_curves DataFrame with 3 points per hour:
-    energies: [0, 100, 200] and prices: [10, 20, 40] for all 24 hours,
+    powers: [0, 100, 200] and prices: [10, 20, 40] for all 24 hours,
     so interpolation is easy to verify.
     """
     rows = ["p0", "p1", "p2"]
     data = {}
     for h in range(1, 25):
-        # energies grow linearly
-        data[f"energy_{h}"] = [0.0, 100.0, 200.0]
+        # powers grow linearly
+        data[f"power_{h}"] = [0.0, 100.0, 200.0]
         # prices grow (non-strictly linear ratio for diversity)
         data[f"price_{h}"] = [10.0, 20.0, 40.0]
     df = pd.DataFrame(data, index=rows)
     return df
 
 
-def _build_target_energy_levels(index_labels=("low", "mid", "high")):
+def _build_target_power_levels(index_labels=("low", "mid", "high")):
     """
-    Build target_energy_levels with all 24 energy columns and flexible rows.
+    Build target_power_levels with all 24 power columns and flexible rows.
     Default mapping:
       - "low":  -10.0 (below min, triggers extrapolation)
       - "mid":   50.0 (within range)
@@ -43,7 +43,7 @@ def _build_target_energy_levels(index_labels=("low", "mid", "high")):
     default_map = {"low": -10.0, "mid": 50.0, "high": 250.0}
     row_values = [default_map.get(lbl, 50.0) for lbl in index_labels]
     df = pd.DataFrame(
-        {col: row_values for col in RDC_ENERGY_COLUMNS_HOURLY},
+        {col: row_values for col in RDC_POWER_COLUMNS_HOURLY},
         index=list(index_labels),
     )
     return df
@@ -53,36 +53,36 @@ class TestInterpolateResidualDemandCurves:
     def test_within_range_interpolation(self):
         residual = _build_linear_residual_demand_curves()
         # Only use the mid row to avoid extrapolation
-        target = _build_target_energy_levels(index_labels=("mid",))
+        target = _build_target_power_levels(index_labels=("mid",))
 
         result = interpolate_residual_demand_curves(
             target,
             residual,
-            target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            target_power_columns=RDC_POWER_COLUMNS_HOURLY,
             target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
-            residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            residual_demand_power_columns=RDC_POWER_COLUMNS_HOURLY,
             residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
             extrapolate_action="nan",
         )
-        # Expected price for energy=50 between (0,100) with prices (10,20): 15
+        # Expected price for power=50 between (0,100) with prices (10,20): 15
         expected_price = 15.0
         for price_col in RDC_PRICE_COLUMNS_HOURLY:
             assert np.allclose(result.loc["mid", price_col], expected_price)
-        # Energy columns preserved
-        for energy_col in RDC_ENERGY_COLUMNS_HOURLY:
-            assert result.loc["mid", energy_col] == 50.0
+        # Power columns preserved
+        for power_col in RDC_POWER_COLUMNS_HOURLY:
+            assert result.loc["mid", power_col] == 50.0
 
     def test_extrapolation_limit_behavior(self):
         residual = _build_linear_residual_demand_curves()
-        target = _build_target_energy_levels(index_labels=("low", "high"))
+        target = _build_target_power_levels(index_labels=("low", "high"))
 
         # limit uses np.interp default behavior (clamps to boundary y)
         result = interpolate_residual_demand_curves(
             target,
             residual,
-            target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            target_power_columns=RDC_POWER_COLUMNS_HOURLY,
             target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
-            residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            residual_demand_power_columns=RDC_POWER_COLUMNS_HOURLY,
             residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
             extrapolate_action="limit",
         )
@@ -96,14 +96,14 @@ class TestInterpolateResidualDemandCurves:
 
     def test_extrapolation_nan_behavior(self):
         residual = _build_linear_residual_demand_curves()
-        target = _build_target_energy_levels(index_labels=("low", "mid", "high"))
+        target = _build_target_power_levels(index_labels=("low", "mid", "high"))
 
         result = interpolate_residual_demand_curves(
             target,
             residual,
-            target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            target_power_columns=RDC_POWER_COLUMNS_HOURLY,
             target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
-            residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            residual_demand_power_columns=RDC_POWER_COLUMNS_HOURLY,
             residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
             extrapolate_action="nan",
         )
@@ -118,15 +118,15 @@ class TestInterpolateResidualDemandCurves:
 
     def test_extrapolation_warning_behavior(self, caplog):
         residual = _build_linear_residual_demand_curves()
-        target = _build_target_energy_levels(index_labels=("low", "mid", "high"))
+        target = _build_target_power_levels(index_labels=("low", "mid", "high"))
 
         with caplog.at_level("WARNING"):
             result = interpolate_residual_demand_curves(
                 target,
                 residual,
-                target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+                target_power_columns=RDC_POWER_COLUMNS_HOURLY,
                 target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
-                residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+                residual_demand_power_columns=RDC_POWER_COLUMNS_HOURLY,
                 residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
                 extrapolate_action="warning",
             )
@@ -141,7 +141,7 @@ class TestInterpolateResidualDemandCurves:
 
     def test_extrapolation_raise_behavior(self):
         residual = _build_linear_residual_demand_curves()
-        target = _build_target_energy_levels(
+        target = _build_target_power_levels(
             index_labels=("low",)
         )  # triggers extrapolation
 
@@ -149,28 +149,28 @@ class TestInterpolateResidualDemandCurves:
             interpolate_residual_demand_curves(
                 target,
                 residual,
-                target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+                target_power_columns=RDC_POWER_COLUMNS_HOURLY,
                 target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
-                residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+                residual_demand_power_columns=RDC_POWER_COLUMNS_HOURLY,
                 residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
                 extrapolate_action="raise",
             )
 
     def test_output_structure(self):
         residual = _build_linear_residual_demand_curves()
-        target = _build_target_energy_levels(index_labels=("low", "mid", "high"))
+        target = _build_target_power_levels(index_labels=("low", "mid", "high"))
 
         result = interpolate_residual_demand_curves(
             target,
             residual,
-            target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            target_power_columns=RDC_POWER_COLUMNS_HOURLY,
             target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
-            residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            residual_demand_power_columns=RDC_POWER_COLUMNS_HOURLY,
             residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
             extrapolate_action="nan",
         )
-        # Columns should include all energies + all prices
-        expected_cols = set(RDC_ENERGY_COLUMNS_HOURLY) | set(RDC_PRICE_COLUMNS_HOURLY)
+        # Columns should include all powers + all prices
+        expected_cols = set(RDC_POWER_COLUMNS_HOURLY) | set(RDC_PRICE_COLUMNS_HOURLY)
         assert set(result.columns) == expected_cols
         # Index preserved
         assert list(result.index) == ["low", "mid", "high"]

@@ -1,7 +1,6 @@
 from numpy import dtype
 import iberian_day_ahead_market_simulator.columns as cols
 
-
 DET_TYPING = {
     "dat_sesion": dtype("<M8[ns]"),
     "CodOferta": "string",
@@ -112,7 +111,7 @@ CURVA_PBC_UOF_TYPING = {
     "cod_pais": "string",
     "id_unidad": "string",
     "cod_tipo_oferta": "string",
-    "qua_energia": dtype("float64"),
+    "qua_potencia": dtype("float64"),
     "qua_precio": dtype("float64"),
     "cod_ofertada_casada": "string",
     "cod_simple_block_orders": "string",
@@ -124,14 +123,14 @@ CURVA_PBC_UOF_MAIN_COLUMNS = [
     "cod_pais",
     "id_unidad",
     "cod_tipo_oferta",
-    "qua_energia",
+    "qua_potencia",
     "qua_precio",
     "cod_ofertada_casada",
     "cod_simple_block_orders",
 ]
 CURVA_PBC_UOF_RENAMING = {
     "qua_hora": "Period",
-    "qua_energia": "Potencia",
+    "qua_potencia": "Potencia",
     "qua_precio": "PrecEuro",
     "cod_tipo_oferta": "CV",
     "id_unidad": "CodigoUnidad",

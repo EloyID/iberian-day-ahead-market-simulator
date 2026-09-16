@@ -72,16 +72,12 @@ def get_new_paradoxical_orders_list_adding_and_removing(
 
     paradoxical_orders_summary_sorted = pd.concat(
         [
-            leftout_paradoxical_orders_summary.copy().eval(
-                f"""
-                float_ratio_net_income_bid_power_merit = {cols.FLOAT_RATIO_NET_INCOME_BID_POWER}
-                """
-            ),
-            cleared_paradoxical_orders_summary.copy().eval(
-                f"""
-                float_ratio_net_income_bid_power_merit = - {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER}
-                """
-            ),
+            leftout_paradoxical_orders_summary.copy().eval(f"""
+                float_ratio_net_income_bid_power_merit = {cols.FLOAT_RATIO_NET_INCOME_BID_ENERGY}
+                """),
+            cleared_paradoxical_orders_summary.copy().eval(f"""
+                float_ratio_net_income_bid_power_merit = - {cols.FLOAT_RATIO_NET_INCOME_CLEARED_ENERGY}
+                """),
         ]
     ).sort_values(by="float_ratio_net_income_bid_power_merit", ascending=False)
 
@@ -119,9 +115,13 @@ def get_new_paradoxical_orders_list_adding_and_removing(
                 )
                 for id_paradoxical_order in paradoxical_orders_ids:
                     if id_paradoxical_order in leftout_paradoxical_orders_summary.index:
-                        new_iteration_ids_paradoxical_orders.append(id_paradoxical_order)
+                        new_iteration_ids_paradoxical_orders.append(
+                            id_paradoxical_order
+                        )
                     else:
-                        new_iteration_ids_paradoxical_orders.remove(id_paradoxical_order)
+                        new_iteration_ids_paradoxical_orders.remove(
+                            id_paradoxical_order
+                        )
 
                 are_paradoxical_orders_tested = check_are_paradoxical_orders_tested(
                     iterations_df, new_iteration_ids_paradoxical_orders

@@ -90,9 +90,9 @@ ITERATIONS_DF_COLUMNS = [
     cols.INT_MIC_SCOS_COUNT,
     cols.INT_BID_BLOCKS_COUNT,
     cols.INT_PARADOXICAL_ORDERS_COUNT,
-    cols.CLEARED_ENERGY_COLUMN,
-    cols.CLEARING_PRICES_COLUMN,
-    cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN,
+    cols.DF_CLEARED_POWER_COLUMN,
+    cols.DF_CLEARING_PRICES_COLUMN,
+    cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN,
 ]
 
 
@@ -120,8 +120,8 @@ RDC_CAB_C_BASE = {
 get_rdc_price_columns = lambda market_periods_count: [
     f"price_{i}" for i in range(1, market_periods_count + 1)
 ]
-get_rdc_energy_columns = lambda market_periods_count: [
-    f"energy_{i}" for i in range(1, market_periods_count + 1)
+get_rdc_power_columns = lambda market_periods_count: [
+    f"power_{i}" for i in range(1, market_periods_count + 1)
 ]
 
 TOTAL_PERIODS_H_OPTIONS = [23, 24, 25]

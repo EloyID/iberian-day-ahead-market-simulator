@@ -16,8 +16,8 @@ IterationsSchema = pa.DataFrameSchema(
         cols.INT_MIC_SCOS_COUNT:                   columns_dict[cols.INT_MIC_SCOS_COUNT],
         cols.INT_BID_BLOCKS_COUNT:                 columns_dict[cols.INT_BID_BLOCKS_COUNT],
         cols.INT_PARADOXICAL_ORDERS_COUNT:             columns_dict[cols.INT_PARADOXICAL_ORDERS_COUNT],
-        cols.CLEARED_ENERGY_COLUMN:                columns_dict[cols.CLEARED_ENERGY_COLUMN],
-        cols.CLEARING_PRICES_COLUMN:               columns_dict[cols.CLEARING_PRICES_COLUMN],
-        cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN:  columns_dict[cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN],
+        cols.DF_CLEARED_POWER_COLUMN:                columns_dict[cols.DF_CLEARED_POWER_COLUMN],
+        cols.DF_CLEARING_PRICES_COLUMN:               columns_dict[cols.DF_CLEARING_PRICES_COLUMN],
+        cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN:  columns_dict[cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN],
     }
 )

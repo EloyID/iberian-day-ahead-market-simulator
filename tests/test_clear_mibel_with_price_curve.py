@@ -10,16 +10,16 @@ import pytest
 
 from iberian_day_ahead_market_simulator import columns as cols
 from iberian_day_ahead_market_simulator.clear_mibel_with_price_curve import (
-    calculate_cleared_energy_from_exclusive_block_order_groups,
-    calculate_cleared_energy_from_SCOs,
-    get_cleared_energy_from_non_exclusive_block_order,
-    get_cleared_energy_from_SCO,
+    calculate_cleared_power_from_exclusive_block_order_groups,
+    calculate_cleared_power_from_SCOs,
+    get_cleared_power_from_non_exclusive_block_order,
+    get_cleared_power_from_SCO,
     get_cleared_power_as_simple_bids_with_price_curve,
 )
 
 
-class TestGetClearedEnergyFromNonExclusiveBlockOrder:
-    """Test suite for get_cleared_energy_from_non_exclusive_block_order function."""
+class TestGetClearedPowerFromNonExclusiveBlockOrder:
+    """Test suite for get_cleared_power_from_non_exclusive_block_order function."""
 
     @pytest.fixture
     def block_order_data(self):
@@ -35,7 +35,7 @@ class TestGetClearedEnergyFromNonExclusiveBlockOrder:
         """Test block order clears when weighted average price >= bid price."""
         block_order_data = block_order_data.copy()
         block_order_data[cols.FLOAT_CLEARED_PRICE] = [35.0, 36.0, 37.0]
-        result = get_cleared_energy_from_non_exclusive_block_order(block_order_data)
+        result = get_cleared_power_from_non_exclusive_block_order(block_order_data)
 
         # Average price = (35*100 + 36*110 + 37*120) / (100+110+120)
         # = (3500 + 3960 + 4440) / 330 = 11900 / 330 = 36.06
@@ -48,7 +48,7 @@ class TestGetClearedEnergyFromNonExclusiveBlockOrder:
         block_order_data = block_order_data.copy()
         block_order_data[cols.FLOAT_CLEARED_PRICE] = [30.0, 31.0, 32.0]
 
-        result = get_cleared_energy_from_non_exclusive_block_order(block_order_data)
+        result = get_cleared_power_from_non_exclusive_block_order(block_order_data)
 
         # Let me recalculate: (3000 + 3410 + 3840) / 330 = 10250 / 330 = 31.06
         # 31.06 < 33.0, so not cleared (all zeros)
@@ -57,7 +57,7 @@ class TestGetClearedEnergyFromNonExclusiveBlockOrder:
 
         block_order_data[cols.FLOAT_CLEARED_PRICE] = [30.0, 31.0, 35.0]
 
-        result = get_cleared_energy_from_non_exclusive_block_order(block_order_data)
+        result = get_cleared_power_from_non_exclusive_block_order(block_order_data)
 
         # Let me recalculate: (3000 + 3410 + 4200) / 330 = 10610 / 330 = 32.15
         # 32.15 < 33.0, so not cleared (all zeros)
@@ -70,13 +70,13 @@ class TestGetClearedEnergyFromNonExclusiveBlockOrder:
         block_order_data[cols.FLOAT_CLEARED_PRICE] = [35.0, 36.0, 37.0]
         block_order_data.index = [10, 20, 30]
 
-        result = get_cleared_energy_from_non_exclusive_block_order(block_order_data)
+        result = get_cleared_power_from_non_exclusive_block_order(block_order_data)
 
         assert list(result.index) == [10, 20, 30]
 
 
-class TestGetClearedEnergyFromSCO:
-    """Test suite for get_cleared_energy_from_SCO function."""
+class TestGetClearedPowerFromSCO:
+    """Test suite for get_cleared_power_from_SCO function."""
 
     @pytest.fixture
     def sco_order(self):
@@ -97,9 +97,9 @@ class TestGetClearedEnergyFromSCO:
         """Test SCO clears when collection rights >= expected."""
         sco_order = sco_order.copy()
         sco_order[cols.FLOAT_CLEARED_PRICE] = [40.0, 41.0, 42.0]
-        result = get_cleared_energy_from_SCO(sco_order)
+        result = get_cleared_power_from_SCO(sco_order)
 
-        # Cleared energy where price >= bid: [100, 110, 120]
+        # Cleared power where price >= bid: [100, 110, 120]
         # Collection = 100*40 + 110*41 + 120*42 = 4000 + 4510 + 5040 = 13550
         # Expected = 100*35 + 110*35 + 120*35 + 1000 = 8050 + 1000 = 9050
         # 13550 >= 9050, so clears
@@ -110,7 +110,7 @@ class TestGetClearedEnergyFromSCO:
         """Test SCO doesn't clear when collection rights < expected."""
         sco_order = sco_order.copy()
         sco_order[cols.FLOAT_CLEARED_PRICE] = [34.0, 34.0, 34.0]
-        result = get_cleared_energy_from_SCO(sco_order)
+        result = get_cleared_power_from_SCO(sco_order)
 
         # All zeros when not clearing
         expected = pd.Series([0.0, 0.0, 0.0], dtype=float)
@@ -120,7 +120,7 @@ class TestGetClearedEnergyFromSCO:
         """Test SCO doesn't clear when collection rights < expected."""
         sco_order = sco_order.copy()
         sco_order[cols.FLOAT_CLEARED_PRICE] = [40.0, 41.0, 30.0]
-        result = get_cleared_energy_from_SCO(sco_order)
+        result = get_cleared_power_from_SCO(sco_order)
 
         # Collection = 100*40 + 110*41 + 50*30 = 4000 + 4510 + 1500 = 10010
         # Expected = 100*35 + 110*35 + 50*35 + 1000 = 10100
@@ -137,8 +137,8 @@ class TestGetClearedEnergyFromSCO:
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
 
-class TestGetClearedEnergyFromExclusiveBlockOrderGroups:
-    """Test suite for get_cleared_energy_from_exclusive_block_order_groups function."""
+class TestGetClearedPowerFromExclusiveBlockOrderGroups:
+    """Test suite for get_cleared_power_from_exclusive_block_order_groups function."""
 
     @pytest.fixture
     def block_group_data(self):
@@ -156,15 +156,15 @@ class TestGetClearedEnergyFromExclusiveBlockOrderGroups:
 
     def test_clears_only_highest_clearing_block(self, block_group_data):
         """Test only the block with highest clearing price clears."""
-        result = calculate_cleared_energy_from_exclusive_block_order_groups(
+        result = calculate_cleared_power_from_exclusive_block_order_groups(
             block_group_data
         )
         expected = pd.Series([100.0, 110.0, 0.0, 0.0], dtype=float)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
 
-class TestCalculateClearedEnergyFromNonExclusiveBlockOrders:
-    """Test suite for calculate_cleared_energy_from_non_exclusive_block_orders function."""
+class TestCalculateClearedPowerFromNonExclusiveBlockOrders:
+    """Test suite for calculate_cleared_power_from_non_exclusive_block_orders function."""
 
     @pytest.fixture
     def multiple_blocks(self):
@@ -184,15 +184,15 @@ class TestCalculateClearedEnergyFromNonExclusiveBlockOrders:
 
     def test_clears_all_matching_blocks(self, multiple_blocks):
         """Test that all matching block orders are cleared."""
-        result = calculate_cleared_energy_from_exclusive_block_order_groups(
+        result = calculate_cleared_power_from_exclusive_block_order_groups(
             multiple_blocks
         )
         expected = pd.Series([100.0, 110.0, 120.0, 0.0, 0.0], dtype=float)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
 
-class TestCalculateClearedEnergyFromSCOs:
-    """Test suite for calculate_cleared_energy_from_SCOs function."""
+class TestCalculateClearedPowerFromSCOs:
+    """Test suite for calculate_cleared_power_from_SCOs function."""
 
     @pytest.fixture
     def multiple_scos(self):
@@ -213,7 +213,7 @@ class TestCalculateClearedEnergyFromSCOs:
 
     def test_processes_all_scos(self, multiple_scos):
         """Test that all SCO orders are processed."""
-        result = calculate_cleared_energy_from_SCOs(multiple_scos)
+        result = calculate_cleared_power_from_SCOs(multiple_scos)
         expected = pd.Series([100.0, 110.0, 120.0, 0.0, 0.0], dtype=float)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
