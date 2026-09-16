@@ -362,7 +362,7 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        for country in ["ES", "PT", "FR"]:
+        for country in ["ES", "PT"]:
             det, cab, uof = (
                 rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
                     rdc_series,

@@ -29,7 +29,7 @@ def capacidad_inter_pbc_pt_dataframe():
     """Minimal Portugal interconnection capacity DataFrame (3 periods)."""
     return pd.DataFrame(
         {
-            cols.DATE_SESION: [STANDARD_TESTING_DATE] * 3,
+            cols.DATE_SESION: pd.to_datetime([STANDARD_TESTING_DATE] * 3),
             cols.CAT_FRONTIER: pd.Categorical(
                 [FRONTIER_PT] * 3,
                 categories=[2, 3, 4, 5],
