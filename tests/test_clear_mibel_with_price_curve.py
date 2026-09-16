@@ -97,7 +97,7 @@ class TestGetClearedPowerFromSCO:
         """Test SCO clears when collection rights >= expected."""
         sco_order = sco_order.copy()
         sco_order[cols.FLOAT_CLEARED_PRICE] = [40.0, 41.0, 42.0]
-        result = get_cleared_power_from_SCO(sco_order)
+        result = get_cleared_power_from_SCO(sco_order, is_QH=False)
 
         # Cleared power where price >= bid: [100, 110, 120]
         # Collection = 100*40 + 110*41 + 120*42 = 4000 + 4510 + 5040 = 13550
@@ -110,7 +110,7 @@ class TestGetClearedPowerFromSCO:
         """Test SCO doesn't clear when collection rights < expected."""
         sco_order = sco_order.copy()
         sco_order[cols.FLOAT_CLEARED_PRICE] = [34.0, 34.0, 34.0]
-        result = get_cleared_power_from_SCO(sco_order)
+        result = get_cleared_power_from_SCO(sco_order, is_QH=False)
 
         # All zeros when not clearing
         expected = pd.Series([0.0, 0.0, 0.0], dtype=float)
@@ -120,7 +120,7 @@ class TestGetClearedPowerFromSCO:
         """Test SCO doesn't clear when collection rights < expected."""
         sco_order = sco_order.copy()
         sco_order[cols.FLOAT_CLEARED_PRICE] = [40.0, 41.0, 30.0]
-        result = get_cleared_power_from_SCO(sco_order)
+        result = get_cleared_power_from_SCO(sco_order, is_QH=False)
 
         # Collection = 100*40 + 110*41 + 50*30 = 4000 + 4510 + 1500 = 10010
         # Expected = 100*35 + 110*35 + 50*35 + 1000 = 10100
@@ -213,7 +213,7 @@ class TestCalculateClearedPowerFromSCOs:
 
     def test_processes_all_scos(self, multiple_scos):
         """Test that all SCO orders are processed."""
-        result = calculate_cleared_power_from_SCOs(multiple_scos)
+        result = calculate_cleared_power_from_SCOs(multiple_scos, is_QH=False)
         expected = pd.Series([100.0, 110.0, 120.0, 0.0, 0.0], dtype=float)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 

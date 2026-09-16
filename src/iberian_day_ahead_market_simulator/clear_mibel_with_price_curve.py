@@ -2,7 +2,10 @@ import numpy as np
 import pandas as pd
 
 import iberian_day_ahead_market_simulator.columns as cols
-from iberian_day_ahead_market_simulator.tools import get_is_not_exclusive_block
+from iberian_day_ahead_market_simulator.tools import (
+    get_is_not_exclusive_block,
+    is_QH_market,
+)
 
 
 def get_cleared_power_from_non_exclusive_block_order(df):
@@ -79,11 +82,13 @@ def calculate_cleared_power_from_non_exclusive_block_orders(df):
     return df[cols.FLOAT_CLEARED_POWER]
 
 
-def calculate_cleared_power_from_SCOs(df):
+def calculate_cleared_power_from_SCOs(df, is_QH: bool):
     df = df.copy()
+    if df.empty:
+        return pd.Series(index=df.index, dtype=float)
     cleared_power = (
         df.groupby([cols.ID_ORDER], observed=True)[df.columns]
-        .apply(get_cleared_power_from_SCO, include_groups=False)
+        .apply(get_cleared_power_from_SCO, is_QH=is_QH, include_groups=False)
         .reset_index(level=[cols.ID_ORDER], drop=True)
     )
     if len(cleared_power) != len(df):
@@ -93,7 +98,7 @@ def calculate_cleared_power_from_SCOs(df):
     return df[cols.FLOAT_CLEARED_POWER]
 
 
-def get_cleared_power_from_SCO(df):
+def get_cleared_power_from_SCO(df, is_QH: bool):
     df = df.copy()
     assert df[cols.ID_ORDER].nunique() == 1, "DataFrame must be for a single offer"
     df[cols.FLOAT_CLEARED_POWER] = np.where(
@@ -102,16 +107,16 @@ def get_cleared_power_from_SCO(df):
         df[cols.FLOAT_MAV],
     )
 
-    # "relative" because we don't know if the bids are quarter-hourly or hourly,
-    # if they were quarter-hourly, the welfare would be energy * price,
-    # and the energy is the power divided by 4
-    relative_collection_rights = (
-        df[cols.FLOAT_CLEARED_POWER] * df[cols.FLOAT_CLEARED_PRICE]
+    power_energy_scalator = 4 if is_QH else 1
+    df[cols.FLOAT_CLEARED_ENERGY] = df[cols.FLOAT_CLEARED_POWER] / power_energy_scalator
+
+    collection_rights = (
+        df[cols.FLOAT_CLEARED_ENERGY] * df[cols.FLOAT_CLEARED_PRICE]
     ).sum()
-    expected_relative_collection_rights = (
-        df[cols.FLOAT_CLEARED_POWER] * df[cols.FLOAT_BID_PRICE]
+    expected_collection_rights = (
+        df[cols.FLOAT_CLEARED_ENERGY] * df[cols.FLOAT_BID_PRICE]
     ).sum() + df[cols.FLOAT_MIC].iloc[0]
-    is_SCO_cleared = relative_collection_rights >= expected_relative_collection_rights
+    is_SCO_cleared = collection_rights >= expected_collection_rights
     if not is_SCO_cleared:
         df[cols.FLOAT_CLEARED_POWER] = 0.0
     return df[cols.FLOAT_CLEARED_POWER]
@@ -120,6 +125,7 @@ def get_cleared_power_from_SCO(df):
 def get_cleared_power_with_price_curve(
     price_curve: np.ndarray, det_cab: pd.DataFrame, market_periods_count: int
 ):
+    is_QH = is_QH_market(market_periods_count)
 
     price_curve_dict = {
         i: price_curve[i - 1] for i in range(1, market_periods_count + 1)
@@ -160,7 +166,7 @@ def get_cleared_power_with_price_curve(
         det_cab[cols.CAT_ORDER_TYPE] == "C02"
     )
     cleared_power.loc[det_cab_sell_C02_mask] = calculate_cleared_power_from_SCOs(
-        det_cab.loc[det_cab_sell_C02_mask]
+        det_cab.loc[det_cab_sell_C02_mask], is_QH=is_QH
     )
 
     det_cab_sell_C04_mask = (det_cab[cols.CAT_BUY_SELL] == "V") & (
