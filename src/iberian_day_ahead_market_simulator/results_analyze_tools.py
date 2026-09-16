@@ -53,35 +53,35 @@ def summary_curva_pbc_uof(curva_pbc_uof: pd.DataFrame):
         "cod_simple_block_orders not in @REDUNDANT_TYPES and not (cod_simple_block_orders in ['Imp FR', 'Exp FR'] and cod_pais == 'PT')"
     )
     cleared_energy = curva_pbc_uof.query('cod_ofertada_casada == "C"')[
-        "qua_energia"
+        "qua_potencia"
     ].sum()
     curva_pbc_uof_C_V = curva_pbc_uof.query(
         'cod_ofertada_casada == "C" and cod_tipo_oferta == "V"'
     )
     cleared_energy_simple = curva_pbc_uof_C_V.query('cod_simple_block_orders == "S"')[
-        "qua_energia"
+        "qua_potencia"
     ].sum()
     cleared_energy_C01 = curva_pbc_uof_C_V.query('cod_simple_block_orders == "C01"')[
-        "qua_energia"
+        "qua_potencia"
     ].sum()
     cleared_energy_C02 = curva_pbc_uof_C_V.query('cod_simple_block_orders == "C02"')[
-        "qua_energia"
+        "qua_potencia"
     ].sum()
     cleared_energy_C04 = curva_pbc_uof_C_V.query('cod_simple_block_orders == "C04"')[
-        "qua_energia"
+        "qua_potencia"
     ].sum()
     cleared_energy_france_import = curva_pbc_uof_C_V.query(
         'cod_simple_block_orders == "Imp FR" and cod_pais in ["ES", "MI"]'
-    )["qua_energia"].sum()
+    )["qua_potencia"].sum()
     curva_pbc_uof_C_C = curva_pbc_uof.query(
         'cod_ofertada_casada == "C" and cod_tipo_oferta == "C"'
     )
     cleared_energy_buy_simple = curva_pbc_uof_C_C.query(
         'cod_simple_block_orders == "S"'
-    )["qua_energia"].sum()
+    )["qua_potencia"].sum()
     cleared_energy_france_export = curva_pbc_uof_C_C.query(
         'cod_simple_block_orders == "Exp FR" and cod_pais in ["ES", "MI"]'
-    )["qua_energia"].sum()
+    )["qua_potencia"].sum()
     return {
         "cleared_energy": np.round(cleared_energy, 2),
         "cleared_energy_simple": np.round(cleared_energy_simple, 2),
@@ -97,6 +97,9 @@ def summary_curva_pbc_uof(curva_pbc_uof: pd.DataFrame):
 def summary_det_cab_and_curva_pbc_uof(
     det_cab: pd.DataFrame, curva_pbc_uof: pd.DataFrame
 ):
+    if "qua_potencia" in curva_pbc_uof.columns:
+        curva_pbc_uof = curva_pbc_uof.rename(columns={"qua_potencia": "qua_potencia"})
+
     reference_summary = summary_curva_pbc_uof(curva_pbc_uof)
     calculated_summary = summary_det_cab(det_cab)
 
@@ -114,49 +117,47 @@ def summary_det_cab_and_curva_pbc_uof(
 
 
 def compare_det_cab_and_curva_pbc_uof(
-    det_cab: pd.DataFrame, curva_pbc_uof: pd.DataFrame
+    det_cab: pd.DataFrame, curva_pbc_uof: pd.DataFrame, market_periods_count: int
 ):
-
+    if (
+        "qua_hora" in curva_pbc_uof.columns
+        and "qua_periodo" not in curva_pbc_uof.columns
+    ):
+        curva_pbc_uof = curva_pbc_uof.rename(columns={"qua_hora": "qua_periodo"})
     curva_pbc_uof_casada = curva_pbc_uof.query(
         'cod_ofertada_casada == "C" and cod_simple_block_orders != "S"'
     )
 
-    det_cab_energy_cleared_by_hour_and_unidad = (
+    det_cab_energy_cleared_by_period_and_unidad = (
         det_cab.query("float_cleared_power > 0 and cat_order_type != 'S'")
         .groupby(["id_unidad", "int_period"])["float_cleared_power"]
         .sum()
     ).unstack()
 
-    print(
-        "Total cleared energy in det_cab by complex orders",
-        det_cab_energy_cleared_by_hour_and_unidad,
-    )
+    print("Total cleared energy in det_cab by complex orders")
 
-    curva_pbc_uof_energy_cleared_by_hour_and_unidad = (
-        curva_pbc_uof_casada.groupby(["id_unidad", "qua_hora"])["qua_energia"].sum()
+    curva_pbc_uof_energy_cleared_by_period_and_unidad = (
+        curva_pbc_uof_casada.groupby(["id_unidad", "qua_periodo"])["qua_potencia"].sum()
     ).unstack()
 
-    print(
-        "Total cleared energy in curva_pbc_uof_casada by complex orders",
-        curva_pbc_uof_energy_cleared_by_hour_and_unidad,
-    )
+    print("Total cleared energy in curva_pbc_uof_casada by complex orders")
 
-    for i in range(1, 25):
-        if i not in det_cab_energy_cleared_by_hour_and_unidad.columns:
-            det_cab_energy_cleared_by_hour_and_unidad[i] = np.nan
-        if i not in curva_pbc_uof_energy_cleared_by_hour_and_unidad.columns:
-            curva_pbc_uof_energy_cleared_by_hour_and_unidad[i] = np.nan
-    ordered_columns = list(range(1, 25))
-    det_cab_energy_cleared_by_hour_and_unidad = (
-        det_cab_energy_cleared_by_hour_and_unidad[ordered_columns]
+    for i in range(1, market_periods_count + 1):
+        if i not in det_cab_energy_cleared_by_period_and_unidad.columns:
+            det_cab_energy_cleared_by_period_and_unidad[i] = np.nan
+        if i not in curva_pbc_uof_energy_cleared_by_period_and_unidad.columns:
+            curva_pbc_uof_energy_cleared_by_period_and_unidad[i] = np.nan
+    ordered_columns = list(range(1, market_periods_count + 1))
+    det_cab_energy_cleared_by_period_and_unidad = (
+        det_cab_energy_cleared_by_period_and_unidad[ordered_columns]
     )
-    curva_pbc_uof_energy_cleared_by_hour_and_unidad = (
-        curva_pbc_uof_energy_cleared_by_hour_and_unidad[ordered_columns]
+    curva_pbc_uof_energy_cleared_by_period_and_unidad = (
+        curva_pbc_uof_energy_cleared_by_period_and_unidad[ordered_columns]
     )
 
     cleared_energy_merged = pd.merge(
-        det_cab_energy_cleared_by_hour_and_unidad,
-        curva_pbc_uof_energy_cleared_by_hour_and_unidad,
+        det_cab_energy_cleared_by_period_and_unidad,
+        curva_pbc_uof_energy_cleared_by_period_and_unidad,
         left_index=True,
         right_index=True,
         suffixes=("_calculated", "_reference"),
@@ -197,11 +198,6 @@ def compare_det_cab_and_curva_pbc_uof(
     columns_zipped = zip(calculated_columns, reference_columns)
     columns_zipped = [[col1, col2] for col1, col2 in columns_zipped]
     columns_zipped_flattened = sum(columns_zipped, [])
-    print(
-        cleared_energy_merged.query("same_cleared_energy == False")[
-            columns_zipped_flattened
-        ]
-    )
 
     reference_C01_groups = (
         curva_pbc_uof.query('cod_simple_block_orders == "C01"')
@@ -239,7 +235,7 @@ def compare_det_cab_and_curva_pbc_uof(
     cleared_energy_merged_C01_discrepating = cleared_energy_merged.query(
         "same_cleared_energy == False and id_unidad in @C01_groups"
     )
-    print("Cleared energy discrepancies C01:", cleared_energy_merged_C01_discrepating)
+    print("Cleared energy discrepancies C01:")
     if not cleared_energy_merged_C01_discrepating.empty:
         cleared_energy_merged_C01_discrepating_reference = (
             cleared_energy_merged_C01_discrepating[reference_columns]
@@ -267,8 +263,8 @@ def compare_det_cab_and_curva_pbc_uof(
             .swaplevel(0, 1, axis=1)
             .sort_index(axis=1)
         )
-        print(
-            "Cleared energy discrepancies reference pivoted:",
+        print("Cleared energy discrepancies reference pivoted:")
+        display(
             # column coolwarm style to highlight differences only zdifference columns
             cleared_energy_merged_C01_discrepating.style.background_gradient(
                 cmap="coolwarm",
@@ -320,8 +316,8 @@ def compare_det_cab_and_curva_pbc_uof(
             .sort_index(axis=1)
         )
 
-        print(
-            "Cleared energy discrepancies reference pivoted:",
+        print("Cleared energy discrepancies reference pivoted:")
+        display(
             # column coolwarm style to highlight differences only zdifference columns
             cleared_energy_merged_C02_discrepating.style.background_gradient(
                 cmap="coolwarm",
@@ -371,8 +367,8 @@ def compare_det_cab_and_curva_pbc_uof(
             .swaplevel(0, 1, axis=1)
             .sort_index(axis=1)
         )
-        print(
-            "Cleared energy discrepancies reference pivoted:",
+        print("Cleared energy discrepancies reference pivoted:")
+        display(
             # column coolwarm style to highlight differences only zdifference columns
             cleared_energy_merged_C04_discrepating.style.background_gradient(
                 cmap="coolwarm",
@@ -403,7 +399,7 @@ def compare_det_cab_and_curva_pbc_uof(
     ).unstack(level=0)
     MIEU_reference = (
         curva_pbc_uof_casada.query("id_unidad == 'MIEU' and cod_pais in ['ES', 'MI']")
-        .groupby(["cod_tipo_oferta", "qua_hora"])["qua_energia"]
+        .groupby(["cod_tipo_oferta", "qua_periodo"])["qua_potencia"]
         .sum()
     ).unstack(level=0)
 
@@ -412,7 +408,7 @@ def compare_det_cab_and_curva_pbc_uof(
             MIEU_calculated.reset_index(),
             MIEU_reference.reset_index(),
             left_on="int_period",
-            right_on="qua_hora",
+            right_on="qua_periodo",
             suffixes=("_calculated", "_reference"),
             how="outer",
         )
@@ -426,8 +422,8 @@ def compare_det_cab_and_curva_pbc_uof(
         MIEU_cleared_energy_merged_columns_sorted
     ]
 
-    print(
-        "MIEU cleared energy details:",
+    print("MIEU cleared energy details:")
+    display(
         MIEU_cleared_energy_merged.style.background_gradient(cmap="coolwarm"),
     )
 
@@ -449,21 +445,25 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
             )
             if len(det_cab_C04_unidad_block) != len(groups):
                 continue
-            if set(det_cab_C04_unidad_block["int_period"]) != set(groups["qua_hora"]):
+            if set(det_cab_C04_unidad_block["int_period"]) != set(
+                groups["qua_periodo"]
+            ):
                 continue
 
             best_cost = np.nan
             energy_matches = True
             cost = 0
             for index, row in groups.iterrows():
-                int_period = row["qua_hora"]
+                int_period = row["qua_periodo"]
                 matching_det_cab_row = det_cab_C04_unidad_block.query(
                     "int_period == @int_period"
                 ).iloc[0]
-                if matching_det_cab_row.qua_energia < row.qua_energia:
+                if matching_det_cab_row.qua_potencia < row.qua_potencia:
                     energy_matches = False
                     break
-                cost += row.qua_energia * matching_det_cab_row.float_bid_price.values[0]
+                cost += (
+                    row.qua_potencia * matching_det_cab_row.float_bid_price.values[0]
+                )
             if energy_matches and cost < best_cost or np.isnan(best_cost):
                 best_cost = cost
                 best_int_num_block_cat = int_num_block_cat
@@ -474,7 +474,7 @@ def reconstruct_C04_orders_price_in_curva_pbc_uof_C_V_C04(
             )
 
         for index, row in groups.iterrows():
-            int_period = row["qua_hora"]
+            int_period = row["qua_periodo"]
             matching_det_cab_row = det_cab_C04_unidad.query(
                 "@INT_NUM_BLOCK == @best_int_num_block_cat and int_period == @int_period"
             ).iloc[0]
@@ -493,22 +493,22 @@ def reconstruct_C01_orders_price_in_curva_pbc_uof_C_V_C01(
     )
     curva_pbc_uof_C_V_C01 = curva_pbc_uof_C_V_C01.copy()
 
-    for name, groups in curva_pbc_uof_C_V_C01.groupby(["id_unidad", "qua_hora"]):
-        id_unidad, qua_hora = name
+    for name, groups in curva_pbc_uof_C_V_C01.groupby(["id_unidad", "qua_periodo"]):
+        id_unidad, qua_periodo = name
         curva_pbc_uof_O_V_C01_unidad_hora = curva_pbc_uof_O_V_C01.query(
-            "id_unidad == @id_unidad and qua_hora == @qua_hora"
+            "id_unidad == @id_unidad and qua_periodo == @qua_periodo"
         )
         for index, row in groups.iterrows():
             best_candidate = (
                 curva_pbc_uof_O_V_C01_unidad_hora.query(
-                    "qua_energia >= @row.qua_energia"
+                    "qua_potencia >= @row.qua_potencia"
                 )
                 .sort_values("qua_precio")
                 .head(1)
             )
             if best_candidate.empty:
                 raise ValueError(
-                    f"No suitable O_V_C01 order found for C_V_C01 order at index {index} (id_unidad={id_unidad}, qua_hora={qua_hora})"
+                    f"No suitable O_V_C01 order found for C_V_C01 order at index {index} (id_unidad={id_unidad}, qua_periodo={qua_periodo})"
                 )
             curva_pbc_uof_C_V_C01.at[index, "qua_precio"] = best_candidate.iloc[0][
                 "qua_precio"
@@ -524,21 +524,21 @@ def simpliied_complex_orders_price_reconstruction(
 ):
     curva_pbc_uof_C_V_reconstructed = curva_pbc_uof_C_V.copy()
 
-    for name, groups in curva_pbc_uof_C_V.groupby(["id_unidad", "qua_hora"]):
-        id_unidad, qua_hora = name
-        groups = groups.sort_values("qua_energia", ascending=False)
+    for name, groups in curva_pbc_uof_C_V.groupby(["id_unidad", "qua_periodo"]):
+        id_unidad, qua_periodo = name
+        groups = groups.sort_values("qua_potencia", ascending=False)
         curva_pbc_uof_O_V_unidad_hora = curva_pbc_uof_O_V.query(
-            "id_unidad == @id_unidad and qua_hora == @qua_hora"
+            "id_unidad == @id_unidad and qua_periodo == @qua_periodo"
         )
         for index, row in groups.iterrows():
             best_candidate = (
-                curva_pbc_uof_O_V_unidad_hora.query("qua_energia >= @row.qua_energia")
+                curva_pbc_uof_O_V_unidad_hora.query("qua_potencia >= @row.qua_potencia")
                 .sort_values("qua_precio")
                 .head(1)
             )
             if best_candidate.empty:
                 raise ValueError(
-                    f"No suitable O_V order found for C_V order at index {index} (id_unidad={id_unidad}, qua_hora={qua_hora})"
+                    f"No suitable O_V order found for C_V order at index {index} (id_unidad={id_unidad}, qua_periodo={qua_periodo})"
                 )
             curva_pbc_uof_C_V_reconstructed.at[index, "qua_precio"] = (
                 best_candidate.iloc[0]["qua_precio"]
@@ -553,22 +553,23 @@ def simpliied_complex_orders_price_reconstruction(
 def calculate_welfare_from_curva_pbc_uof(
     curva_pbc_uof: pd.DataFrame,
     det_cab: pd.DataFrame,
-    omie_clearing_prices: pd.DataFrame,  # columns qua_hora, cod_pais, clearing_price
-    france_clearing_prices: pd.Series,  # index qua_hora, values fr_clearing_price
+    omie_clearing_prices: pd.DataFrame,  # columns qua_periodo, cod_pais, clearing_price
+    france_clearing_prices: pd.Series,  # index qua_periodo, values fr_clearing_price
 ) -> pd.DataFrame:
+    market_periods_count = det_cab["int_period"].max()
 
     omie_clearing_prices = omie_clearing_prices.copy()
-    for hora in range(1, 25):
-        omie_clearing_prices_hora = omie_clearing_prices.query("qua_hora == @hora")
+    for period in range(1, market_periods_count + 1):
+        omie_clearing_prices_hora = omie_clearing_prices.query("qua_periodo == @period")
         if omie_clearing_prices_hora.clearing_price.nunique() == 1:
             omie_clearing_prices.loc[omie_clearing_prices_hora.index, "cod_pais"] = "MI"
     omie_clearing_prices = omie_clearing_prices.drop_duplicates(
-        subset=["qua_hora", "cod_pais"]
+        subset=["qua_periodo", "cod_pais"]
     )
 
     curva_pbc_uof = curva_pbc_uof.copy().merge(
         omie_clearing_prices,
-        on=["qua_hora", "cod_pais"],
+        on=["qua_periodo", "cod_pais"],
         how="left",
         validate="many_to_one",
         indicator="_merge_cp",
@@ -599,7 +600,7 @@ def calculate_welfare_from_curva_pbc_uof(
     # Merge France clearing prices
     curva_pbc_uof_C_C_Exp_FR = curva_pbc_uof_C_C_Exp_FR.merge(
         france_clearing_prices,
-        on="qua_hora",
+        on="qua_periodo",
         how="left",
         validate="many_to_one",
         indicator="_merge_fr_cp",
@@ -616,7 +617,7 @@ def calculate_welfare_from_curva_pbc_uof(
 
     curva_pbc_uof_C_V_Imp_FR = curva_pbc_uof_C_V_Imp_FR.merge(
         france_clearing_prices,
-        on="qua_hora",
+        on="qua_periodo",
         how="left",
         validate="many_to_one",
         indicator="_merge_fr_cp",
@@ -650,16 +651,16 @@ def calculate_welfare_from_curva_pbc_uof(
     # Calculate variable costs, income, and benefit
 
     buy_eval_string = """
-    qua_value = qua_energia * qua_precio
-    qua_paid = qua_energia * clearing_price
+    qua_value = qua_potencia * qua_precio
+    qua_paid = qua_potencia * clearing_price
     qua_benefit = qua_value - qua_paid
     """
     curva_pbc_uof_C_C_S = curva_pbc_uof_C_C_S.eval(buy_eval_string)
     curva_pbc_uof_C_C_Exp_FR = curva_pbc_uof_C_C_Exp_FR.eval(buy_eval_string)
 
     sell_eval_string = """
-    qua_var_costs = qua_energia * qua_precio
-    qua_income = qua_energia * clearing_price
+    qua_var_costs = qua_potencia * qua_precio
+    qua_income = qua_potencia * clearing_price
     qua_benefit = qua_income - qua_var_costs
     """
     curva_pbc_uof_C_V_S = curva_pbc_uof_C_V_S.eval(sell_eval_string)
@@ -730,14 +731,14 @@ def calculate_welfare_from_curva_pbc_uof(
 
 def calculate_welfare_from_cleared_det_cab(
     cleared_det_cab: pd.DataFrame,
-    omie_clearing_prices: pd.DataFrame,  # columns qua_hora, cod_pais, clearing_price
+    omie_clearing_prices: pd.DataFrame,  # columns qua_periodo, cod_pais, clearing_price
 ) -> pd.DataFrame:
 
     cleared_det_cab = cleared_det_cab.query("float_cleared_power > 0").copy()
     cleared_det_cab = cleared_det_cab.merge(
         omie_clearing_prices,
         left_on=["int_period", "cat_bidding_zone"],
-        right_on=["qua_hora", "cod_pais"],
+        right_on=["qua_periodo", "cod_pais"],
         how="left",
         validate="many_to_one",
         indicator="_merge_cp",
@@ -750,20 +751,16 @@ def calculate_welfare_from_cleared_det_cab(
     cleared_det_cab_C = cleared_det_cab.query('cat_buy_sell == "C"').copy()
     cleared_det_cab_V = cleared_det_cab.query('cat_buy_sell == "V"').copy()
 
-    cleared_det_cab_C = cleared_det_cab_C.eval(
-        """
+    cleared_det_cab_C = cleared_det_cab_C.eval("""
     qua_value = float_cleared_power * float_bid_price
     qua_paid = float_cleared_power * clearing_price
     qua_benefit = qua_value - qua_paid
-    """
-    )
-    cleared_det_cab_V = cleared_det_cab_V.eval(
-        """
+    """)
+    cleared_det_cab_V = cleared_det_cab_V.eval("""
     qua_var_costs = float_cleared_power * float_bid_price
     qua_income = float_cleared_power * clearing_price
     qua_benefit = qua_income - qua_var_costs
-    """
-    )
+    """)
 
     cleared_det_cab_C_welfare = cleared_det_cab_C.groupby("id_unidad")[
         "qua_benefit"

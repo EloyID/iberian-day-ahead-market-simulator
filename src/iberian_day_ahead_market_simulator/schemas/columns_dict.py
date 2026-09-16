@@ -24,7 +24,7 @@ columns_dict = {
     cols.CAT_ORDER_TYPE: pa.Column(pa.Category, checks=[pa.Check.isin(ORDER_TYPE_OPTIONS)],                  coerce=True),
     cols.CAT_FRONTIER:   pa.Column(pa.Category, checks=[pa.Check.isin(CAT_FRONTIER_OPTIONS)], required=False, coerce=True),
 
-    cols.INT_PERIOD:         pa.Column(int, checks=[pa.Check.ge(1), pa.Check.le(25)], coerce=True),
+    cols.INT_PERIOD:         pa.Column(int, checks=[pa.Check.ge(1), pa.Check.le(100)], coerce=True),
     cols.INT_NUM_BLOCK:        pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),
     cols.INT_NUM_SUBORDER:       pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),
     cols.INT_NUM_EXCL_GROUP:  pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),

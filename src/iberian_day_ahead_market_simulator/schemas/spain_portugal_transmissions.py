@@ -7,6 +7,6 @@ from .columns_dict import columns_dict
 SpainPortugaLTransmissionsSchema = pa.DataFrameSchema(
     {"Transmision_ES_PT": columns_dict["Transmision_ES_PT"]},
     index=pa.Index(
-        int, checks=[pa.Check.ge(1), pa.Check.le(24)], coerce=True
+        int, checks=[pa.Check.ge(1), pa.Check.le(100)], coerce=True
     ),
 )

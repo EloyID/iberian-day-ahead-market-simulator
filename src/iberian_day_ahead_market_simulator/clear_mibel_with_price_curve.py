@@ -112,11 +112,12 @@ def get_cleared_energy_from_SCO(df):
 
 
 def get_cleared_power_with_price_curve(
-    price_curve: np.ndarray,
-    det_cab: pd.DataFrame,
+    price_curve: np.ndarray, det_cab: pd.DataFrame, market_periods_count: int
 ):
 
-    price_curve_dict = {i: price_curve[i - 1] for i in range(1, 25)}
+    price_curve_dict = {
+        i: price_curve[i - 1] for i in range(1, market_periods_count + 1)
+    }
     det_cab = det_cab.copy()
     det_cab[cols.FLOAT_CLEARED_PRICE] = det_cab[cols.INT_PERIOD].map(price_curve_dict)
 
@@ -171,11 +172,12 @@ def get_cleared_power_with_price_curve(
 
 
 def get_cleared_power_as_simple_bids_with_price_curve(
-    price_curve: np.ndarray,
-    det_cab: pd.DataFrame,
+    price_curve: np.ndarray, det_cab: pd.DataFrame, market_periods_count: int
 ):
 
-    price_curve_dict = {i: price_curve[i - 1] for i in range(1, 25)}
+    price_curve_dict = {
+        i: price_curve[i - 1] for i in range(1, market_periods_count + 1)
+    }
     det_cab = det_cab.copy()
     det_cab[cols.FLOAT_CLEARED_PRICE] = det_cab[cols.INT_PERIOD].map(price_curve_dict)
 

@@ -68,7 +68,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -87,7 +90,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -103,7 +109,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -118,7 +127,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "PT"
+                rdc_series,
+                date,
+                "PT",
+                market_periods_count=24,
             )
         )
 
@@ -132,7 +144,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -146,7 +161,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -163,7 +181,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -180,7 +201,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -197,7 +221,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -228,7 +255,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -256,7 +286,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -273,7 +306,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -290,7 +326,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -305,7 +344,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -323,7 +365,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
         for country in ["ES", "PT", "FR"]:
             det, cab, uof = (
                 rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                    rdc_series, date, country
+                    rdc_series,
+                    date,
+                    country,
+                    market_periods_count=24,
                 )
             )
 
@@ -337,7 +382,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -352,7 +400,10 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 

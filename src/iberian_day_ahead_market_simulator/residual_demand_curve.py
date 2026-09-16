@@ -16,8 +16,9 @@ from iberian_day_ahead_market_simulator.const import (
     CODIGO_UNIDAD_RESIDUAL_DEMAND_V,
     RDC_CAB_C_BASE,
     RDC_CAB_V_BASE,
-    RDC_ENERGY_COLUMNS,
-    RDC_PRICE_COLUMNS,
+    TOTAL_PERIODS_OPTIONS,
+    get_rdc_energy_columns,
+    get_rdc_price_columns,
 )
 
 from iberian_day_ahead_market_simulator.parse_omie_files import (
@@ -34,12 +35,19 @@ from iberian_day_ahead_market_simulator.schemas.residual_demand_curves import (
     ResidualDemandCurvesSchema,
 )
 from iberian_day_ahead_market_simulator.schemas.sell_profiles import SellProfilesSchema
+from iberian_day_ahead_market_simulator.tools import (
+    get_market_periods_count,
+    is_QH_market,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def generate_residual_demand_det_cab_and_participants_bidding_zone(
-    rdc: pd.Series, date_sesion: pd.Timestamp, sell_country: str
+    rdc: pd.Series,
+    date_sesion: pd.Timestamp,
+    sell_country: str,
+    market_periods_count: int,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Generate residual demand DET, CAB, and UOF zone dataframes.
 
@@ -51,7 +59,7 @@ def generate_residual_demand_det_cab_and_participants_bidding_zone(
     Returns:
         tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: Residual demand DET, CAB, and UOF zone dataframes.
     """
-    rdc_sorted = rdc[[f"energy_{i+1}" for i in range(24)]]
+    rdc_sorted = rdc[[f"energy_{i+1}" for i in range(market_periods_count)]]
     rdc_cab_rows = []
     uof_ids = []
     if (rdc_sorted >= 0).any():
@@ -61,7 +69,7 @@ def generate_residual_demand_det_cab_and_participants_bidding_zone(
         rdc_cab_rows.append(RDC_CAB_C_BASE)
         uof_ids.append(CODIGO_UNIDAD_RESIDUAL_DEMAND_C)
 
-    periods = list(range(1, 25))
+    periods = list(range(1, market_periods_count + 1))
     sell_profile = rdc_sorted.values
     buy_sell = np.where(sell_profile >= 0, "V", "C")
     bid_price = np.where(buy_sell == "V", -500, 3500)
@@ -122,8 +130,11 @@ def create_homothetic_sell_profiles(
     Returns:
         pd.DataFrame: DataFrame of scaled profiles.
     """
-    if len(profile) != 24:
-        logging.warning("Base profile length is not 24. Check if this is correct.")
+    market_periods = len(profile)
+    if market_periods not in TOTAL_PERIODS_OPTIONS:
+        logging.warning(
+            f"Base profile length is not in the allowed options: {TOTAL_PERIODS_OPTIONS}. Check if this is correct."
+        )
 
     base_profile = np.array(profile)
     sell_profiles_values = np.array(
@@ -132,21 +143,21 @@ def create_homothetic_sell_profiles(
     sell_profiles = pd.DataFrame(
         sell_profiles_values,
         index=[f"scale_{factor:.2f}" for factor in scaling_factors],
-        columns=[f"energy_{i+1}" for i in range(24)],
+        columns=[f"energy_{i+1}" for i in range(market_periods)],
     )
     return sell_profiles
 
 
 def get_clearing_prices_dict(results: dict, sell_country: str) -> dict:
     """
-    Extracts the hourly clearing prices for a given country from the market clearing results.
+    Extracts the peri period clearing prices for a given country from the market clearing results.
 
     Args:
         results (dict): Dictionary containing market clearing results, including a DataFrame under the "clearing_prices" key.
         sell_country (str): Country code for which to extract clearing prices (e.g., "ES" for Spain).
 
     Returns:
-        dict: Dictionary mapping 'price_1' to 'price_24' to their corresponding clearing prices for the specified country.
+        dict: Dictionary mapping 'price_1' to 'price_XX' to their corresponding clearing prices for the specified country.
     """
 
     clearing_prices_country = (
@@ -184,7 +195,7 @@ def calculate_residual_demand_curves(
     Calculates the residual demand curves for a set of sell profiles by simulating market clearing.
 
     Args:
-        sell_profiles (pd.DataFrame): DataFrame with index as profile names and columns as 'energy_1' to 'energy_24' representing hourly energy values.
+        sell_profiles (pd.DataFrame): DataFrame with index as profile names and columns as 'energy_1' to 'energy_XX' representing per period energy values.
         det (pd.DataFrame | str): DataFrame or path to DET file containing market offer details.
         cab (pd.DataFrame | str): DataFrame or path to CAB file containing market header information.
         capacidad_inter_pbc (pd.DataFrame | str): DataFrame or path to interconnection capacity file.
@@ -196,28 +207,33 @@ def calculate_residual_demand_curves(
         n_jobs (int, optional): Number of parallel jobs for simulation. Defaults to 1.
 
     Returns:
-        pd.DataFrame: DataFrame with index as profile names and columns 'price_1' to 'price_24' (clearing prices per hour) and 'energy_1' to 'energy_24' (energy values per hour).
+        pd.DataFrame: DataFrame with index as profile names and columns 'price_1' to 'price_24' (clearing prices per period) and 'energy_1' to 'energy_XX' (energy values per period).
     """
-
-    residual_demand_curves = pd.DataFrame(
-        columns=[f"price_{i+1}" for i in range(24)]
-        + [f"energy_{i+1}" for i in range(24)],
-        index=sell_profiles.index,
-    )
 
     # if det is istring
     if isinstance(det, str):
         det = parse_det_file(det)
     if isinstance(cab, str):
         cab = parse_cab_file(cab)
-    if isinstance(capacidad_inter_pbc, str):
-        capacidad_inter_pbc = parse_capacidad_inter_file(
-            capacidad_inter_pbc, only_capacity_columns=True
-        )
+
+    market_periods_count = get_market_periods_count(det)
+    is_QH = is_QH_market(market_periods_count)
+    det = det.query(f"{cols.INT_PERIOD} <= {market_periods_count}")
 
     DETSchema.validate(det)
     CABSchema.validate(cab)
+
+    if isinstance(capacidad_inter_pbc, str):
+        capacidad_inter_pbc = parse_capacidad_inter_file(
+            capacidad_inter_pbc, only_capacity_columns=True, is_QH=is_QH
+        )
     CapacidadInterPTSchema.validate(capacidad_inter_pbc)
+
+    residual_demand_curves = pd.DataFrame(
+        columns=[f"price_{i+1}" for i in range(market_periods_count)]
+        + [f"energy_{i+1}" for i in range(market_periods_count)],
+        index=sell_profiles.index,
+    )
 
     for idx, profile in sell_profiles.iterrows():
         # Here you would modify the det and cab based on the profile
@@ -225,7 +241,10 @@ def calculate_residual_demand_curves(
 
         rdc_det, rdc_cab, rdc_participants_bidding_zone = (
             generate_residual_demand_det_cab_and_participants_bidding_zone(
-                profile, det[cols.DATE_SESION].iloc[0], sell_country
+                profile,
+                det[cols.DATE_SESION].iloc[0],
+                sell_country,
+                market_periods_count,
             )
         )
 
@@ -270,10 +289,10 @@ def calculate_residual_demand_curves(
 def interpolate_residual_demand_curves(
     target_energy_levels,
     residual_demand_curves,
-    target_energy_columns: list[str] = RDC_ENERGY_COLUMNS,
-    target_price_columns: list[str] = RDC_PRICE_COLUMNS,
-    residual_demand_energy_columns: list[str] = RDC_ENERGY_COLUMNS,
-    residual_demand_price_columns: list[str] = RDC_PRICE_COLUMNS,
+    target_energy_columns: list[str],
+    target_price_columns: list[str],
+    residual_demand_energy_columns: list[str],
+    residual_demand_price_columns: list[str],
     extrapolate_action: Literal["limit", "nan", "warning", "raise"] = "warning",
 ):
     interpolated_prices = {}

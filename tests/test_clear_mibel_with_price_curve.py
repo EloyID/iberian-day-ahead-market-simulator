@@ -249,7 +249,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([35.0, 35.0, 35.0, 35.0] + [25.0] * 20)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # Period 1: buy S (35>=35? Yes, 100), sell S (30<=35? Yes, 150)
@@ -269,7 +269,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([25.0, 25.0, 25.0, 25.0] + [35.0] * 20)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # Period 1: buy S (35>=25? Yes, 100), sell S (30<=25? No, 0)
@@ -294,7 +294,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0] * 24)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # All have bid <= 35 (cleared), so all clear with simple logic
         # S: 30<=35? Yes (100), C01: 32<=35? Yes (110), C02: 33<=35? Yes (120), C04: 34<=35? Yes (130)
@@ -314,7 +316,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0, 35.0, 35.0, 35.0] + [25.0] * 20)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # All at boundary: bid=35, cleared=35, so 35<=35? Yes, all clear
         expected = pd.Series([100.0, 110.0, 120.0, 130.0], dtype=float)
@@ -327,7 +331,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([50.0] * 24)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # All buys: bid=35, cleared=50, so 35>=50? No, none clear
@@ -342,7 +346,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([20.0] * 24)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # All buys: bid=35, cleared=20, so 35>=20? Yes, all clear
@@ -358,7 +362,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         mixed_simple_and_complex_orders.index = list(range(100, 110))
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         assert list(result.index) == list(range(100, 110))
@@ -377,7 +381,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, empty_df
+            price_curve, empty_df, market_periods_count=24
         )
 
         assert len(result) == 0
@@ -396,7 +400,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0, 30.0, 25.0] + [25.0] * 21)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # Period 1: C01 at 30, cleared=35, so 30<=35? Yes (100)
         # Period 2: C01 at 35, cleared=30, so 35<=30? No (0)
@@ -417,7 +423,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0, 30.0, 25.0] + [25.0] * 21)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # Period 1: C02 at 32, cleared=35, so 32<=35? Yes (110)
         # Period 2: C02 at 34, cleared=30, so 34<=30? No (0)
@@ -438,7 +446,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0, 30.0, 25.0] + [25.0] * 21)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # Period 1: C04 at 33, cleared=35, so 33<=35? Yes (120)
         # Period 2: C04 at 36, cleared=30, so 36<=30? No (0)
@@ -452,7 +462,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([30.0, 35.0, 40.0, 32.0] + [25.0] * 20)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # Period 1: buy 35>=30? Yes (100), sell S 30<=30? Yes (150)

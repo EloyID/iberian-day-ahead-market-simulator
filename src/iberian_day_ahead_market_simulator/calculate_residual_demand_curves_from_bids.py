@@ -8,9 +8,10 @@ from iberian_day_ahead_market_simulator.clear_mibel_with_price_curve import (
 from iberian_day_ahead_market_simulator.const import (
     FRONTIER_MAPPING_REVERSE,
     PORTUGAL_ZONE,
-    RDC_ENERGY_COLUMNS,
-    RDC_PRICE_COLUMNS,
     SPAIN_ZONE,
+    TOTAL_PERIODS_OPTIONS,
+    get_rdc_price_columns,
+    get_rdc_energy_columns,
 )
 from iberian_day_ahead_market_simulator.data_preprocessor import (
     get_det_cab_for_simulation,
@@ -30,6 +31,8 @@ from iberian_day_ahead_market_simulator.schemas.capacidad_inter_pt import (
 from iberian_day_ahead_market_simulator.schemas.det import DETSchema
 from iberian_day_ahead_market_simulator.tools import (
     concat_provided_participants_bidding_zones_with_existing_data,
+    get_market_periods_count,
+    is_QH_market,
 )
 import iberian_day_ahead_market_simulator.columns as cols
 
@@ -38,17 +41,21 @@ def format_price_curves(
     price_curves: np.ndarray,
 ) -> np.ndarray:
 
-    # if 1 dimension check len == 24
+    # if 1 dimension check len in TOTAL_PERIODS_OPTIONS
     if price_curves.ndim == 1:
-        if len(price_curves) != 24:
-            raise ValueError("If price_curves is 1D, it must have length 24.")
-        # reshape to (1, 24)
-        price_curves = price_curves.reshape(1, 24)
+        prices_curves_len = len(price_curves)
+        if prices_curves_len not in TOTAL_PERIODS_OPTIONS:
+            raise ValueError(
+                f"If price_curves is 1D, it must have length in {TOTAL_PERIODS_OPTIONS}."
+            )
+        # reshape to (1, prices_curves_len)
+        price_curves = price_curves.reshape(1, prices_curves_len)
 
     elif price_curves.ndim == 2:
-        if price_curves.shape[1] != 24:
+        prices_curves_shape_1 = price_curves.shape[1]
+        if prices_curves_shape_1 not in TOTAL_PERIODS_OPTIONS:
             raise ValueError(
-                "If price_curves is 2D, it must have shape (n_curves, 24)."
+                f"If price_curves is 2D, it must have shape (n_curves, {TOTAL_PERIODS_OPTIONS})."
             )
 
     else:
@@ -68,51 +75,53 @@ def calculate_complex_residual_demand_II_with_market_split(
         cols.FLOAT_EXPORT_CAPACITY
     ].abs()
 
-    energy_hourly_cleared_per_country_CV = (
+    energy_per_period_cleared_per_country_CV = (
         det_cab.groupby(
             [cols.CAT_BIDDING_ZONE, cols.CAT_BUY_SELL, cols.INT_PERIOD], observed=False
         )[cols.FLOAT_CLEARED_POWER]
         .sum()
         .sort_index()
     )
-    energy_hourly_cleared_spain_C = energy_hourly_cleared_per_country_CV.loc[
+    energy_per_period_cleared_spain_C = energy_per_period_cleared_per_country_CV.loc[
         (SPAIN_ZONE, "C")
     ]
-    energy_hourly_cleared_spain_V = energy_hourly_cleared_per_country_CV.loc[
+    energy_per_period_cleared_spain_V = energy_per_period_cleared_per_country_CV.loc[
         (SPAIN_ZONE, "V")
     ]
-    energy_hourly_cleared_portugal_C = energy_hourly_cleared_per_country_CV.loc[
+    energy_per_period_cleared_portugal_C = energy_per_period_cleared_per_country_CV.loc[
         (PORTUGAL_ZONE, "C")
     ]
-    energy_hourly_cleared_portugal_V = energy_hourly_cleared_per_country_CV.loc[
+    energy_per_period_cleared_portugal_V = energy_per_period_cleared_per_country_CV.loc[
         (PORTUGAL_ZONE, "V")
     ]
 
-    residual_demand_hourly_portugal = energy_hourly_cleared_portugal_C.sub(
-        energy_hourly_cleared_portugal_V, fill_value=0
+    residual_demand_per_period_portugal = energy_per_period_cleared_portugal_C.sub(
+        energy_per_period_cleared_portugal_V, fill_value=0
     )
 
-    residual_demand_hourly_from_portugal_with_saturation = pd.Series(
+    residual_demand_per_period_from_portugal_with_saturation = pd.Series(
         np.where(
-            residual_demand_hourly_portugal.lt(capacidad_imp_PT),
+            residual_demand_per_period_portugal.lt(capacidad_imp_PT),
             capacidad_imp_PT,
             np.where(
-                residual_demand_hourly_portugal.gt(capacidad_exp_PT),
+                residual_demand_per_period_portugal.gt(capacidad_exp_PT),
                 capacidad_exp_PT,
-                residual_demand_hourly_portugal,
+                residual_demand_per_period_portugal,
             ),
         ),
-        index=residual_demand_hourly_portugal.index,
+        index=residual_demand_per_period_portugal.index,
     )
 
-    residual_demand_with_saturation_hourly = energy_hourly_cleared_spain_C.sub(
-        energy_hourly_cleared_spain_V, fill_value=0
-    ).add(residual_demand_hourly_from_portugal_with_saturation, fill_value=0)
-    residual_demand_with_saturation_hourly.index = residual_demand_hourly_portugal.index
-    residual_demand_with_saturation_hourly.name = (
+    residual_demand_with_saturation_per_period = energy_per_period_cleared_spain_C.sub(
+        energy_per_period_cleared_spain_V, fill_value=0
+    ).add(residual_demand_per_period_from_portugal_with_saturation, fill_value=0)
+    residual_demand_with_saturation_per_period.index = (
+        residual_demand_per_period_portugal.index
+    )
+    residual_demand_with_saturation_per_period.name = (
         "complex_residual_demand_II_with_market_split_curves"
     )
-    return residual_demand_with_saturation_hourly
+    return residual_demand_with_saturation_per_period
 
 
 def sum_cleared_power_by_period(det_cab, cleared_power_column=cols.FLOAT_CLEARED_POWER):
@@ -120,51 +129,51 @@ def sum_cleared_power_by_period(det_cab, cleared_power_column=cols.FLOAT_CLEARED
 
 
 def calculate_complex_residual_demand_I_without_market_split(det_cab):
-    energy_hourly_cleared_C = sum_cleared_power_by_period(
+    energy_per_period_cleared_C = sum_cleared_power_by_period(
         det_cab.query(f'{cols.CAT_BUY_SELL} == "C"'),
     )
-    energy_hourly_cleared_V = sum_cleared_power_by_period(
+    energy_per_period_cleared_V = sum_cleared_power_by_period(
         det_cab.query(f'{cols.CAT_BUY_SELL} == "V"'),
     )
 
-    return energy_hourly_cleared_C.sub(energy_hourly_cleared_V, fill_value=0)
+    return energy_per_period_cleared_C.sub(energy_per_period_cleared_V, fill_value=0)
 
 
 def calculate_only_simple_submitted_relaxed_residual_demand(det_cab):
 
-    energy_hourly_cleared_C = sum_cleared_power_by_period(
+    energy_per_period_cleared_C = sum_cleared_power_by_period(
         det_cab.query(f'{cols.CAT_BUY_SELL} == "C"'),
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
-    energy_hourly_cleared_V_S = sum_cleared_power_by_period(
+    energy_per_period_cleared_V_S = sum_cleared_power_by_period(
         det_cab.query(f'{cols.CAT_BUY_SELL} == "V" & {cols.CAT_ORDER_TYPE} == "S"'),
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
 
-    return energy_hourly_cleared_C.sub(energy_hourly_cleared_V_S, fill_value=0)
+    return energy_per_period_cleared_C.sub(energy_per_period_cleared_V_S, fill_value=0)
 
 
 def calculate_submitted_relaxed_residual_demand(det_cab):
 
-    energy_hourly_cleared_C = sum_cleared_power_by_period(
+    energy_per_period_cleared_C = sum_cleared_power_by_period(
         det_cab.query(f'{cols.CAT_BUY_SELL} == "C"'),
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
-    energy_hourly_cleared_V = sum_cleared_power_by_period(
+    energy_per_period_cleared_V = sum_cleared_power_by_period(
         det_cab.query(f'{cols.CAT_BUY_SELL} == "V"'),
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
 
-    return energy_hourly_cleared_C.sub(energy_hourly_cleared_V, fill_value=0)
+    return energy_per_period_cleared_C.sub(energy_per_period_cleared_V, fill_value=0)
 
 
 def substract_reference_curve_from_all_curves(
-    curves_df: pd.DataFrame, reference_curve_index: int
+    curves_df: pd.DataFrame, reference_curve_index: int, rdc_energy_columns: list[str]
 ) -> pd.DataFrame:
     curves_df = curves_df.copy()
     corresponding_df_index = curves_df.index[reference_curve_index]
-    reference_energy_curve = curves_df.loc[corresponding_df_index, RDC_ENERGY_COLUMNS]
-    curves_df.loc[:, RDC_ENERGY_COLUMNS] = curves_df.loc[:, RDC_ENERGY_COLUMNS].sub(
+    reference_energy_curve = curves_df.loc[corresponding_df_index, rdc_energy_columns]
+    curves_df.loc[:, rdc_energy_columns] = curves_df.loc[:, rdc_energy_columns].sub(
         reference_energy_curve
     )
     return curves_df
@@ -196,14 +205,22 @@ def calculate_residual_demand_curves_from_bids(
         det = parse_det_file(det)
     if isinstance(cab, str):
         cab = parse_cab_file(cab)
-    if isinstance(capacidad_inter_pbc, str):
-        capacidad_inter_pbc = parse_capacidad_inter_file(
-            capacidad_inter_pbc, only_capacity_columns=True
-        )
 
     DETSchema.validate(det)
     CABSchema.validate(cab)
+
+    market_periods_count = get_market_periods_count(det)
+    is_QH = is_QH_market(market_periods_count)
+    det = det.query(f"{cols.INT_PERIOD} <= {market_periods_count}")
+
+    if isinstance(capacidad_inter_pbc, str):
+        capacidad_inter_pbc = parse_capacidad_inter_file(
+            capacidad_inter_pbc, only_capacity_columns=True, is_QH=is_QH
+        )
     CapacidadInterPTSchema.validate(capacidad_inter_pbc)
+
+    rdc_price_columns = get_rdc_price_columns(market_periods_count)
+    rdc_energy_columns = get_rdc_energy_columns(market_periods_count)
 
     if isinstance(participants_bidding_zones, pd.DataFrame):
         participants_bidding_zones = (
@@ -233,21 +250,23 @@ def calculate_residual_demand_curves_from_bids(
     for price_curve in price_curves:
 
         det_cab_aux = det_cab.copy()
-        price_series = pd.Series(price_curve, index=RDC_PRICE_COLUMNS)
+        price_series = pd.Series(price_curve, index=rdc_price_columns)
 
         # Calculate cleared power values
         det_cab_aux["float_cleared_power_as_simple_bid"] = (
-            get_cleared_power_as_simple_bids_with_price_curve(price_curve, det_cab_aux)
+            get_cleared_power_as_simple_bids_with_price_curve(
+                price_curve, det_cab_aux, market_periods_count
+            )
         )
         det_cab_aux[cols.FLOAT_CLEARED_POWER] = get_cleared_power_with_price_curve(
-            price_curve, det_cab_aux
+            price_curve, det_cab_aux, market_periods_count
         )
 
         # Calculate residual demand
         only_simple_submitted_relaxed_residual_demand = (
             calculate_only_simple_submitted_relaxed_residual_demand(det_cab_aux)
         )
-        only_simple_submitted_relaxed_residual_demand.index = RDC_ENERGY_COLUMNS
+        only_simple_submitted_relaxed_residual_demand.index = rdc_energy_columns
         only_simple_submitted_relaxed_residual_demand = pd.concat(
             [price_series, only_simple_submitted_relaxed_residual_demand]
         )
@@ -255,7 +274,7 @@ def calculate_residual_demand_curves_from_bids(
         submitted_relaxed_residual_demand = calculate_submitted_relaxed_residual_demand(
             det_cab_aux
         )
-        submitted_relaxed_residual_demand.index = RDC_ENERGY_COLUMNS
+        submitted_relaxed_residual_demand.index = rdc_energy_columns
         submitted_relaxed_residual_demand = pd.concat(
             [price_series, submitted_relaxed_residual_demand]
         )
@@ -263,7 +282,7 @@ def calculate_residual_demand_curves_from_bids(
         complex_residual_demand_I_without_market_split = (
             calculate_complex_residual_demand_I_without_market_split(det_cab_aux)
         )
-        complex_residual_demand_I_without_market_split.index = RDC_ENERGY_COLUMNS
+        complex_residual_demand_I_without_market_split.index = rdc_energy_columns
         complex_residual_demand_I_without_market_split = pd.concat(
             [price_series, complex_residual_demand_I_without_market_split]
         )
@@ -273,7 +292,7 @@ def calculate_residual_demand_curves_from_bids(
                 det_cab_aux, capacidad_inter_PBC_pt
             )
         )
-        complex_residual_demand_II_with_market_split.index = RDC_ENERGY_COLUMNS
+        complex_residual_demand_II_with_market_split.index = rdc_energy_columns
         complex_residual_demand_II_with_market_split = pd.concat(
             [price_series, complex_residual_demand_II_with_market_split]
         )
@@ -309,23 +328,28 @@ def calculate_residual_demand_curves_from_bids(
             substract_reference_curve_from_all_curves(
                 only_simple_submitted_relaxed_residual_demand_df,
                 reference_price_curve_index,
+                rdc_energy_columns,
             )
         )
         submitted_relaxed_residual_demand_curves_df = (
             substract_reference_curve_from_all_curves(
-                submitted_relaxed_residual_demand_curves_df, reference_price_curve_index
+                submitted_relaxed_residual_demand_curves_df,
+                reference_price_curve_index,
+                rdc_energy_columns,
             )
         )
         complex_residual_demand_I_without_market_split_curves_df = (
             substract_reference_curve_from_all_curves(
                 complex_residual_demand_I_without_market_split_curves_df,
                 reference_price_curve_index,
+                rdc_energy_columns,
             )
         )
         complex_residual_demand_II_with_market_split_curves_df = (
             substract_reference_curve_from_all_curves(
                 complex_residual_demand_II_with_market_split_curves_df,
                 reference_price_curve_index,
+                rdc_energy_columns,
             )
         )
 

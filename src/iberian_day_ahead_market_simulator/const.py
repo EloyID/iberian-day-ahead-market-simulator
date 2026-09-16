@@ -1,6 +1,5 @@
 import iberian_day_ahead_market_simulator.columns as cols
 
-
 SPAIN_ZONE = "ES"
 PORTUGAL_ZONE = "PT"
 
@@ -8,7 +7,6 @@ BIDDING_ZONES_OPTIONS = [SPAIN_ZONE, PORTUGAL_ZONE]
 
 UNIDADES_SPLITTING_ZONE_COLUMN = "ZONA"
 UNIDADES_ZONE_COLUMN = "ZONA/FRONTERA"
-FRANCE_CODIGOUNIDAD = "MIEU"
 
 FRONTIER_MAPPING = {
     2: "PT",
@@ -23,13 +21,13 @@ CAT_FRONTIER_OPTIONS = list(FRONTIER_MAPPING.keys())
 
 ##### INTERNATIONAL UOFS #####
 
-FRANCE_UOF = "MIEU"
-SPAIN_UOF = "MIE"
-PORTUGAL_UOF = "MIP"
-INTERCONEXION_UOFS = [FRANCE_UOF, PORTUGAL_UOF, SPAIN_UOF]
-
 FRANCE_ID_ORDER = "12345678901234"
 FRANCE_ID_UNIDAD = "MIEU"
+
+SPAIN_UOF = "MIE"
+PORTUGAL_UOF = "MIP"
+INTERCONEXION_UOFS = [FRANCE_ID_UNIDAD, PORTUGAL_UOF, SPAIN_UOF]
+
 
 ### CAT_BIDDING_ZONE_VALUES ###
 CAT_BIDDING_ZONE_FRANCE = "FR"
@@ -119,5 +117,13 @@ RDC_CAB_C_BASE = {
     cols.FLOAT_MAX_POWER: 9999999999,
 }
 
-RDC_ENERGY_COLUMNS = [f"energy_{i}" for i in range(1, 25)]
-RDC_PRICE_COLUMNS = [f"price_{i}" for i in range(1, 25)]
+get_rdc_price_columns = lambda market_periods_count: [
+    f"price_{i}" for i in range(1, market_periods_count + 1)
+]
+get_rdc_energy_columns = lambda market_periods_count: [
+    f"energy_{i}" for i in range(1, market_periods_count + 1)
+]
+
+TOTAL_PERIODS_H_OPTIONS = [23, 24, 25]
+TOTAL_PERIODS_QH_OPTIONS = [92, 96, 100]
+TOTAL_PERIODS_OPTIONS = TOTAL_PERIODS_H_OPTIONS + TOTAL_PERIODS_QH_OPTIONS

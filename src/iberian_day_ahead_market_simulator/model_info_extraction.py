@@ -8,7 +8,9 @@ from iberian_day_ahead_market_simulator.tools import get_float_bid_power_cumsum
 from .const import PORTUGAL_ZONE, SPAIN_ZONE
 
 
-def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:
+def get_clearing_prices_df(
+    model: pyo.ConcreteModel, market_periods_count: int
+) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -25,14 +27,14 @@ def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:
     ]
     spain_clearing_price_df = pd.DataFrame(
         {
-            cols.INT_PERIOD: list(range(1, 25)),
+            cols.INT_PERIOD: list(range(1, market_periods_count + 1)),
             cols.FLOAT_CLEARED_PRICE: spain_clearing_prices,
             cols.CAT_BIDDING_ZONE: SPAIN_ZONE,
         }
     )
     portugal_clearing_price_df = pd.DataFrame(
         {
-            cols.INT_PERIOD: list(range(1, 25)),
+            cols.INT_PERIOD: list(range(1, market_periods_count + 1)),
             cols.FLOAT_CLEARED_PRICE: portugal_clearing_prices,
             cols.CAT_BIDDING_ZONE: PORTUGAL_ZONE,
         }
@@ -188,7 +190,9 @@ def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
 ############################ Analyze results #########################
 
 
-def get_clearing_prices(model: pyo.ConcreteModel) -> pd.DataFrame:
+def get_clearing_prices(
+    model: pyo.ConcreteModel, market_periods_count: int
+) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -208,12 +212,14 @@ def get_clearing_prices(model: pyo.ConcreteModel) -> pd.DataFrame:
             "Precio_casacion_ES": spain_clearing_prices,
             "Precio_casacion_PT": portugal_clearing_prices,
         },
-        index=list(range(1, 25)),
+        index=list(range(1, market_periods_count + 1)),
     )
     return clearing_prices
 
 
-def get_spain_portugal_transmissions(model: pyo.ConcreteModel) -> pd.DataFrame:
+def get_spain_portugal_transmissions(
+    model: pyo.ConcreteModel, market_periods_count: int
+) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -229,13 +235,13 @@ def get_spain_portugal_transmissions(model: pyo.ConcreteModel) -> pd.DataFrame:
         {
             "Transmision_ES_PT": spain_portugal_transmissions,
         },
-        index=list(range(1, 25)),
+        index=list(range(1, market_periods_count + 1)),
     )
     return spain_portugal_transmissions
 
 
 def get_spain_portugal_transmissions_det_cab_df(
-    model: pyo.ConcreteModel, dat_sesion: str
+    model: pyo.ConcreteModel, dat_sesion: str, market_periods_count: int
 ) -> pd.DataFrame:
     """_summary_
 
@@ -246,7 +252,9 @@ def get_spain_portugal_transmissions_det_cab_df(
     Returns:
         pd.DataFrame: _description_
     """
-    spain_portugal_transmissions = get_spain_portugal_transmissions(model)
+    spain_portugal_transmissions = get_spain_portugal_transmissions(
+        model, market_periods_count
+    )
     international_flows = []
 
     for period in model.PERIODS:
@@ -293,7 +301,7 @@ def get_spain_portugal_transmissions_det_cab_df(
 
 
 def get_det_cab_results(
-    model: pyo.ConcreteModel, det_cab: pd.DataFrame
+    model: pyo.ConcreteModel, det_cab: pd.DataFrame, market_periods_count: int
 ) -> pd.DataFrame:
     """_summary_
 
@@ -307,7 +315,7 @@ def get_det_cab_results(
 
     cleared_energy = get_cleared_energy_series(model)
     spain_portugal_transmissions_det_cab = get_spain_portugal_transmissions_det_cab_df(
-        model, det_cab["dat_sesion"].iloc[0]
+        model, det_cab["dat_sesion"].iloc[0], market_periods_count
     )
 
     det_cab_results = (
@@ -336,7 +344,7 @@ def get_det_cab_results(
     det_cab_results[cols.FLOAT_CLEARED_POWER_CUMSUM] = get_float_bid_power_cumsum(
         det_cab_results,
         date_column_name="dat_sesion",
-        hour_column_name=cols.INT_PERIOD,
+        period_column_name=cols.INT_PERIOD,
         cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
         cod_ofertada_casada_column_name="cod_ofertada_casada",
         qua_energia_column_name=cols.FLOAT_CLEARED_POWER,
@@ -350,7 +358,7 @@ def get_det_cab_results(
         ] = get_float_bid_power_cumsum(
             det_cab_results.loc[(det_cab_results[cols.CAT_BIDDING_ZONE] == country)],
             date_column_name="dat_sesion",
-            hour_column_name=cols.INT_PERIOD,
+            period_column_name=cols.INT_PERIOD,
             cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
             cod_ofertada_casada_column_name="cod_ofertada_casada",
             qua_energia_column_name=cols.FLOAT_CLEARED_POWER,

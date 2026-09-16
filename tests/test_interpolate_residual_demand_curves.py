@@ -3,12 +3,15 @@ import pandas as pd
 import pytest
 
 from iberian_day_ahead_market_simulator.const import (
-    RDC_ENERGY_COLUMNS,
-    RDC_PRICE_COLUMNS,
+    get_rdc_price_columns,
+    get_rdc_energy_columns,
 )
 from iberian_day_ahead_market_simulator.residual_demand_curve import (
     interpolate_residual_demand_curves,
 )
+
+RDC_ENERGY_COLUMNS_HOURLY = get_rdc_energy_columns(24)
+RDC_PRICE_COLUMNS_HOURLY = get_rdc_price_columns(24)
 
 
 def _build_linear_residual_demand_curves():
@@ -40,7 +43,7 @@ def _build_target_energy_levels(index_labels=("low", "mid", "high")):
     default_map = {"low": -10.0, "mid": 50.0, "high": 250.0}
     row_values = [default_map.get(lbl, 50.0) for lbl in index_labels]
     df = pd.DataFrame(
-        {col: row_values for col in RDC_ENERGY_COLUMNS},
+        {col: row_values for col in RDC_ENERGY_COLUMNS_HOURLY},
         index=list(index_labels),
     )
     return df
@@ -53,14 +56,20 @@ class TestInterpolateResidualDemandCurves:
         target = _build_target_energy_levels(index_labels=("mid",))
 
         result = interpolate_residual_demand_curves(
-            target, residual, extrapolate_action="nan"
+            target,
+            residual,
+            target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+            residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+            extrapolate_action="nan",
         )
         # Expected price for energy=50 between (0,100) with prices (10,20): 15
         expected_price = 15.0
-        for price_col in RDC_PRICE_COLUMNS:
+        for price_col in RDC_PRICE_COLUMNS_HOURLY:
             assert np.allclose(result.loc["mid", price_col], expected_price)
         # Energy columns preserved
-        for energy_col in RDC_ENERGY_COLUMNS:
+        for energy_col in RDC_ENERGY_COLUMNS_HOURLY:
             assert result.loc["mid", energy_col] == 50.0
 
     def test_extrapolation_limit_behavior(self):
@@ -69,14 +78,20 @@ class TestInterpolateResidualDemandCurves:
 
         # limit uses np.interp default behavior (clamps to boundary y)
         result = interpolate_residual_demand_curves(
-            target, residual, extrapolate_action="limit"
+            target,
+            residual,
+            target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+            residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+            extrapolate_action="limit",
         )
 
         # For low (-10), expect first price 10.0 for every hour
-        for price_col in RDC_PRICE_COLUMNS:
+        for price_col in RDC_PRICE_COLUMNS_HOURLY:
             assert np.isclose(result.loc["low", price_col], 10.0)
         # For high (250), expect last price 40.0 for every hour
-        for price_col in RDC_PRICE_COLUMNS:
+        for price_col in RDC_PRICE_COLUMNS_HOURLY:
             assert np.isclose(result.loc["high", price_col], 40.0)
 
     def test_extrapolation_nan_behavior(self):
@@ -84,15 +99,21 @@ class TestInterpolateResidualDemandCurves:
         target = _build_target_energy_levels(index_labels=("low", "mid", "high"))
 
         result = interpolate_residual_demand_curves(
-            target, residual, extrapolate_action="nan"
+            target,
+            residual,
+            target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+            residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+            extrapolate_action="nan",
         )
         # low and high rows should be NaN on price columns (extrapolated)
-        for price_col in RDC_PRICE_COLUMNS:
+        for price_col in RDC_PRICE_COLUMNS_HOURLY:
             assert np.isnan(result.loc["low", price_col])
             assert np.isnan(result.loc["high", price_col])
         # mid row within range -> interpolated value 15.0
         expected_price = 15.0
-        for price_col in RDC_PRICE_COLUMNS:
+        for price_col in RDC_PRICE_COLUMNS_HOURLY:
             assert np.isclose(result.loc["mid", price_col], expected_price)
 
     def test_extrapolation_warning_behavior(self, caplog):
@@ -101,14 +122,20 @@ class TestInterpolateResidualDemandCurves:
 
         with caplog.at_level("WARNING"):
             result = interpolate_residual_demand_curves(
-                target, residual, extrapolate_action="warning"
+                target,
+                residual,
+                target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+                target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+                residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+                residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+                extrapolate_action="warning",
             )
             # Check a warning was logged at least once
             assert any(
                 "Extrapolation detected" in rec.message for rec in caplog.records
             )
         # low row -> NaN; mid row -> finite interpolated
-        for price_col in RDC_PRICE_COLUMNS:
+        for price_col in RDC_PRICE_COLUMNS_HOURLY:
             assert np.isnan(result.loc["low", price_col])
             assert np.isnan(result.loc["high", price_col])
 
@@ -120,7 +147,13 @@ class TestInterpolateResidualDemandCurves:
 
         with pytest.raises(ValueError):
             interpolate_residual_demand_curves(
-                target, residual, extrapolate_action="raise"
+                target,
+                residual,
+                target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+                target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+                residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+                residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+                extrapolate_action="raise",
             )
 
     def test_output_structure(self):
@@ -128,10 +161,16 @@ class TestInterpolateResidualDemandCurves:
         target = _build_target_energy_levels(index_labels=("low", "mid", "high"))
 
         result = interpolate_residual_demand_curves(
-            target, residual, extrapolate_action="nan"
+            target,
+            residual,
+            target_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            target_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+            residual_demand_energy_columns=RDC_ENERGY_COLUMNS_HOURLY,
+            residual_demand_price_columns=RDC_PRICE_COLUMNS_HOURLY,
+            extrapolate_action="nan",
         )
         # Columns should include all energies + all prices
-        expected_cols = set(RDC_ENERGY_COLUMNS) | set(RDC_PRICE_COLUMNS)
+        expected_cols = set(RDC_ENERGY_COLUMNS_HOURLY) | set(RDC_PRICE_COLUMNS_HOURLY)
         assert set(result.columns) == expected_cols
         # Index preserved
         assert list(result.index) == ["low", "mid", "high"]

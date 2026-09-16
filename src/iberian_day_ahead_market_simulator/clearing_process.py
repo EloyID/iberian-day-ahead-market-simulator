@@ -60,6 +60,8 @@ from iberian_day_ahead_market_simulator.schemas.spain_portugal_transmissions imp
 from iberian_day_ahead_market_simulator.tools import (
     concat_provided_participants_bidding_zones_with_existing_data,
     filter_paradoxical_orders_from_det_cab,
+    get_market_periods_count,
+    is_QH_market,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,6 +71,7 @@ def get_cleared_paradoxical_orders_summary(
     det_cab_paradoxical_orders_filtered: pd.DataFrame,
     cleared_energy_df: pd.DataFrame,
     clearing_price_df: pd.DataFrame,
+    is_QH: bool,
 ) -> pd.DataFrame:
     """
     Aggregates results for paradox orders that were matched in the iteration.
@@ -83,6 +86,10 @@ def get_cleared_paradoxical_orders_summary(
     Returns:
         pd.DataFrame: DataFrame grouped by order ID with financial results for matched paradox orders.
     """
+
+    # Price is in €/MWh and quantity in MW, so in case of QH market, we need to scale the money amount by 4 to
+    # get the correct value in €.
+    power_energy_scalator = 4 if is_QH else 1  # noqa
 
     cleared_det_cab = (
         det_cab_paradoxical_orders_filtered.merge(
@@ -117,14 +124,14 @@ def get_cleared_paradoxical_orders_summary(
     assert cleared_paradoxical_orders_df._merge.isin(["both"]).all()
     cleared_paradoxical_orders_df = cleared_paradoxical_orders_df.drop(columns="_merge")
 
-    cleared_paradoxical_orders_df = cleared_paradoxical_orders_df.eval(
-        f"""
-        {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_CLEARED_PRICE}
-        {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_BID_PRICE}
-        """
-    )
+    cleared_paradoxical_orders_df = cleared_paradoxical_orders_df.eval(f"""
+        {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_CLEARED_PRICE} / @power_energy_scalator
+        {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_CLEARED_POWER} * {cols.FLOAT_BID_PRICE} / @power_energy_scalator
+        """)
     cleared_paradoxical_orders_df_grouped = (
-        cleared_paradoxical_orders_df.groupby([cols.ID_PARADOXICAL_ORDERS], observed=True)
+        cleared_paradoxical_orders_df.groupby(
+            [cols.ID_PARADOXICAL_ORDERS], observed=True
+        )
         .agg(
             {
                 cols.FLOAT_COLLECTION_RIGHTS: "sum",
@@ -133,12 +140,14 @@ def get_cleared_paradoxical_orders_summary(
                 cols.FLOAT_CLEARED_POWER: "sum",
             }
         )
+        # TODO: rename power to energy since it is what you use for calculate income, also in similar functions
         .eval(
-            f"""
+            f"{cols.FLOAT_CLEARED_POWER} = {cols.FLOAT_CLEARED_POWER} / @power_energy_scalator"
+        )
+        .eval(f"""
             {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_VARIABLE_COST} + {cols.FLOAT_MIC} )
             {cols.FLOAT_RATIO_NET_INCOME_CLEARED_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_CLEARED_POWER}
-            """
-        )
+            """)
     )
 
     return cleared_paradoxical_orders_df_grouped
@@ -149,6 +158,7 @@ def get_leftout_paradoxical_orders_summary(
     all_paradoxical_orders: dict,
     iteration_paradoxical_orders: dict,
     clearing_price_df: pd.DataFrame,
+    is_QH: bool,
 ) -> pd.DataFrame:
     """
     Aggregates financial results for paradox orders not included in the current iteration.
@@ -165,6 +175,8 @@ def get_leftout_paradoxical_orders_summary(
         pd.DataFrame: DataFrame grouped by order ID with financial results for left-out paradox orders.
     """
 
+    power_energy_scalator = 4 if is_QH else 1  # noqa
+
     det_cab = det_cab.copy().merge(
         clearing_price_df,
         on=[cols.INT_PERIOD, cols.CAT_BIDDING_ZONE],
@@ -174,11 +186,11 @@ def get_leftout_paradoxical_orders_summary(
 
     all_scos = all_paradoxical_orders[cols.IDS_MIC_SCOS]
     iteration_scos = iteration_paradoxical_orders[cols.IDS_MIC_SCOS]
-    left_out_scos = set(all_scos) - set(iteration_scos)
+    left_out_scos = set(all_scos) - set(iteration_scos)  # noqa
 
     all_bid_blocks = all_paradoxical_orders[cols.IDS_BID_BLOCKS]
     iteration_bid_blocks = iteration_paradoxical_orders[cols.IDS_BID_BLOCKS]
-    left_out_bid_blocks = set(all_bid_blocks) - set(iteration_bid_blocks)
+    left_out_bid_blocks = set(all_bid_blocks) - set(iteration_bid_blocks)  # noqa
 
     det_cab_scos = (
         det_cab.query(f"{cols.ID_SCO} in @left_out_scos")
@@ -191,12 +203,10 @@ def get_leftout_paradoxical_orders_summary(
                 ),
             }
         )
-        .eval(
-            f"""
+        .eval(f"""
             {cols.FLOAT_FIX_COST} = {cols.FLOAT_MIC}
             {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_BID_PRICE}
-            """
-        )
+            """)
     )
     det_cab_bid_blocks = (
         det_cab.query(f" {cols.ID_BLOCK_ORDER} in @left_out_bid_blocks")
@@ -209,12 +219,10 @@ def get_leftout_paradoxical_orders_summary(
                 ),
             }
         )
-        .eval(
-            f"""
+        .eval(f"""
             {cols.FLOAT_FIX_COST} = 0
             {cols.FLOAT_VARIABLE_COST} = {cols.FLOAT_BID_PRICE}
-            """
-        )
+            """)
     )
 
     det_cab_paradoxical_orders = (
@@ -225,12 +233,10 @@ def get_leftout_paradoxical_orders_summary(
             ],
             ignore_index=True,
         )
-        .eval(
-            f"""
-            {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_CLEARED_PRICE}
-            {cols.FLOAT_TOTAL_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_VARIABLE_COST}
-            """
-        )
+        .eval(f"""
+            {cols.FLOAT_COLLECTION_RIGHTS} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_CLEARED_PRICE} / @power_energy_scalator
+            {cols.FLOAT_TOTAL_VARIABLE_COST} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} * {cols.FLOAT_VARIABLE_COST} / @power_energy_scalator
+            """)
         .groupby([cols.ID_PARADOXICAL_ORDERS], observed=True)
         .agg(
             {
@@ -241,15 +247,18 @@ def get_leftout_paradoxical_orders_summary(
             }
         )
         .eval(
-            f"""
+            f"{cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} = {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER} / @power_energy_scalator"
+        )
+        .eval(f"""
             {cols.FLOAT_NET_INCOME} = {cols.FLOAT_COLLECTION_RIGHTS} - ( {cols.FLOAT_TOTAL_VARIABLE_COST} + {cols.FLOAT_FIX_COST} )
             {cols.FLOAT_RATIO_NET_INCOME_BID_POWER} = {cols.FLOAT_NET_INCOME} / {cols.FLOAT_MAXIMIZED_COMPETITIVE_BID_POWER}
-            """
-        )
+            """)
     )
 
     assert det_cab_paradoxical_orders[cols.FLOAT_NET_INCOME].notna().all()
-    assert det_cab_paradoxical_orders[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
+    assert (
+        det_cab_paradoxical_orders[cols.FLOAT_RATIO_NET_INCOME_BID_POWER].notna().all()
+    )
     return det_cab_paradoxical_orders
 
 
@@ -396,6 +405,7 @@ def define_new_paradoxical_orders_list(
     iterations_df: pd.DataFrame,
     det_cab: pd.DataFrame,
     all_paradoxical_orders: dict,
+    is_QH: bool,
     int_paradoxical_orders_count: int = 1,
 ) -> list[dict]:
     """
@@ -431,16 +441,21 @@ def define_new_paradoxical_orders_list(
         if is_expected_income_respected:
             logger.info("--ALGORITHM--: MIC is respected")
             leftout_paradoxical_orders_summary = get_leftout_paradoxical_orders_summary(
-                det_cab, all_paradoxical_orders, paradoxical_orders, clearing_prices
+                det_cab,
+                all_paradoxical_orders,
+                paradoxical_orders,
+                clearing_prices,
+                is_QH,
             ).sort_values(by=cols.FLOAT_RATIO_NET_INCOME_BID_POWER, ascending=False)
-            det_cab_paradoxical_orders_filtered = filter_paradoxical_orders_from_det_cab(
-                det_cab, paradoxical_orders
+            det_cab_paradoxical_orders_filtered = (
+                filter_paradoxical_orders_from_det_cab(det_cab, paradoxical_orders)
             )
             iteration_cleared_paradoxical_orders_summary = (
                 get_cleared_paradoxical_orders_summary(
                     det_cab_paradoxical_orders_filtered,
                     cleared_energy,
                     clearing_prices,
+                    is_QH,
                 )
             )
             new_paradoxical_orders_list.extend(
@@ -454,14 +469,15 @@ def define_new_paradoxical_orders_list(
             )
 
         else:
-            det_cab_paradoxical_orders_filtered = filter_paradoxical_orders_from_det_cab(
-                det_cab, paradoxical_orders
+            det_cab_paradoxical_orders_filtered = (
+                filter_paradoxical_orders_from_det_cab(det_cab, paradoxical_orders)
             )
             iteration_cleared_paradoxical_orders_summary = (
                 get_cleared_paradoxical_orders_summary(
                     det_cab_paradoxical_orders_filtered,
                     cleared_energy,
                     clearing_prices,
+                    is_QH,
                 )
             )
             new_paradoxical_orders_list.extend(
@@ -488,6 +504,7 @@ def iterative_function(
         pd.DataFrame,
         list,
         pd.Series | None,
+        int,
         str,
         dict | None,
     ],
@@ -504,6 +521,9 @@ def iterative_function(
             - capacidad_inter_PBC_pt (pd.DataFrame): DataFrame of interconnection capacities for Portugal.
             - paradoxical_orders (list): List of SCO order IDs with MIC for this iteration.
             - france_fixed_exchange (pd.Series, optional): Series with fixed exchange values for France. Defaults to None.
+            - market_periods_count (int): Number of market periods.
+            - solver_factory_type (str): Type of solver to use for the market model.
+            - solver_options (dict, optional): Additional options for the solver. Defaults to None.
 
     Returns:
         pd.DataFrame: DataFrame with the results of the iteration (one row).
@@ -514,9 +534,12 @@ def iterative_function(
         capacidad_inter_PBC_pt,
         paradoxical_orders,
         france_fixed_exchange,
+        market_periods_count,
         solver_factory_type,
         solver_options,
     ) = args
+
+    is_QH = is_QH_market(market_periods_count)
 
     # Keep only SCOs in the current iteration
     det_cab_paradoxical_orders_filtered = filter_paradoxical_orders_from_det_cab(
@@ -534,9 +557,9 @@ def iterative_function(
 
     # Extract information from the model
     cleared_energy = get_cleared_energy_series(model)
-    clearing_prices = get_clearing_prices_df(model)
+    clearing_prices = get_clearing_prices_df(model, market_periods_count)
     cleared_paradoxical_orders_summary = get_cleared_paradoxical_orders_summary(
-        det_cab_paradoxical_orders_filtered, cleared_energy, clearing_prices
+        det_cab_paradoxical_orders_filtered, cleared_energy, clearing_prices, is_QH
     )
     welfare = pyo.value(model.OBJ)
     bool_is_expected_income_respected = (
@@ -560,7 +583,7 @@ def iterative_function(
         cols.CLEARED_ENERGY_COLUMN: [cleared_energy],
         cols.CLEARING_PRICES_COLUMN: [clearing_prices],
         cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN: [
-            get_spain_portugal_transmissions(model)
+            get_spain_portugal_transmissions(model, market_periods_count)
         ],
     }
     if solver_factory_type == "gurobi":
@@ -597,12 +620,40 @@ def check_if_success_at_first_iteration(
     return success_at_first_iteration
 
 
+def get_id_paradoxical_orders_from_id_orders(
+    id_orders: list, det_cab: pd.DataFrame
+) -> list:
+    """
+    Given a list of order IDs, returns the corresponding paradoxical order IDs.
+
+    Args:
+        id_orders (list): List of order IDs (SCOs and bid blocks).
+        det_cab (pd.DataFrame): Full DET/CAB DataFrame.
+
+    Returns:
+        list: List of paradoxical order IDs corresponding to the provided order IDs.
+    """
+    id_paradoxical_orders = (
+        det_cab.query(f"{cols.ID_ORDER} in @id_orders")[cols.ID_PARADOXICAL_ORDERS]
+        .unique()
+        .tolist()
+    )
+
+    if len(id_paradoxical_orders) != len(id_paradoxical_orders):
+        raise ValueError(
+            f"Mismatch in the number of paradoxical orders found for the provided order IDs. Expected {len(id_orders)}, found {len(id_paradoxical_orders)}. Id_orders: {id_orders}, id_paradoxical_orders: {id_paradoxical_orders}."
+        )
+
+    return id_paradoxical_orders
+
+
 @pa.check_input(DETCABSchema, "det_cab", lazy=True)
 @pa.check_input(CapacidadInterPTSchema, "capacidad_inter_pbc_pt", lazy=True)
 def run_iterative_loop(
     det_cab: DataFrame,
     capacidad_inter_pbc_pt: DataFrame,
     france_fixed_exchange: pd.Series | None = None,
+    market_periods_count: int | None = None,
     iterations_count: int = 100,
     iteration_ids_mic_scos: list | None = None,
     iteration_ids_bid_blocks: list | None = None,
@@ -633,6 +684,8 @@ def run_iterative_loop(
             best_model_binary: Pyomo model object for the best iteration (binary version).
     """
 
+    is_QH = is_QH_market(market_periods_count)
+
     is_iterations_df_provided = iterations_df is not None
     is_iteration_ids_mic_scos_provided = iteration_ids_mic_scos is not None
     is_iteration_ids_bid_blocks_provided = iteration_ids_bid_blocks is not None
@@ -660,14 +713,22 @@ def run_iterative_loop(
     if are_iteration_ids_paradoxical_orders_provided:
         next_iterations_paradoxical_orders = [
             {
-                cols.IDS_MIC_SCOS: iteration_ids_mic_scos,
-                cols.IDS_BID_BLOCKS: iteration_ids_bid_blocks,
+                cols.IDS_MIC_SCOS: get_id_paradoxical_orders_from_id_orders(
+                    iteration_ids_mic_scos, det_cab
+                ),
+                cols.IDS_BID_BLOCKS: get_id_paradoxical_orders_from_id_orders(
+                    iteration_ids_bid_blocks, det_cab
+                ),
             }
         ]
     # If iterations_df is defined, define a new combination based on previous iterations
     elif not iterations_df.empty:
         next_iterations_paradoxical_orders = define_new_paradoxical_orders_list(
-            iterations_df, det_cab, all_paradoxical_orders, min(n_jobs, iterations_count)
+            iterations_df,
+            det_cab,
+            all_paradoxical_orders,
+            is_QH,
+            min(n_jobs, iterations_count),
         )
         if next_iterations_paradoxical_orders is False:
             logger.info("--ALGORITHM--: All combinations tried, finishing")
@@ -688,6 +749,7 @@ def run_iterative_loop(
                 capacidad_inter_pbc_pt,
                 iteration_paradoxical_orders,
                 france_fixed_exchange,
+                market_periods_count,
                 solver_factory_type,
                 solver_options,
             )
@@ -713,10 +775,19 @@ def run_iterative_loop(
         logger.info(
             f"--ALGORITHM--: Completed iterations: {completed_iterations}/{iterations_count}"
         )
+        print(
+            f"--ALGORITHM--: Completed iterations: {completed_iterations}/{iterations_count}"
+        )
+        if completed_iterations >= iterations_count:
+            logger.info(
+                f"--ALGORITHM--: Reached maximum iterations count ({iterations_count}), finishing"
+            )
+            break
         next_iterations_paradoxical_orders = define_new_paradoxical_orders_list(
             iterations_df,
             det_cab,
             all_paradoxical_orders,
+            is_QH,
             new_iteration_int_paradoxical_orders_count,
         )
         # TODO: this is a quickfix so the loop ends when no new combinations are found
@@ -798,9 +869,16 @@ def run_iberian_day_ahead_market_simulator(
         det = parse_det_file(det)
     if isinstance(cab, str):
         cab = parse_cab_file(cab)
+
+    market_periods_count = get_market_periods_count(det)
+    print("market_periods_count: ", market_periods_count)
+    is_QH = is_QH_market(market_periods_count)
+    print("is_QH: ", is_QH)
+    det = det.query(f"{cols.INT_PERIOD} <= {market_periods_count}")
+
     if isinstance(capacidad_inter_pbc, str):
         capacidad_inter_pbc = parse_capacidad_inter_file(
-            capacidad_inter_pbc, only_capacity_columns=True
+            capacidad_inter_pbc, only_capacity_columns=True, is_QH=is_QH
         )
 
     DETSchema.validate(det, lazy=True)
@@ -838,6 +916,7 @@ def run_iberian_day_ahead_market_simulator(
         iteration_ids_mic_scos=iteration_ids_mic_scos,
         iteration_ids_bid_blocks=iteration_ids_bid_blocks,
         france_fixed_exchange=france_fixed_exchange,
+        market_periods_count=market_periods_count,
         n_jobs=n_jobs,
         solver_factory_type=solver_factory_type,
         solver_options=solver_options,
@@ -879,6 +958,23 @@ def run_iberian_day_ahead_market_simulator(
         "clearing_prices": best_iteration.clearing_prices,
         "spain_portugal_transmissions": best_iteration.spain_portugal_transmissions,
         "iterations_df": iterations_df,
+        "iterative_loop_inputs": {
+            "det": det,
+            "cab": cab,
+            "capacidad_inter_pbc": capacidad_inter_pbc,
+            "france_day_ahead_prices": france_day_ahead_prices,
+            "participants_bidding_zones": participants_bidding_zones,
+            "iterations_count": iterations_count,
+            "starting_iterations_df": starting_iterations_df,
+            "france_fixed_exchange": france_fixed_exchange,
+            "spain_as_default_bidding_zone": spain_as_default_bidding_zone,
+            "iteration_ids_mic_scos": iteration_ids_mic_scos,
+            "iteration_ids_bid_blocks": iteration_ids_bid_blocks,
+            "n_jobs": n_jobs,
+            "solver_factory_type": solver_factory_type,
+            "solver_options": solver_options,
+            "det_cab_fr": det_cab_fr,
+        },
     }
 
     return results_dict

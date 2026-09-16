@@ -44,7 +44,7 @@ class TestFormatPriceCurves:
         """Test that 1D array with wrong length raises ValueError."""
         price_curve = np.arange(20)  # Wrong length
 
-        with pytest.raises(ValueError, match="must have length 24"):
+        with pytest.raises(ValueError, match="it must have length in"):
             format_price_curves(price_curve)
 
     def test_2d_array_wrong_shape_raises(self):

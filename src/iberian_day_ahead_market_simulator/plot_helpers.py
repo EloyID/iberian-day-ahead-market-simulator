@@ -9,7 +9,7 @@ def plot_sell_profiles(
     figsize=(12, 6),
     title="Homothetic Sell Profiles",
     ylabel="MW",
-    xlabel="Hour of the day",
+    xlabel="Period of the day",
     colorbar=True,
     cmap="viridis",
     legend=True,
@@ -117,21 +117,21 @@ def plot_residual_demand_curves(
         colors = None
 
     for idx, ax in enumerate(axs_flat):
-        hour = idx + 1
+        period = idx + 1
         for i, df in enumerate(rdc_dfs):
             if use_colorbar:
                 for j, (ix, row) in enumerate(df.iterrows()):
                     ax.scatter(
-                        row[f"energy_{hour}"],
-                        row[f"price_{hour}"],
+                        row[f"energy_{period}"],
+                        row[f"price_{period}"],
                         color=colors[j],
                         alpha=alpha,
                         **plot_kwargs,
                     )
-            df_aux = df.sort_values(by=f"energy_{hour}")
+            df_aux = df.sort_values(by=f"energy_{period}")
             ax.plot(
-                df_aux[f"energy_{hour}"],
-                df_aux[f"price_{hour}"],
+                df_aux[f"energy_{period}"],
+                df_aux[f"price_{period}"],
                 linewidth=linewidth,
                 alpha=alpha,
                 label=label if idx == 0 else None,
@@ -140,7 +140,7 @@ def plot_residual_demand_curves(
             )
         if idx == 0:
             ax.legend()
-        ax.set_title(f"Hour {hour}")
+        ax.set_title(f"Period {period}")
         ax.set_xlabel("Energy (MWh)")
         ax.set_ylabel("Price (€/MWh)")
 
@@ -159,7 +159,7 @@ def plot_clearing_prices(
     hue=cols.CAT_BIDDING_ZONE,
     title="Clearing Prices by Period",
     ylabel="Cleared Price (€/MWh)",
-    xlabel="Hour of the day",
+    xlabel="Period of the day",
     legend=True,
     marker="o",
     linewidth=2,
@@ -220,9 +220,9 @@ def plot_clearing_prices(
 def plot_spain_portugal_transmissions(
     transmissions_df,
     ax=None,
-    title="Spain-Portugal Hourly Transmission",
+    title="Spain-Portugal Transmission",
     ylabel="Transmission ES→PT (MWh)",
-    xlabel="Hour of the day",
+    xlabel="Period of the day",
     legend=False,
     marker="o",
     linewidth=2,

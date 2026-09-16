@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 
 from iberian_day_ahead_market_simulator.const import (
-    RDC_ENERGY_COLUMNS,
-    RDC_PRICE_COLUMNS,
+    get_rdc_energy_columns,
+    get_rdc_price_columns,
 )
 from iberian_day_ahead_market_simulator.parse_omie_files import parse_curva_pbc_file
 
@@ -12,7 +12,9 @@ from iberian_day_ahead_market_simulator.tools import get_float_bid_power_cumsum
 
 
 def format_curva_pbc_rdc(
-    curva_pbc_C_extended_rdc: pd.DataFrame, price_points: list[float]
+    curva_pbc_C_extended_rdc: pd.DataFrame,
+    price_points: list[float],
+    market_periods_count,
 ) -> pd.DataFrame:
     """
     Format the residual demand curve DataFrame.
@@ -29,11 +31,16 @@ def format_curva_pbc_rdc(
     pd.DataFrame
         The formatted residual demand curve DataFrame.
     """
+    rdc_energy_columns = get_rdc_energy_columns(market_periods_count)
+    rdc_price_columns = get_rdc_price_columns(market_periods_count)
+
     cleared_bids_continued_with_submitted_residual_demand = pd.DataFrame(
-        {col: price_points for col in RDC_PRICE_COLUMNS}
+        {col: price_points for col in rdc_price_columns}
     )
 
-    for energy_col, period in zip(RDC_ENERGY_COLUMNS, range(1, 25)):
+    for energy_col, period in zip(
+        rdc_energy_columns, range(1, market_periods_count + 1)
+    ):
         curva_pbc_period = curva_pbc_C_extended_rdc.query(
             f"{cols.INT_PERIOD} == {period}"
         )
@@ -179,7 +186,9 @@ def calculated_curva_pbc_cleared_extended(curva_pbc: pd.DataFrame) -> pd.DataFra
 
 
 def calculate_residual_demand_curves_from_bid_curves(
-    curva_pbc: pd.DataFrame | str, price_points: list[float] = None
+    curva_pbc: pd.DataFrame | str,
+    market_periods_count: int,
+    price_points: list[float] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """
     Calculate the residual demand curves from the bid curves.
@@ -205,7 +214,7 @@ def calculate_residual_demand_curves_from_bid_curves(
     curva_pbc_C_extended_rdc = calculate_residual_demand(curva_pbc_C_extended)
 
     cleared_bids_continued_with_submitted_residual_demand = format_curva_pbc_rdc(
-        curva_pbc_C_extended_rdc, price_points
+        curva_pbc_C_extended_rdc, price_points, market_periods_count
     )
 
     return {
