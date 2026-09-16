@@ -679,6 +679,9 @@ def run_iterative_loop(
             best_model_binary: Pyomo model object for the best iteration (binary version).
     """
 
+    if market_periods_count is None:
+        market_periods_count = get_market_periods_count(det_cab)
+    det_cab = det_cab.loc[det_cab[cols.INT_PERIOD] <= market_periods_count].copy()
     is_QH = is_QH_market(market_periods_count)
 
     is_iterations_df_provided = iterations_df is not None
