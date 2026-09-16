@@ -634,7 +634,7 @@ def get_id_paradoxical_orders_from_id_orders(
         .tolist()
     )
 
-    if len(id_paradoxical_orders) != len(id_paradoxical_orders):
+    if len(id_paradoxical_orders) != len(id_orders):
         raise ValueError(
             f"Mismatch in the number of paradoxical orders found for the provided order IDs. Expected {len(id_orders)}, found {len(id_paradoxical_orders)}. Id_orders: {id_orders}, id_paradoxical_orders: {id_paradoxical_orders}."
         )
