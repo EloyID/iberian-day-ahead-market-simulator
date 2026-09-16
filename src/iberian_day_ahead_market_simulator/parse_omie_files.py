@@ -1,3 +1,4 @@
+from operator import is_
 import os
 from typing import Literal
 
@@ -442,13 +443,17 @@ def capacidad_inter_files_to_parquet(
     logger.info("Found capacidad_inter files: %d", len(capacidad_inter_raw_filepaths))
 
     capacidad_inter_dfs = [
-        parse_capacidad_inter_file(capacidad_inter_folder + f)
+        parse_capacidad_inter_file(
+            os.path.join(capacidad_inter_folder, f), is_QH=qh_output
+        )
         for f in capacidad_inter_raw_filepaths
     ]
 
     capacidad_inter_data = pd.concat(capacidad_inter_dfs, ignore_index=True)
 
-    capacidad_inter_is_hourly_data = capacidad_inter_data[cols.INT_PERIOD].max() <= 100
+    capacidad_inter_is_hourly_data = (
+        capacidad_inter_data.groupby(cols.DATE_SESION)[cols.INT_PERIOD].max() <= 25
+    ).any()
     if capacidad_inter_is_hourly_data and qh_output:
         raise ValueError(
             "The capacidad_inter data is in hourly format, but qh_output is set to True. Please provide quarter-hourly data or set qh_output to False."
