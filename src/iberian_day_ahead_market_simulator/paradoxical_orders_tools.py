@@ -43,7 +43,7 @@ def transform_ids_paradoxical_orders_list_to_dict(
     ids_bid_blocks = [id for id in ids_paradoxical_orders if "GE" in str(id)]
     assert len(ids_mic_scos) + len(ids_bid_blocks) == len(
         ids_paradoxical_orders
-    ), "Error: Some paradox group IDs do not contain 'SCO' or 'GE'."
+    ), f"Error: Some paradox group IDs do not contain 'SCO' or 'GE'. IDs: {ids_paradoxical_orders}, ids_mic_scos: {ids_mic_scos}, ids_bid_blocks: {ids_bid_blocks}"
     return {
         cols.IDS_MIC_SCOS: ids_mic_scos,
         cols.IDS_BID_BLOCKS: ids_bid_blocks,
