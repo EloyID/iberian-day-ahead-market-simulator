@@ -25,3 +25,5 @@ notebooks/wandb
 *.whl
 *.tar.gz
 PKG-INFO
+.coverage
+coverage.xml
