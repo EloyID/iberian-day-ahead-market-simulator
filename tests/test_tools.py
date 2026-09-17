@@ -6,6 +6,7 @@ Tests the utility functions for bid processing and analysis.
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from iberian_day_ahead_market_simulator import columns as cols
 from iberian_day_ahead_market_simulator import tools
@@ -404,6 +405,16 @@ class TestIsQHMarket:
     def test_qh_period_counts_are_qh(self):
         for market_periods_count in [92, 96, 100]:
             assert tools.is_QH_market(market_periods_count) is True
+
+
+class TestGetPowerEnergyScalator:
+    """Test suite for get_power_energy_scalator function."""
+
+    def test_qh_market_scalator_is_4(self):
+        assert tools.get_power_energy_scalator(True) == 4
+
+    def test_hourly_market_scalator_is_1(self):
+        assert tools.get_power_energy_scalator(False) == 1
 
 
 class TestTransformHxQxPeriodToInt:

@@ -4,6 +4,7 @@ import pandas as pd
 import iberian_day_ahead_market_simulator.columns as cols
 from iberian_day_ahead_market_simulator.tools import (
     get_is_not_exclusive_block,
+    get_power_energy_scalator,
     is_QH_market,
 )
 
@@ -107,7 +108,7 @@ def get_cleared_power_from_SCO(df, is_QH: bool):
         df[cols.FLOAT_MAV],
     )
 
-    power_energy_scalator = 4 if is_QH else 1
+    power_energy_scalator = get_power_energy_scalator(is_QH)
     df[cols.FLOAT_CLEARED_ENERGY] = df[cols.FLOAT_CLEARED_POWER] / power_energy_scalator
 
     collection_rights = (

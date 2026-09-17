@@ -61,6 +61,7 @@ from iberian_day_ahead_market_simulator.tools import (
     concat_provided_participants_bidding_zones_with_existing_data,
     filter_paradoxical_orders_from_det_cab,
     get_market_periods_count,
+    get_power_energy_scalator,
     is_QH_market,
 )
 
@@ -89,7 +90,7 @@ def get_cleared_paradoxical_orders_summary(
 
     # Price is in €/MWh and quantity in MW, so in case of QH market, we need to scale the money amount by 4 to
     # get the correct value in €.
-    power_energy_scalator = 4 if is_QH else 1  # noqa
+    power_energy_scalator = get_power_energy_scalator(is_QH)  # noqa
 
     cleared_det_cab = (
         det_cab_paradoxical_orders_filtered.merge(
@@ -172,7 +173,7 @@ def get_leftout_paradoxical_orders_summary(
         pd.DataFrame: DataFrame grouped by order ID with financial results for left-out paradox orders.
     """
 
-    power_energy_scalator = 4 if is_QH else 1  # noqa
+    power_energy_scalator = get_power_energy_scalator(is_QH)  # noqa
 
     det_cab = det_cab.copy().merge(
         clearing_price_df,

@@ -451,6 +451,23 @@ def is_QH_market(market_periods_count: int) -> bool:
     return market_periods_count in TOTAL_PERIODS_QH_OPTIONS
 
 
+def get_power_energy_scalator(is_QH: bool) -> int:
+    """
+    Returns the factor to convert power (MW) into energy (MWh) for a market period.
+
+    Periods are 15 minutes long in QH markets and 1 hour long otherwise, so power
+    must be divided by 4 to get energy in QH markets.
+
+    Args:
+        is_QH (bool): Whether the market is a QH market.
+
+    Returns:
+        int: The power-to-energy scalator (4 for QH markets, 1 otherwise).
+    """
+
+    return 4 if is_QH else 1
+
+
 def transform_hxqx_period_to_int(period_series: pd.Series) -> pd.Series:
     """
     Transforms a series of period strings in the format 'HxQx' to integers.
