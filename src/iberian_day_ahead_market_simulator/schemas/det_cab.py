@@ -84,8 +84,7 @@ check_not_exclusive_groups_max_power_not_exceeded = pa.Check(
             cols.FLOAT_MAX_POWER: "first",
         }
     )
-    .eval(f"{cols.FLOAT_BID_POWER} = {cols.FLOAT_BID_POWER}.round(2)")
-    .query(f"{cols.FLOAT_BID_POWER} > {cols.FLOAT_MAX_POWER}")
+    .query(f"{cols.FLOAT_BID_POWER} > {cols.FLOAT_MAX_POWER} + 0.001")
     .empty,
     element_wise=False,
     error="There are orders (outside exclusive groups) that exceed MaxPot in some periods",
@@ -103,11 +102,10 @@ check_exclusive_groups_max_power_not_exceeded = pa.Check(
             cols.FLOAT_MAX_POWER: "first",
         }
     )
-    .eval(f"{cols.FLOAT_BID_POWER} = {cols.FLOAT_BID_POWER}.round(2)")
     .query(f"{cols.FLOAT_BID_POWER} > {cols.FLOAT_MAX_POWER}")
     .empty,
     element_wise=False,
-    error="There are exclusive groups that exceed MaxPot in some periods",
+    error="There are exclusive groups that exceed MaxPot in some periods + 0.001",
 )
 
 
