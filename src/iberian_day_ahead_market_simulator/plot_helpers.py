@@ -1,3 +1,5 @@
+import re
+
 import matplotlib.pyplot as plt
 import numpy as np
 import iberian_day_ahead_market_simulator.columns as cols
@@ -89,9 +91,21 @@ def plot_residual_demand_curves(
     if isinstance(rdc_dfs, (pd.DataFrame, np.ndarray)):
         rdc_dfs = [rdc_dfs]
 
+    period_numbers = [
+        int(match.group(1))
+        for df in rdc_dfs
+        for col in df.columns
+        if (match := re.fullmatch(r"power_(\d+)", col))
+    ]
+    market_periods_count = max(period_numbers) if period_numbers else 24
+
     created_fig = False
     if axs is None:
-        fig, axs = plt.subplots(4, 6, figsize=figsize, sharex=True, sharey=True)
+        n_cols = 6
+        n_rows = int(np.ceil(market_periods_count / n_cols))
+        fig, axs = plt.subplots(
+            n_rows, n_cols, figsize=figsize, sharex=True, sharey=True
+        )
         axs_flat = axs.flatten()
         created_fig = True
     else:
@@ -117,6 +131,9 @@ def plot_residual_demand_curves(
         colors = None
 
     for idx, ax in enumerate(axs_flat):
+        if idx >= market_periods_count:
+            ax.axis("off")
+            continue
         period = idx + 1
         for i, df in enumerate(rdc_dfs):
             if use_colorbar:
@@ -141,7 +158,7 @@ def plot_residual_demand_curves(
         if idx == 0:
             ax.legend()
         ax.set_title(f"Period {period}")
-        ax.set_xlabel("Power (MWh)")
+        ax.set_xlabel("Power (MW)")
         ax.set_ylabel("Price (€/MWh)")
 
     if use_colorbar:
