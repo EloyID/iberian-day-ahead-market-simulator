@@ -214,26 +214,26 @@ def full_simplified_det_cab_dataframe():
     ).astype(
         {
             # 'date_sesion': 'object',
-            'id_order': 'string',
+            'id_order': 'category',
             'int_period': 'int8',
             'int_num_block': 'int8',
             'int_num_suborder': 'int8',
             'int_num_excl_group': 'int8',
-            'float_bid_price': 'float64',
-            'float_bid_power': 'float64',
-            'float_mav': 'float64',
-            'float_mar': 'float64',
-            'id_unidad': 'string',
+            'float_bid_price': 'float32',
+            'float_bid_power': 'float32',
+            'float_mav': 'float32',
+            'float_mar': 'float32',
+            'id_unidad': 'category',
             'cat_buy_sell': 'category',
-            'float_max_power': 'float64',
-            'float_mic': 'float64',
+            'float_max_power': 'float32',
+            'float_mic': 'float32',
             'cat_bidding_zone': 'category',
             'cat_order_type': 'category',
-            'float_bid_power_cumsum': 'float64',
+            'float_bid_power_cumsum': 'float32',
             # 'id_individual_bid': 'object',
-            'id_block_order': 'string',
-            'id_sco': 'string',
-            'float_bid_power_cumsum_by_country': 'float64'
+            'id_block_order': 'category',
+            'id_sco': 'category',
+            'float_bid_power_cumsum_by_country': 'float32'
         }
     )
     # fmt: on
