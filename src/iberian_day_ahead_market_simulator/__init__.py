@@ -12,7 +12,7 @@ parse_cab_file / parse_det_file / parse_capacidad_inter_file
     Parse raw OMIE flat-file formats into pandas DataFrames.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0a1"
 __author__ = "EloyID"
 
 from iberian_day_ahead_market_simulator.clearing_process import (
