@@ -15,6 +15,7 @@ from iberian_day_ahead_market_simulator.clear_mibel_with_price_curve import (
     get_cleared_power_from_non_exclusive_block_order,
     get_cleared_power_from_SCO,
     get_cleared_power_as_simple_bids_with_price_curve,
+    get_cleared_power_with_price_curve,
 )
 
 
@@ -136,6 +137,29 @@ class TestGetClearedPowerFromSCO:
         expected = pd.Series([0.0, 0.0, 0.0], dtype=float)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
+    def test_qh_scales_power_to_energy_for_collection_rights(self, sco_order):
+        """Regression test: in QH markets, cleared power must be divided by 4 to
+        get energy before comparing collection rights against the fixed MIC cost.
+        With the same clearing prices that clear the SCO hourly (is_QH=False), the
+        SCO must NOT clear in a QH market, because collection rights scale down
+        with energy while the fixed MIC cost does not."""
+        sco_order = sco_order.copy()
+        sco_order[cols.FLOAT_CLEARED_PRICE] = [40.0, 41.0, 42.0]
+
+        result_hourly = get_cleared_power_from_SCO(sco_order, is_QH=False)
+        result_qh = get_cleared_power_from_SCO(sco_order, is_QH=True)
+
+        # Hourly: collection = 100*40 + 110*41 + 120*42 = 13550
+        #         expected   = 100*35 + 110*35 + 120*35 + 1000 = 12550 -> clears
+        expected_hourly = pd.Series([100.0, 110.0, 120.0], dtype=float)
+        pd.testing.assert_series_equal(result_hourly, expected_hourly, check_names=False)
+
+        # QH: energy = power / 4 = [25, 27.5, 30]
+        #     collection = 25*40 + 27.5*41 + 30*42 = 3387.5
+        #     expected   = 25*35 + 27.5*35 + 30*35 + 1000 = 3887.5 -> doesn't clear
+        expected_qh = pd.Series([0.0, 0.0, 0.0], dtype=float)
+        pd.testing.assert_series_equal(result_qh, expected_qh, check_names=False)
+
 
 class TestGetClearedPowerFromExclusiveBlockOrderGroups:
     """Test suite for get_cleared_power_from_exclusive_block_order_groups function."""
@@ -215,6 +239,87 @@ class TestCalculateClearedPowerFromSCOs:
         """Test that all SCO orders are processed."""
         result = calculate_cleared_power_from_SCOs(multiple_scos, is_QH=False)
         expected = pd.Series([100.0, 110.0, 120.0, 0.0, 0.0], dtype=float)
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+
+    def test_empty_dataframe_returns_empty_series(self):
+        """Test that an empty DataFrame short-circuits instead of erroring out of
+        the groupby/apply call."""
+        empty_df = pd.DataFrame(
+            {
+                cols.ID_ORDER: pd.Series(dtype="object"),
+                cols.INT_PERIOD: pd.Series(dtype="int64"),
+                cols.FLOAT_CLEARED_PRICE: pd.Series(dtype="float64"),
+                cols.FLOAT_BID_PRICE: pd.Series(dtype="float64"),
+                cols.FLOAT_BID_POWER: pd.Series(dtype="float64"),
+                cols.FLOAT_MAV: pd.Series(dtype="float64"),
+                cols.FLOAT_MIC: pd.Series(dtype="float64"),
+            }
+        )
+
+        result = calculate_cleared_power_from_SCOs(empty_df, is_QH=False)
+
+        assert len(result) == 0
+        assert result.dtype == float
+
+
+class TestGetClearedPowerWithPriceCurveQHWiring:
+    """Test suite verifying get_cleared_power_with_price_curve() correctly
+    derives is_QH from market_periods_count and threads it through to
+    calculate_cleared_power_from_SCOs()."""
+
+    @pytest.fixture
+    def sco_det_cab(self):
+        """Single C02 SCO order across 2 periods."""
+        return pd.DataFrame(
+            {
+                cols.INT_PERIOD: [1, 2],
+                cols.ID_ORDER: ["SCO1", "SCO1"],
+                cols.CAT_BUY_SELL: ["V", "V"],
+                cols.CAT_ORDER_TYPE: ["C02", "C02"],
+                cols.FLOAT_BID_PRICE: [35.0, 35.0],
+                cols.FLOAT_BID_POWER: [100.0, 110.0],
+                cols.FLOAT_MAV: [50.0, 50.0],
+                cols.FLOAT_MIC: [1000.0, 1000.0],
+                cols.INT_NUM_BLOCK: [0, 0],
+                cols.INT_NUM_EXCL_GROUP: [0, 0],
+            }
+        )
+
+    def test_qh_market_periods_count_scales_sco_clearing(self, sco_det_cab):
+        """With a QH market_periods_count (e.g. 96), the SCO must clear using
+        energy (power / 4), not power, exactly like get_cleared_power_from_SCO
+        does directly (see TestGetClearedPowerFromSCO.
+        test_qh_scales_power_to_energy_for_collection_rights)."""
+        price_curve = np.zeros(96)
+        price_curve[0] = 40.0
+        price_curve[1] = 41.0
+
+        result = get_cleared_power_with_price_curve(
+            price_curve, sco_det_cab, market_periods_count=96
+        )
+
+        # energy = power / 4 = [25, 27.5]
+        # collection = 25*40 + 27.5*41 = 2127.5
+        # expected   = 25*35 + 27.5*35 + 1000 = 2837.5 -> doesn't clear
+        expected = pd.Series([0.0, 0.0], dtype=float, index=sco_det_cab.index)
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+
+    def test_hourly_market_periods_count_does_not_scale_sco_clearing(
+        self, sco_det_cab
+    ):
+        """The same SCO, with the exact same prices, clears under an hourly
+        market_periods_count (e.g. 24) since power is used directly as energy."""
+        price_curve = np.zeros(24)
+        price_curve[0] = 40.0
+        price_curve[1] = 41.0
+
+        result = get_cleared_power_with_price_curve(
+            price_curve, sco_det_cab, market_periods_count=24
+        )
+
+        # collection = 100*40 + 110*41 = 8510
+        # expected   = 100*35 + 110*35 + 1000 = 8350 -> clears
+        expected = pd.Series([100.0, 110.0], dtype=float, index=sco_det_cab.index)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
 

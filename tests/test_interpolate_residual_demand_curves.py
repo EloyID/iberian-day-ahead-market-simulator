@@ -12,6 +12,8 @@ from iberian_day_ahead_market_simulator.residual_demand_curve import (
 
 RDC_POWER_COLUMNS_HOURLY = get_rdc_power_columns(24)
 RDC_PRICE_COLUMNS_HOURLY = get_rdc_price_columns(24)
+RDC_POWER_COLUMNS_QH = get_rdc_power_columns(96)
+RDC_PRICE_COLUMNS_QH = get_rdc_price_columns(96)
 
 
 def _build_linear_residual_demand_curves():
@@ -174,3 +176,33 @@ class TestInterpolateResidualDemandCurves:
         assert set(result.columns) == expected_cols
         # Index preserved
         assert list(result.index) == ["low", "mid", "high"]
+
+    def test_works_with_qh_columns(self):
+        """The power/price column lists are now caller-supplied (they used to be
+        hardcoded 24-hour constants), so a QH (96-period) column set - a
+        different size and a different set of names - must work identically."""
+        rows = ["p0", "p1", "p2"]
+        data = {}
+        for period in range(1, 97):
+            data[f"power_{period}"] = [0.0, 100.0, 200.0]
+            data[f"price_{period}"] = [10.0, 20.0, 40.0]
+        residual = pd.DataFrame(data, index=rows)
+
+        target = pd.DataFrame(
+            {col: [50.0] for col in RDC_POWER_COLUMNS_QH}, index=["mid"]
+        )
+
+        result = interpolate_residual_demand_curves(
+            target,
+            residual,
+            target_power_columns=RDC_POWER_COLUMNS_QH,
+            target_price_columns=RDC_PRICE_COLUMNS_QH,
+            residual_demand_power_columns=RDC_POWER_COLUMNS_QH,
+            residual_demand_price_columns=RDC_PRICE_COLUMNS_QH,
+            extrapolate_action="nan",
+        )
+
+        expected_cols = set(RDC_POWER_COLUMNS_QH) | set(RDC_PRICE_COLUMNS_QH)
+        assert set(result.columns) == expected_cols
+        for price_col in RDC_PRICE_COLUMNS_QH:
+            assert np.isclose(result.loc["mid", price_col], 15.0)
