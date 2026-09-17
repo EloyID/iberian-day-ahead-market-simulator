@@ -394,6 +394,40 @@ class TestGetMarketPeriodsCount:
         det = self._det_with_max_period(92)
         assert tools.get_market_periods_count(det) == 92
 
+    def test_qh_market_with_period_97_entirely_absent(self):
+        """Regression test for the fixed bug: the QH residual check used to
+        always test a hardcoded period 97 regardless of the actual max period.
+        If period 97 had zero rows (while periods 98-100 were fully populated,
+        a plausible OMIE data quirk), value_counts().loc[97] raised a bare
+        KeyError instead of the day being correctly recognized as a genuine
+        100-period market. The fix checks the actual max period (100) instead."""
+        periods = []
+        for period in range(1, 97):
+            periods.extend([period] * 100)
+        for period in [98, 99, 100]:
+            periods.extend([period] * 100)
+        det = pd.DataFrame({cols.INT_PERIOD: periods})
+        assert tools.get_market_periods_count(det) == 100
+
+    def test_raises_for_unrecognized_hourly_period_count(self):
+        """A max period count outside the known hourly/QH options (e.g. a
+        corrupted file, or an intermediate count like 26) must raise a clear
+        error instead of silently returning None."""
+        det = self._det_with_max_period(26)
+        with pytest.raises(ValueError, match="Unexpected number of periods"):
+            tools.get_market_periods_count(det)
+
+    def test_raises_for_unrecognized_intermediate_qh_period_count(self):
+        """Regression test for the fixed bug: intermediate QH period counts
+        (e.g. 98, not exactly 92/96/100) used to be silently accepted and
+        returned as-is by the final catch-all branch, which made is_QH_market
+        misclassify them as hourly (since it only recognizes {92, 96, 100}),
+        causing a silent 4x power/energy miscalculation downstream. Now they
+        must raise instead of being returned."""
+        det = self._det_with_max_period(98)
+        with pytest.raises(ValueError, match="Unexpected number of periods"):
+            tools.get_market_periods_count(det)
+
 
 class TestIsQHMarket:
     """Test suite for is_QH_market function."""

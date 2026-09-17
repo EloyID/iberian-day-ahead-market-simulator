@@ -411,11 +411,11 @@ def get_market_periods_count(det: pd.DataFrame) -> int:
             logger.warning("Market day with 23 periods detected.")
             return det_total_periods
 
-    if det_total_periods >= 92 and det_total_periods <= 100:
-        if det_total_periods > 96:
-            if is_market_presence_residual(det, 97):
+    if det_total_periods in [92, 96, 100]:
+        if det_total_periods == 100:
+            if is_market_presence_residual(det, 100):
                 logger.warning(
-                    f"Period 100 det file entries are negligible compared to the size of the other periods, dropping it.",
+                    f"Period 100 det file entries are negligible compared to the size of the other periods, dropping periods 97, 98, 99 and 100.",
                 )
                 det_total_periods = 96
             else:
@@ -425,16 +425,20 @@ def get_market_periods_count(det: pd.DataFrame) -> int:
         if det_total_periods == 96:
             if is_market_presence_residual(det, 96):
                 logger.warning(
-                    f"Period 96 det file entries are negligible compared to the size of the other periods, dropping it.",
+                    f"Period 96 det file entries are negligible compared to the size of the other periods, dropping periods 93, 94, 95 and 96.",
                 )
                 det_total_periods = 92
 
             else:
                 return det_total_periods
 
-        if det_total_periods >= 92:
+        if det_total_periods == 92:
             logger.warning("Market day with 92 periods detected.")
             return det_total_periods
+
+    raise ValueError(
+        f"Unexpected number of periods in DET file: {det_total_periods}. Expected 23, 24, 25 for hourly markets or 92, 96, 100 for quarter-hourly markets."
+    )
 
 
 def is_QH_market(market_periods_count: int) -> bool:
