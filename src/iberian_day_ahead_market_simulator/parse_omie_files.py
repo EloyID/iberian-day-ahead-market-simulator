@@ -6,8 +6,15 @@ import pandas as pd
 import logging
 
 import iberian_day_ahead_market_simulator.columns as cols
-from iberian_day_ahead_market_simulator.const import FRONTIER_MAPPING_REVERSE
-from iberian_day_ahead_market_simulator.tools import transform_hxqx_period_to_int
+from iberian_day_ahead_market_simulator.const import (
+    FRONTIER_MAPPING_REVERSE,
+    TOTAL_PERIODS_H_OPTIONS,
+    TOTAL_PERIODS_QH_OPTIONS,
+)
+from iberian_day_ahead_market_simulator.tools import (
+    get_market_periods_count,
+    transform_hxqx_period_to_int,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -323,7 +330,11 @@ def det_files_to_parquet(det_folder, output_path="det.parquet"):
     det_dfs = []
 
     for file in det_files:
-        det_dfs.append(parse_det_file(det_folder + file))
+        det_file_df = parse_det_file(det_folder + file)
+        market_periods_count = get_market_periods_count(det_file_df)
+        det_dfs.append(
+            det_file_df.loc[det_file_df[cols.INT_PERIOD] <= market_periods_count]
+        )
 
     logger.info("Saving DET to parquet at %s", output_path)
     det = pd.concat(det_dfs, ignore_index=True)
@@ -365,9 +376,9 @@ def parse_curva_pbc_file(curva_pbc_filepath: str) -> pd.DataFrame:
 
 def parse_capacidad_inter_file(
     capacidad_inter_filepath: str,
-    is_QH: bool,
     bidding_zone: Literal["ES", "PT", "FR", "MA"] | None = None,
     only_capacity_columns: bool = False,
+    is_QH: bool = None,
 ) -> pd.DataFrame:
     """
     Parses a single capacidad_inter CSV file and returns a DataFrame.
@@ -394,6 +405,17 @@ def parse_capacidad_inter_file(
         skipfooter=1,
         engine="python",
     )
+
+    if is_QH is None:
+        periods_count = capacidad_inter_data["Periodo"].nunique()
+        if periods_count in TOTAL_PERIODS_H_OPTIONS:
+            is_QH = False
+        elif periods_count in TOTAL_PERIODS_QH_OPTIONS:
+            is_QH = True
+        else:
+            raise ValueError(
+                f"Unexpected number of unique periods ({periods_count}) in capacidad_inter data. Cannot determine if data is hourly or quarter-hourly."
+            )
 
     if "Hora" in capacidad_inter_data.columns:
         capacidad_inter_data["Periodo"] = (
@@ -452,7 +474,8 @@ def capacidad_inter_files_to_parquet(
     capacidad_inter_data = pd.concat(capacidad_inter_dfs, ignore_index=True)
 
     capacidad_inter_is_hourly_data = (
-        capacidad_inter_data.groupby(cols.DATE_SESION)[cols.INT_PERIOD].max() <= 25
+        capacidad_inter_data.groupby(cols.DATE_SESION)[cols.INT_PERIOD].max()
+        <= max(TOTAL_PERIODS_H_OPTIONS)
     ).any()
     if capacidad_inter_is_hourly_data and qh_output:
         raise ValueError(
