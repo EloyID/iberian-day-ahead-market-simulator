@@ -409,22 +409,17 @@ class TestGetMarketPeriodsCount:
         det = pd.DataFrame({cols.INT_PERIOD: periods})
         assert tools.get_market_periods_count(det) == 100
 
+    def test_qh_market_without_complete_100_periods(self):
+        """Regression test for the fixed bug: if only 98 not residual periods
+        available, the function should still return 100."""
+        det = self._det_with_max_period(98)
+        assert tools.get_market_periods_count(det) == 100
+
     def test_raises_for_unrecognized_hourly_period_count(self):
         """A max period count outside the known hourly/QH options (e.g. a
         corrupted file, or an intermediate count like 26) must raise a clear
         error instead of silently returning None."""
         det = self._det_with_max_period(26)
-        with pytest.raises(ValueError, match="Unexpected number of periods"):
-            tools.get_market_periods_count(det)
-
-    def test_raises_for_unrecognized_intermediate_qh_period_count(self):
-        """Regression test for the fixed bug: intermediate QH period counts
-        (e.g. 98, not exactly 92/96/100) used to be silently accepted and
-        returned as-is by the final catch-all branch, which made is_QH_market
-        misclassify them as hourly (since it only recognizes {92, 96, 100}),
-        causing a silent 4x power/energy miscalculation downstream. Now they
-        must raise instead of being returned."""
-        det = self._det_with_max_period(98)
         with pytest.raises(ValueError, match="Unexpected number of periods"):
             tools.get_market_periods_count(det)
 

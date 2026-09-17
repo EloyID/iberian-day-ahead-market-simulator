@@ -368,7 +368,7 @@ def is_market_presence_residual(
         bool: True if the market presence for the given period is residual, False otherwise.
     """
     period_counts = det[cols.INT_PERIOD].value_counts()
-    period_count = period_counts.loc[period]
+    period_count = period_counts.loc[period] if period in period_counts.index else 0
     median_period_count = period_counts.median()
 
     return period_count < (threshold * median_period_count)
@@ -389,48 +389,55 @@ def get_market_periods_count(det: pd.DataFrame) -> int:
 
     if det_total_periods in [23, 24, 25]:
         if det_total_periods == 25:
-            if is_market_presence_residual(det, 25):
+            if not is_market_presence_residual(det, 25):
+                logger.warning("Market day with 25 periods detected.")
+                return det_total_periods
+            else:
                 logger.warning(
                     f"Period 25 det file entries are negligible compared to the size of the other periods, dropping it. You can ignore this, this is a typical issue with OMIE det files.",
                 )
                 det_total_periods = 24
-            else:
-                logger.warning("Market day with 25 periods detected.")
-                return det_total_periods
 
         if det_total_periods == 24:
-            if is_market_presence_residual(det, 24):
+            if not is_market_presence_residual(det, 24):
+                return det_total_periods
+            else:
                 logger.warning(
                     f"Period 24 det file entries are negligible compared to the size of the other periods, dropping it.",
                 )
                 det_total_periods = 23
-            else:
-                return det_total_periods
 
         if det_total_periods == 23:
             logger.warning("Market day with 23 periods detected.")
             return det_total_periods
 
-    if det_total_periods in [92, 96, 100]:
-        if det_total_periods == 100:
-            if is_market_presence_residual(det, 100):
+    if det_total_periods >= 92 and det_total_periods <= 100:
+        if det_total_periods > 96:
+            are_last_periods_residual = all(
+                is_market_presence_residual(det, p) for p in range(97, 101)
+            )
+            if not are_last_periods_residual:
+                logger.warning("Market day with 100 periods detected.")
+                det_total_periods = 100
+                return det_total_periods
+            else:
                 logger.warning(
-                    f"Period 100 det file entries are negligible compared to the size of the other periods, dropping periods 97, 98, 99 and 100.",
+                    "Period [97-100] det file entries are negligible compared to the size of the other periods, dropping them.",
                 )
                 det_total_periods = 96
-            else:
-                logger.warning("Market day with 100 periods detected.")
-                return det_total_periods
 
-        if det_total_periods == 96:
-            if is_market_presence_residual(det, 96):
+        if det_total_periods > 92:
+            are_last_periods_residual = all(
+                is_market_presence_residual(det, p) for p in range(93, 97)
+            )
+            if not are_last_periods_residual:
+                det_total_periods = 96
+                return det_total_periods
+            else:
                 logger.warning(
-                    f"Period 96 det file entries are negligible compared to the size of the other periods, dropping periods 93, 94, 95 and 96.",
+                    "Period [93-96] det file entries are negligible compared to the size of the other periods, dropping them.",
                 )
                 det_total_periods = 92
-
-            else:
-                return det_total_periods
 
         if det_total_periods == 92:
             logger.warning("Market day with 92 periods detected.")
