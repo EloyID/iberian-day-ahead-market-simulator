@@ -24,7 +24,7 @@ columns_dict = {
     cols.CAT_ORDER_TYPE: pa.Column(pa.Category, checks=[pa.Check.isin(ORDER_TYPE_OPTIONS)],                  coerce=True),
     cols.CAT_FRONTIER:   pa.Column(pa.Category, checks=[pa.Check.isin(CAT_FRONTIER_OPTIONS)], required=False, coerce=True),
 
-    cols.INT_PERIOD:         pa.Column(int, checks=[pa.Check.ge(1), pa.Check.le(25)], coerce=True),
+    cols.INT_PERIOD:         pa.Column(int, checks=[pa.Check.ge(1), pa.Check.le(100)], coerce=True),
     cols.INT_NUM_BLOCK:        pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),
     cols.INT_NUM_SUBORDER:       pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),
     cols.INT_NUM_EXCL_GROUP:  pa.Column(int, checks=[pa.Check.ge(0)],                  coerce=True),
@@ -52,8 +52,8 @@ columns_dict = {
     cols.INT_MIC_SCOS_COUNT:        pa.Column(int, checks=[pa.Check.ge(0)], coerce=True),
     cols.INT_BID_BLOCKS_COUNT:      pa.Column(int, checks=[pa.Check.ge(0)], coerce=True),
     cols.INT_PARADOXICAL_ORDERS_COUNT:  pa.Column(int, checks=[pa.Check.ge(0)], coerce=True),
-    cols.CLEARED_ENERGY_COLUMN:     pa.Column(object                                   ),
-    cols.CLEARING_PRICES_COLUMN:    pa.Column(object                                   ),
-    cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN:  pa.Column(object                        ),
+    cols.DF_CLEARED_POWER_COLUMN:     pa.Column(object                                   ),
+    cols.DF_CLEARING_PRICES_COLUMN:    pa.Column(object                                   ),
+    cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN:  pa.Column(object                        ),
     "Transmision_ES_PT":            pa.Column(float,                        coerce=True),
 }

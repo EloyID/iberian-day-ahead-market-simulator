@@ -15,6 +15,7 @@ from iberian_day_ahead_market_simulator.calculate_residual_demand_curves_from_bi
     calculate_only_simple_submitted_relaxed_residual_demand,
     calculate_submitted_relaxed_residual_demand,
     format_price_curves,
+    substract_reference_curve_from_all_curves,
 )
 from iberian_day_ahead_market_simulator.const import PORTUGAL_ZONE, SPAIN_ZONE
 
@@ -44,7 +45,7 @@ class TestFormatPriceCurves:
         """Test that 1D array with wrong length raises ValueError."""
         price_curve = np.arange(20)  # Wrong length
 
-        with pytest.raises(ValueError, match="must have length 24"):
+        with pytest.raises(ValueError, match="it must have length in"):
             format_price_curves(price_curve)
 
     def test_2d_array_wrong_shape_raises(self):
@@ -67,6 +68,68 @@ class TestFormatPriceCurves:
 
         with pytest.raises(ValueError):
             format_price_curves(price_curve)
+
+    @pytest.mark.parametrize("qh_length", [92, 96, 100])
+    def test_1d_array_accepts_qh_lengths(self, qh_length):
+        """QH markets can have 92, 96 or 100 periods; the length check must accept
+        those too, not just the hourly 23/24/25 options."""
+        price_curve = np.arange(qh_length)
+        result = format_price_curves(price_curve)
+
+        assert result.shape == (1, qh_length)
+        np.testing.assert_array_equal(result[0], price_curve)
+
+    def test_2d_array_accepts_qh_length(self):
+        """A 2D array of QH-length price curves is also accepted."""
+        price_curves = np.random.rand(5, 96)
+        result = format_price_curves(price_curves)
+
+        assert result.shape == (5, 96)
+        np.testing.assert_array_equal(result, price_curves)
+
+
+class TestSubstractReferenceCurveFromAllCurves:
+    """Test suite for substract_reference_curve_from_all_curves function."""
+
+    @pytest.fixture
+    def curves_df(self):
+        return pd.DataFrame(
+            {
+                "price_1": [10.0, 20.0, 30.0],
+                "price_2": [11.0, 21.0, 31.0],
+                "power_1": [100.0, 150.0, 200.0],
+                "power_2": [110.0, 160.0, 210.0],
+            }
+        )
+
+    def test_subtracts_reference_row_from_power_columns_only(self, curves_df):
+        """Only the power columns get the reference row subtracted; price
+        columns must be left untouched."""
+        result = substract_reference_curve_from_all_curves(
+            curves_df, reference_curve_index=1, rdc_power_columns=["power_1", "power_2"]
+        )
+
+        pd.testing.assert_series_equal(result["price_1"], curves_df["price_1"])
+        pd.testing.assert_series_equal(result["price_2"], curves_df["price_2"])
+        # Reference row (index 1: power 150, 160) subtracted from every row.
+        expected_power_1 = pd.Series([-50.0, 0.0, 50.0], name="power_1")
+        expected_power_2 = pd.Series([-50.0, 0.0, 50.0], name="power_2")
+        pd.testing.assert_series_equal(result["power_1"], expected_power_1)
+        pd.testing.assert_series_equal(result["power_2"], expected_power_2)
+
+    def test_works_with_a_single_qh_power_column(self, curves_df):
+        """The power-column list is caller-supplied (it used to be a hardcoded
+        24-hour constant), so a differently-sized/named list of columns, as would
+        be used for QH curves, must work too."""
+        df = curves_df.rename(columns={"power_1": "power_only"}).drop(
+            columns=["power_2"]
+        )
+        result = substract_reference_curve_from_all_curves(
+            df, reference_curve_index=0, rdc_power_columns=["power_only"]
+        )
+
+        expected = pd.Series([0.0, 50.0, 100.0], name="power_only")
+        pd.testing.assert_series_equal(result["power_only"], expected)
 
 
 class TestCalculateOnlySimpleSubmittedRelaxedResidualDemand:

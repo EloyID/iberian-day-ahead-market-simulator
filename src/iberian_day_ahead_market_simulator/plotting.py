@@ -26,9 +26,7 @@ def plot_period_curves(
         f"{cols.FLOAT_CLEARED_POWER} > 0"
     ).sort_values(potencia_casada_cumsum_column)
 
-    cleared_energy = det_cab_period_results_C_casada[
-        potencia_casada_cumsum_column
-    ].max()
+    cleared_power = det_cab_period_results_C_casada[potencia_casada_cumsum_column].max()
 
     line_properties = {
         "xlabel": "Cumulative Power (MW)",
@@ -73,10 +71,10 @@ def plot_period_curves(
         label=f"Clearing Price: {clearing_price} €/MWh",
     )
     ax.axvline(
-        x=cleared_energy,
+        x=cleared_power,
         color="g",
         linestyle="--",
-        label=f"Cleared Quantity: {cleared_energy} MW",
+        label=f"Cleared Quantity: {cleared_power} MW",
     )
     ax.legend()
 

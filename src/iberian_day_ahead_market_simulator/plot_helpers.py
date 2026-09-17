@@ -1,3 +1,5 @@
+import re
+
 import matplotlib.pyplot as plt
 import numpy as np
 import iberian_day_ahead_market_simulator.columns as cols
@@ -9,7 +11,7 @@ def plot_sell_profiles(
     figsize=(12, 6),
     title="Homothetic Sell Profiles",
     ylabel="MW",
-    xlabel="Hour of the day",
+    xlabel="Period of the day",
     colorbar=True,
     cmap="viridis",
     legend=True,
@@ -89,9 +91,21 @@ def plot_residual_demand_curves(
     if isinstance(rdc_dfs, (pd.DataFrame, np.ndarray)):
         rdc_dfs = [rdc_dfs]
 
+    period_numbers = [
+        int(match.group(1))
+        for df in rdc_dfs
+        for col in df.columns
+        if (match := re.fullmatch(r"power_(\d+)", col))
+    ]
+    market_periods_count = max(period_numbers) if period_numbers else 24
+
     created_fig = False
     if axs is None:
-        fig, axs = plt.subplots(4, 6, figsize=figsize, sharex=True, sharey=True)
+        n_cols = 6
+        n_rows = int(np.ceil(market_periods_count / n_cols))
+        fig, axs = plt.subplots(
+            n_rows, n_cols, figsize=figsize, sharex=True, sharey=True
+        )
         axs_flat = axs.flatten()
         created_fig = True
     else:
@@ -117,21 +131,24 @@ def plot_residual_demand_curves(
         colors = None
 
     for idx, ax in enumerate(axs_flat):
-        hour = idx + 1
+        if idx >= market_periods_count:
+            ax.axis("off")
+            continue
+        period = idx + 1
         for i, df in enumerate(rdc_dfs):
             if use_colorbar:
                 for j, (ix, row) in enumerate(df.iterrows()):
                     ax.scatter(
-                        row[f"energy_{hour}"],
-                        row[f"price_{hour}"],
+                        row[f"power_{period}"],
+                        row[f"price_{period}"],
                         color=colors[j],
                         alpha=alpha,
                         **plot_kwargs,
                     )
-            df_aux = df.sort_values(by=f"energy_{hour}")
+            df_aux = df.sort_values(by=f"power_{period}")
             ax.plot(
-                df_aux[f"energy_{hour}"],
-                df_aux[f"price_{hour}"],
+                df_aux[f"power_{period}"],
+                df_aux[f"price_{period}"],
                 linewidth=linewidth,
                 alpha=alpha,
                 label=label if idx == 0 else None,
@@ -140,8 +157,8 @@ def plot_residual_demand_curves(
             )
         if idx == 0:
             ax.legend()
-        ax.set_title(f"Hour {hour}")
-        ax.set_xlabel("Energy (MWh)")
+        ax.set_title(f"Period {period}")
+        ax.set_xlabel("Power (MW)")
         ax.set_ylabel("Price (€/MWh)")
 
     if use_colorbar:
@@ -159,7 +176,7 @@ def plot_clearing_prices(
     hue=cols.CAT_BIDDING_ZONE,
     title="Clearing Prices by Period",
     ylabel="Cleared Price (€/MWh)",
-    xlabel="Hour of the day",
+    xlabel="Period of the day",
     legend=True,
     marker="o",
     linewidth=2,
@@ -174,10 +191,10 @@ def plot_clearing_prices(
     # if it is a dict
     if isinstance(clearing_prices, dict):
         try:
-            clearing_prices = clearing_prices[cols.CLEARING_PRICES_COLUMN]
+            clearing_prices = clearing_prices[cols.DF_CLEARING_PRICES_COLUMN]
         except KeyError:
             raise ValueError(
-                f"Expected a Dataframe or a dict with key '{cols.CLEARING_PRICES_COLUMN}' for clearing prices."
+                f"Expected a Dataframe or a dict with key '{cols.DF_CLEARING_PRICES_COLUMN}' for clearing prices."
             )
 
     created_fig = False
@@ -220,9 +237,9 @@ def plot_clearing_prices(
 def plot_spain_portugal_transmissions(
     transmissions_df,
     ax=None,
-    title="Spain-Portugal Hourly Transmission",
+    title="Spain-Portugal Transmission",
     ylabel="Transmission ES→PT (MWh)",
-    xlabel="Hour of the day",
+    xlabel="Period of the day",
     legend=False,
     marker="o",
     linewidth=2,
@@ -236,11 +253,11 @@ def plot_spain_portugal_transmissions(
     if isinstance(transmissions_df, dict):
         try:
             transmissions_df = transmissions_df[
-                cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN
+                cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN
             ]
         except KeyError:
             raise ValueError(
-                f"Expected a Dataframe or a dict with key '{cols.SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN}' for Spain-Portugal transmissions."
+                f"Expected a Dataframe or a dict with key '{cols.DF_SPAIN_PORTUGAL_TRANSMISSIONS_COLUMN}' for Spain-Portugal transmissions."
             )
 
     created_fig = False

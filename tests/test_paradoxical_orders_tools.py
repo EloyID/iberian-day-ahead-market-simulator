@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from iberian_day_ahead_market_simulator import columns as cols
 from iberian_day_ahead_market_simulator.paradoxical_orders_tools import (
@@ -70,6 +71,19 @@ class TestTransformIdsParadoxicalOrdersListToDict:
         result_list = transform_paradoxical_orders_dict_to_ids_list(result_dict)
 
         assert set(ids) == set(result_list)
+
+    def test_invalid_id_raises_with_diagnostic_message(self):
+        """An ID missing both 'SCO' and 'GE' markers fails the assertion with a
+        message that names the offending IDs, so the failure is actionable."""
+        ids = ["9706994_SCO", "INVALID_ID", "9707582_B_2_GE_0"]
+
+        with pytest.raises(AssertionError) as exc_info:
+            transform_ids_paradoxical_orders_list_to_dict(ids)
+
+        message = str(exc_info.value)
+        assert str(ids) in message
+        assert "['9706994_SCO']" in message
+        assert "['9707582_B_2_GE_0']" in message
 
 
 class TestTransformParadoxicalOrdersDictToIdsList:

@@ -6,6 +6,7 @@ Tests the utility functions for bid processing and analysis.
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from iberian_day_ahead_market_simulator import columns as cols
 from iberian_day_ahead_market_simulator import tools
@@ -304,3 +305,167 @@ class TestFilterParadoxicalOrdersFromDetCab:
 
         # Should include rows where ID_ORDER is in paradoxical_orders  OR where FLOAT_MIC is not > 0
         assert len(result) == 27
+
+
+class TestIsMarketPresenceResidual:
+    """Test suite for is_market_presence_residual function."""
+
+    def _det_with_period_counts(self, period_counts: dict) -> pd.DataFrame:
+        periods = []
+        for period, count in period_counts.items():
+            periods.extend([period] * count)
+        return pd.DataFrame({cols.INT_PERIOD: periods})
+
+    def test_residual_period_detected(self):
+        """A period with far fewer bids than the median is flagged as residual."""
+        det = self._det_with_period_counts({1: 100, 2: 100, 3: 100, 25: 1})
+        assert tools.is_market_presence_residual(det, 25) == True
+
+    def test_non_residual_period_not_detected(self):
+        """A period with a comparable bid count to the median is not residual."""
+        det = self._det_with_period_counts({1: 100, 2: 100, 3: 100, 25: 100})
+        assert tools.is_market_presence_residual(det, 25) == False
+
+    def test_custom_threshold(self):
+        """A period just above/below a custom threshold is classified accordingly."""
+        det = self._det_with_period_counts({1: 100, 2: 100, 25: 30})
+        # 30 / 100 == 0.3, so with threshold 0.5 it is residual...
+        assert tools.is_market_presence_residual(det, 25, threshold=0.5) == True
+        # ...but with threshold 0.2 it is not.
+        assert tools.is_market_presence_residual(det, 25, threshold=0.2) == False
+
+
+class TestGetMarketPeriodsCount:
+    """Test suite for get_market_periods_count function."""
+
+    def _det_with_max_period(
+        self, max_period: int, other_count: int = 100
+    ) -> pd.DataFrame:
+        periods = []
+        for period in range(1, max_period + 1):
+            periods.extend([period] * other_count)
+        return pd.DataFrame({cols.INT_PERIOD: periods})
+
+    def test_standard_hourly_market_24_periods(self):
+        """A regular hourly market with 24 evenly distributed periods stays at 24."""
+        det = self._det_with_max_period(24)
+        assert tools.get_market_periods_count(det) == 24
+
+    def test_hourly_market_with_residual_25th_period(self):
+        """A 25th period with negligible bids is dropped, and 24 is not residual either."""
+        periods = []
+        for period in range(1, 25):
+            periods.extend([period] * 100)
+        periods.append(25)
+        det = pd.DataFrame({cols.INT_PERIOD: periods})
+        assert tools.get_market_periods_count(det) == 24
+
+    def test_hourly_market_with_genuine_25_periods(self):
+        """When period 25 is not residual (DST fall-back day), it is kept."""
+        det = self._det_with_max_period(25)
+        assert tools.get_market_periods_count(det) == 25
+
+    def test_hourly_market_23_periods(self):
+        """A 23-period day (DST spring-forward) is returned as-is."""
+        det = self._det_with_max_period(23)
+        assert tools.get_market_periods_count(det) == 23
+
+    def test_standard_qh_market_96_periods(self):
+        """A regular QH market with 96 evenly distributed periods stays at 96."""
+        det = self._det_with_max_period(96)
+        assert tools.get_market_periods_count(det) == 96
+
+    def test_qh_market_with_residual_97th_period(self):
+        """A 97th+ QH period with negligible bids is dropped down to 96."""
+        periods = []
+        for period in range(1, 97):
+            periods.extend([period] * 100)
+        periods.extend([97, 98, 99, 100])
+        det = pd.DataFrame({cols.INT_PERIOD: periods})
+        assert tools.get_market_periods_count(det) == 96
+
+    def test_qh_market_with_genuine_100_periods(self):
+        """When period 100 is not residual, the 100-period count is kept."""
+        det = self._det_with_max_period(100)
+        assert tools.get_market_periods_count(det) == 100
+
+    def test_qh_market_92_periods(self):
+        """A 92-period QH day (DST spring-forward) is returned as-is."""
+        det = self._det_with_max_period(92)
+        assert tools.get_market_periods_count(det) == 92
+
+    def test_qh_market_with_period_97_entirely_absent(self):
+        """Regression test for the fixed bug: the QH residual check used to
+        always test a hardcoded period 97 regardless of the actual max period.
+        If period 97 had zero rows (while periods 98-100 were fully populated,
+        a plausible OMIE data quirk), value_counts().loc[97] raised a bare
+        KeyError instead of the day being correctly recognized as a genuine
+        100-period market. The fix checks the actual max period (100) instead."""
+        periods = []
+        for period in range(1, 97):
+            periods.extend([period] * 100)
+        for period in [98, 99, 100]:
+            periods.extend([period] * 100)
+        det = pd.DataFrame({cols.INT_PERIOD: periods})
+        assert tools.get_market_periods_count(det) == 100
+
+    def test_raises_for_unrecognized_hourly_period_count(self):
+        """A max period count outside the known hourly/QH options (e.g. a
+        corrupted file, or an intermediate count like 26) must raise a clear
+        error instead of silently returning None."""
+        det = self._det_with_max_period(26)
+        with pytest.raises(ValueError, match="Unexpected number of periods"):
+            tools.get_market_periods_count(det)
+
+    def test_raises_for_unrecognized_intermediate_qh_period_count(self):
+        """Regression test for the fixed bug: intermediate QH period counts
+        (e.g. 98, not exactly 92/96/100) used to be silently accepted and
+        returned as-is by the final catch-all branch, which made is_QH_market
+        misclassify them as hourly (since it only recognizes {92, 96, 100}),
+        causing a silent 4x power/energy miscalculation downstream. Now they
+        must raise instead of being returned."""
+        det = self._det_with_max_period(98)
+        with pytest.raises(ValueError, match="Unexpected number of periods"):
+            tools.get_market_periods_count(det)
+
+
+class TestIsQHMarket:
+    """Test suite for is_QH_market function."""
+
+    def test_hourly_period_counts_are_not_qh(self):
+        for market_periods_count in [23, 24, 25]:
+            assert tools.is_QH_market(market_periods_count) is False
+
+    def test_qh_period_counts_are_qh(self):
+        for market_periods_count in [92, 96, 100]:
+            assert tools.is_QH_market(market_periods_count) is True
+
+
+class TestGetPowerEnergyScalator:
+    """Test suite for get_power_energy_scalator function."""
+
+    def test_qh_market_scalator_is_4(self):
+        assert tools.get_power_energy_scalator(True) == 4
+
+    def test_hourly_market_scalator_is_1(self):
+        assert tools.get_power_energy_scalator(False) == 1
+
+
+class TestTransformHxQxPeriodToInt:
+    """Test suite for transform_hxqx_period_to_int function."""
+
+    def test_transforms_first_hour(self):
+        result = tools.transform_hxqx_period_to_int(
+            pd.Series(["H1Q1", "H1Q2", "H1Q3", "H1Q4"])
+        )
+        pd.testing.assert_series_equal(result, pd.Series([1, 2, 3, 4]))
+
+    def test_transforms_later_hour(self):
+        result = tools.transform_hxqx_period_to_int(
+            pd.Series(["H24Q1", "H24Q2", "H24Q3", "H24Q4"])
+        )
+        pd.testing.assert_series_equal(result, pd.Series([93, 94, 95, 96]))
+
+    def test_transforms_double_digit_hour(self):
+        result = tools.transform_hxqx_period_to_int(pd.Series(["H10Q3"]))
+        pd.testing.assert_series_equal(result, pd.Series([39]))

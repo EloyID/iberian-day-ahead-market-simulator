@@ -8,7 +8,9 @@ from iberian_day_ahead_market_simulator.tools import get_float_bid_power_cumsum
 from .const import PORTUGAL_ZONE, SPAIN_ZONE
 
 
-def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:
+def get_clearing_prices_df(
+    model: pyo.ConcreteModel, market_periods_count: int
+) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -25,14 +27,14 @@ def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:
     ]
     spain_clearing_price_df = pd.DataFrame(
         {
-            cols.INT_PERIOD: list(range(1, 25)),
+            cols.INT_PERIOD: list(range(1, market_periods_count + 1)),
             cols.FLOAT_CLEARED_PRICE: spain_clearing_prices,
             cols.CAT_BIDDING_ZONE: SPAIN_ZONE,
         }
     )
     portugal_clearing_price_df = pd.DataFrame(
         {
-            cols.INT_PERIOD: list(range(1, 25)),
+            cols.INT_PERIOD: list(range(1, market_periods_count + 1)),
             cols.FLOAT_CLEARED_PRICE: portugal_clearing_prices,
             cols.CAT_BIDDING_ZONE: PORTUGAL_ZONE,
         }
@@ -42,10 +44,10 @@ def get_clearing_prices_df(model: pyo.ConcreteModel) -> pd.DataFrame:
     )
 
 
-########################## Cleared Energy Series #########################
+########################## Cleared Power Series #########################
 
 
-def get_simple_sellers_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
+def get_simple_sellers_cleared_power_series(model: pyo.ConcreteModel) -> pd.Series:
     """_summary_
 
     Args:
@@ -54,17 +56,17 @@ def get_simple_sellers_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Ser
     Returns:
         pd.Series: _description_
     """
-    simple_cleared_sellers_energy = {
+    simple_cleared_sellers_power = {
         s: pyo.value(
             model.v_x_SIMPLE_SELLER_BIDS[s] * model.p_quantity_SIMPLE_SELLER_BIDS[s]
         )
         for s in model.SIMPLE_SELLER_BIDS
         if pyo.value(model.v_x_SIMPLE_SELLER_BIDS[s]) > 0
     }
-    return pd.Series(simple_cleared_sellers_energy, name=cols.FLOAT_CLEARED_POWER)
+    return pd.Series(simple_cleared_sellers_power, name=cols.FLOAT_CLEARED_POWER)
 
 
-def get_block_orders_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
+def get_block_orders_cleared_power_series(model: pyo.ConcreteModel) -> pd.Series:
     """_summary_
 
     Args:
@@ -73,16 +75,16 @@ def get_block_orders_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Serie
     Returns:
         pd.Series: _description_
     """
-    block_cleared_sellers_energy = {
+    block_cleared_sellers_power = {
         s: pyo.value(model.v_x_BLOCK_ORDERS[bo] * model.p_quantity_BLOCK_ORDER_BIDS[s])
         for bo in model.BLOCK_ORDERS
         for s in model.BLOCK_ORDER_BIDS_BY_BLOCK[bo]
         if pyo.value(model.v_x_BLOCK_ORDERS[bo]) > 0
     }
-    return pd.Series(block_cleared_sellers_energy, name=cols.FLOAT_CLEARED_POWER)
+    return pd.Series(block_cleared_sellers_power, name=cols.FLOAT_CLEARED_POWER)
 
 
-def get_sco_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
+def get_sco_cleared_power_series(model: pyo.ConcreteModel) -> pd.Series:
     """_summary_
 
     Args:
@@ -91,15 +93,15 @@ def get_sco_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
     Returns:
         pd.Series: _description_
     """
-    sco_cleared_sellers_energy = {
+    sco_cleared_sellers_power = {
         s: pyo.value(model.v_x_SCO_SELLER_BIDS[s] * model.p_quantity_SCO_SELLER_BIDS[s])
         for s in model.SCO_SELLER_BIDS
         if pyo.value(model.v_x_SCO_SELLER_BIDS[s]) > 0
     }
-    return pd.Series(sco_cleared_sellers_energy, name=cols.FLOAT_CLEARED_POWER)
+    return pd.Series(sco_cleared_sellers_power, name=cols.FLOAT_CLEARED_POWER)
 
 
-def get_buyers_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
+def get_buyers_cleared_power_series(model: pyo.ConcreteModel) -> pd.Series:
     """_summary_
 
     Args:
@@ -108,15 +110,15 @@ def get_buyers_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
     Returns:
         pd.Series: _description_
     """
-    cleared_buyers_energy = {
+    cleared_buyers_power = {
         b: pyo.value(model.v_x_BUYER_BIDS[b] * model.p_quantity_BUYER_BIDS[b])
         for b in model.BUYER_BIDS
         if pyo.value(model.v_x_BUYER_BIDS[b]) > 0
     }
-    return pd.Series(cleared_buyers_energy, name=cols.FLOAT_CLEARED_POWER)
+    return pd.Series(cleared_buyers_power, name=cols.FLOAT_CLEARED_POWER)
 
 
-def get_france_export_bids_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
+def get_france_export_bids_cleared_power_series(model: pyo.ConcreteModel) -> pd.Series:
     """_summary_
 
     Args:
@@ -125,17 +127,17 @@ def get_france_export_bids_cleared_energy_series(model: pyo.ConcreteModel) -> pd
     Returns:
         pd.Series: _description_
     """
-    france_export_cleared_energy = {
+    france_export_cleared_power = {
         s: pyo.value(
             model.v_x_FRANCE_EXPORT_BIDS[s] * model.p_quantity_FRANCE_EXPORT_BIDS[s]
         )
         for s in model.FRANCE_EXPORT_BIDS
         if pyo.value(model.v_x_FRANCE_EXPORT_BIDS[s]) > 0
     }
-    return pd.Series(france_export_cleared_energy, name=cols.FLOAT_CLEARED_POWER)
+    return pd.Series(france_export_cleared_power, name=cols.FLOAT_CLEARED_POWER)
 
 
-def get_france_import_bids_cleared_energy_series(model: pyo.ConcreteModel) -> pd.Series:
+def get_france_import_bids_cleared_power_series(model: pyo.ConcreteModel) -> pd.Series:
     """_summary_
 
     Args:
@@ -144,17 +146,17 @@ def get_france_import_bids_cleared_energy_series(model: pyo.ConcreteModel) -> pd
     Returns:
         pd.Series: _description_
     """
-    france_import_cleared_energy = {
+    france_import_cleared_power = {
         s: pyo.value(
             model.v_x_FRANCE_IMPORT_BIDS[s] * model.p_quantity_FRANCE_IMPORT_BIDS[s]
         )
         for s in model.FRANCE_IMPORT_BIDS
         if pyo.value(model.v_x_FRANCE_IMPORT_BIDS[s]) > 0
     }
-    return pd.Series(france_import_cleared_energy, name=cols.FLOAT_CLEARED_POWER)
+    return pd.Series(france_import_cleared_power, name=cols.FLOAT_CLEARED_POWER)
 
 
-def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
+def get_cleared_power_series(model: pyo.ConcreteModel) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -163,20 +165,20 @@ def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
     Returns:
         pd.DataFrame: _description_
     """
-    simple_sellers_energy = get_simple_sellers_cleared_energy_series(model)
-    block_orders_energy = get_block_orders_cleared_energy_series(model)
-    sco_energy = get_sco_cleared_energy_series(model)
-    cleared_buyers_energy = get_buyers_cleared_energy_series(model)
-    france_export_energy = get_france_export_bids_cleared_energy_series(model)
-    france_import_energy = get_france_import_bids_cleared_energy_series(model)
+    simple_sellers_power = get_simple_sellers_cleared_power_series(model)
+    block_orders_power = get_block_orders_cleared_power_series(model)
+    sco_power = get_sco_cleared_power_series(model)
+    cleared_buyers_power = get_buyers_cleared_power_series(model)
+    france_export_power = get_france_export_bids_cleared_power_series(model)
+    france_import_power = get_france_import_bids_cleared_power_series(model)
 
     series_list = [
-        simple_sellers_energy,
-        block_orders_energy,
-        sco_energy,
-        cleared_buyers_energy,
-        france_export_energy,
-        france_import_energy,
+        simple_sellers_power,
+        block_orders_power,
+        sco_power,
+        cleared_buyers_power,
+        france_export_power,
+        france_import_power,
     ]
     non_empty_series = [s for s in series_list if not s.empty]
     return pd.concat(
@@ -188,7 +190,9 @@ def get_cleared_energy_series(model: pyo.ConcreteModel) -> pd.DataFrame:
 ############################ Analyze results #########################
 
 
-def get_clearing_prices(model: pyo.ConcreteModel) -> pd.DataFrame:
+def get_clearing_prices(
+    model: pyo.ConcreteModel, market_periods_count: int
+) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -208,12 +212,14 @@ def get_clearing_prices(model: pyo.ConcreteModel) -> pd.DataFrame:
             "Precio_casacion_ES": spain_clearing_prices,
             "Precio_casacion_PT": portugal_clearing_prices,
         },
-        index=list(range(1, 25)),
+        index=list(range(1, market_periods_count + 1)),
     )
     return clearing_prices
 
 
-def get_spain_portugal_transmissions(model: pyo.ConcreteModel) -> pd.DataFrame:
+def get_spain_portugal_transmissions(
+    model: pyo.ConcreteModel, market_periods_count: int
+) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -229,13 +235,13 @@ def get_spain_portugal_transmissions(model: pyo.ConcreteModel) -> pd.DataFrame:
         {
             "Transmision_ES_PT": spain_portugal_transmissions,
         },
-        index=list(range(1, 25)),
+        index=list(range(1, market_periods_count + 1)),
     )
     return spain_portugal_transmissions
 
 
 def get_spain_portugal_transmissions_det_cab_df(
-    model: pyo.ConcreteModel, dat_sesion: str
+    model: pyo.ConcreteModel, dat_sesion: str, market_periods_count: int
 ) -> pd.DataFrame:
     """_summary_
 
@@ -246,7 +252,9 @@ def get_spain_portugal_transmissions_det_cab_df(
     Returns:
         pd.DataFrame: _description_
     """
-    spain_portugal_transmissions = get_spain_portugal_transmissions(model)
+    spain_portugal_transmissions = get_spain_portugal_transmissions(
+        model, market_periods_count
+    )
     international_flows = []
 
     for period in model.PERIODS:
@@ -293,7 +301,7 @@ def get_spain_portugal_transmissions_det_cab_df(
 
 
 def get_det_cab_results(
-    model: pyo.ConcreteModel, det_cab: pd.DataFrame
+    model: pyo.ConcreteModel, det_cab: pd.DataFrame, market_periods_count: int
 ) -> pd.DataFrame:
     """_summary_
 
@@ -305,14 +313,14 @@ def get_det_cab_results(
         pd.DataFrame: _description_
     """
 
-    cleared_energy = get_cleared_energy_series(model)
+    cleared_power = get_cleared_power_series(model)
     spain_portugal_transmissions_det_cab = get_spain_portugal_transmissions_det_cab_df(
-        model, det_cab["dat_sesion"].iloc[0]
+        model, det_cab["dat_sesion"].iloc[0], market_periods_count
     )
 
     det_cab_results = (
         det_cab.merge(
-            cleared_energy,
+            cleared_power,
             left_on=cols.ID_INDIVIDUAL_BID,
             right_index=True,
             how="outer",
@@ -336,10 +344,10 @@ def get_det_cab_results(
     det_cab_results[cols.FLOAT_CLEARED_POWER_CUMSUM] = get_float_bid_power_cumsum(
         det_cab_results,
         date_column_name="dat_sesion",
-        hour_column_name=cols.INT_PERIOD,
+        period_column_name=cols.INT_PERIOD,
         cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
         cod_ofertada_casada_column_name="cod_ofertada_casada",
-        qua_energia_column_name=cols.FLOAT_CLEARED_POWER,
+        qua_potencia_column_name=cols.FLOAT_CLEARED_POWER,
         qua_precio_column_name=cols.FLOAT_BID_PRICE,
     )
 
@@ -350,10 +358,10 @@ def get_det_cab_results(
         ] = get_float_bid_power_cumsum(
             det_cab_results.loc[(det_cab_results[cols.CAT_BIDDING_ZONE] == country)],
             date_column_name="dat_sesion",
-            hour_column_name=cols.INT_PERIOD,
+            period_column_name=cols.INT_PERIOD,
             cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
             cod_ofertada_casada_column_name="cod_ofertada_casada",
-            qua_energia_column_name=cols.FLOAT_CLEARED_POWER,
+            qua_potencia_column_name=cols.FLOAT_CLEARED_POWER,
             qua_precio_column_name=cols.FLOAT_BID_PRICE,
         )
 

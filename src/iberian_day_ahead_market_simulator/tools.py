@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
+import logging
 
 import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.const import TOTAL_PERIODS_QH_OPTIONS
 from iberian_day_ahead_market_simulator.file_paths import (
     PARTICIPANTS_BIDDING_ZONES_FILEPATH,
 )
@@ -9,34 +11,36 @@ from iberian_day_ahead_market_simulator.schemas.participants_bidding_zones impor
     ParticipantBiddingZonesSchema,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def get_float_bid_power_cumsum(
     curva_pbc_df,
     date_column_name=cols.DATE_SESION,
-    hour_column_name=cols.INT_PERIOD,
+    period_column_name=cols.INT_PERIOD,
     cod_tipo_oferta_column_name=cols.CAT_BUY_SELL,
     cod_ofertada_casada_column_name=cols.CAT_OFERTADA_CASADA,
-    qua_energia_column_name=cols.FLOAT_BID_POWER,
+    qua_potencia_column_name=cols.FLOAT_BID_POWER,
     qua_precio_column_name=cols.FLOAT_BID_PRICE,
 ) -> pd.Series:
     """
     Calculates the cumulative sum of bid power for each period, buy/sell type, and price within the DET/CAB DataFrame.
 
-    Buy ('V') and sell ('C') bids are sorted and grouped separately, and their cumulative energy is calculated.
+    Buy ('V') and sell ('C') bids are sorted and grouped separately, and their cumulative power is calculated.
 
     Args:
         curva_pbc_df (pd.DataFrame): DataFrame containing bids.
         date_column_name (str): Name of the column with session date.
-        hour_column_name (str): Name of the column with period/hour.
+        period_column_name (str): Name of the column with period.
         cod_tipo_oferta_column_name (str): Name of the column with buy/sell type.
         cod_ofertada_casada_column_name (str, optional): Name of the column with offered/matched type. Defaults to None.
-        qua_energia_column_name (str): Name of the column with bid power.
+        qua_potencia_column_name (str): Name of the column with bid power.
         qua_precio_column_name (str): Name of the column with bid price.
 
     Returns:
         pd.Series: Series with cumulative bid power for each bid.
     """
-    groupby_columns = [hour_column_name]
+    groupby_columns = [period_column_name]
     if cod_ofertada_casada_column_name is not None:
         groupby_columns.append(cod_ofertada_casada_column_name)
     if date_column_name is not None:
@@ -45,29 +49,29 @@ def get_float_bid_power_cumsum(
     curva_pbc_df_C = (
         curva_pbc_df.query(f"`{cod_tipo_oferta_column_name}` == 'C'")
         .sort_values(
-            [qua_precio_column_name, qua_energia_column_name], ascending=[False, True]
+            [qua_precio_column_name, qua_potencia_column_name], ascending=[False, True]
         )
-        .groupby(groupby_columns)[qua_energia_column_name]
+        .groupby(groupby_columns)[qua_potencia_column_name]
         .cumsum()
     )
     curva_pbc_df_V = (
         curva_pbc_df.query(f"`{cod_tipo_oferta_column_name}` == 'V'")
         .sort_values(
-            [qua_precio_column_name, qua_energia_column_name], ascending=[True, True]
+            [qua_precio_column_name, qua_potencia_column_name], ascending=[True, True]
         )
-        .groupby(groupby_columns)[qua_energia_column_name]
+        .groupby(groupby_columns)[qua_potencia_column_name]
         .cumsum()
     )
 
-    curva_pbc_energy_cumsum = pd.Series(
+    curva_pbc_power_cumsum = pd.Series(
         np.nan,
         index=curva_pbc_df.index,
     )
 
-    curva_pbc_energy_cumsum.loc[curva_pbc_df_V.index] = curva_pbc_df_V.values
-    curva_pbc_energy_cumsum.loc[curva_pbc_df_C.index] = curva_pbc_df_C.values
+    curva_pbc_power_cumsum.loc[curva_pbc_df_V.index] = curva_pbc_df_V.values
+    curva_pbc_power_cumsum.loc[curva_pbc_df_C.index] = curva_pbc_df_C.values
 
-    return curva_pbc_energy_cumsum
+    return curva_pbc_power_cumsum
 
 
 def get_is_simple_bid(
@@ -343,3 +347,141 @@ def concat_provided_participants_bidding_zones_with_existing_data(
     )
 
     return combined_participants_bidding_zones
+
+
+def is_market_presence_residual(
+    det: pd.DataFrame, period: int, threshold: float = 0.15
+) -> bool:
+    """
+    Check if the market presence for a given period is residual. For example, in hourly markets,
+    det files may contain bids for 25 periods, although only 24 periods are available that day.
+
+    To check we compare the number of bids for the period with the median number of bids for all periods.
+    If the number of bids for the period is less than threshold% of the median, we consider it residual.
+
+    Args:
+        det (pd.DataFrame): DataFrame containing DET data.
+        period (int): The period to check for residual presence.
+        threshold (float, optional): The threshold for determining residual presence. Defaults to 0.15.
+
+    Returns:
+        bool: True if the market presence for the given period is residual, False otherwise.
+    """
+    period_counts = det[cols.INT_PERIOD].value_counts()
+    period_count = period_counts.loc[period]
+    median_period_count = period_counts.median()
+
+    return period_count < (threshold * median_period_count)
+
+
+def get_market_periods_count(det: pd.DataFrame) -> int:
+    """
+    Determine the number of market periods in the DET DataFrame, considering potential residual periods.
+    For example, in hourly markets, det files may contain 25 periods, although only 24 periods are available that day.
+    Args:
+        det (pd.DataFrame): DataFrame containing DET data.
+
+    Returns:
+        int: The number of market periods, considering potential residual periods.
+    """
+
+    det_total_periods = det[cols.INT_PERIOD].max()
+
+    if det_total_periods in [23, 24, 25]:
+        if det_total_periods == 25:
+            if is_market_presence_residual(det, 25):
+                logger.warning(
+                    f"Period 25 det file entries are negligible compared to the size of the other periods, dropping it. You can ignore this, this is a typical issue with OMIE det files.",
+                )
+                det_total_periods = 24
+            else:
+                logger.warning("Market day with 25 periods detected.")
+                return det_total_periods
+
+        if det_total_periods == 24:
+            if is_market_presence_residual(det, 24):
+                logger.warning(
+                    f"Period 24 det file entries are negligible compared to the size of the other periods, dropping it.",
+                )
+                det_total_periods = 23
+            else:
+                return det_total_periods
+
+        if det_total_periods == 23:
+            logger.warning("Market day with 23 periods detected.")
+            return det_total_periods
+
+    if det_total_periods in [92, 96, 100]:
+        if det_total_periods == 100:
+            if is_market_presence_residual(det, 100):
+                logger.warning(
+                    f"Period 100 det file entries are negligible compared to the size of the other periods, dropping periods 97, 98, 99 and 100.",
+                )
+                det_total_periods = 96
+            else:
+                logger.warning("Market day with 100 periods detected.")
+                return det_total_periods
+
+        if det_total_periods == 96:
+            if is_market_presence_residual(det, 96):
+                logger.warning(
+                    f"Period 96 det file entries are negligible compared to the size of the other periods, dropping periods 93, 94, 95 and 96.",
+                )
+                det_total_periods = 92
+
+            else:
+                return det_total_periods
+
+        if det_total_periods == 92:
+            logger.warning("Market day with 92 periods detected.")
+            return det_total_periods
+
+    raise ValueError(
+        f"Unexpected number of periods in DET file: {det_total_periods}. Expected 23, 24, 25 for hourly markets or 92, 96, 100 for quarter-hourly markets."
+    )
+
+
+def is_QH_market(market_periods_count: int) -> bool:
+    """
+    Determines if a market is a QH market based on the number of market periods.
+
+    Args:
+        market_periods_count (int): The number of market periods.
+
+    Returns:
+        bool: True if the market is a QH market, False otherwise.
+    """
+
+    return market_periods_count in TOTAL_PERIODS_QH_OPTIONS
+
+
+def get_power_energy_scalator(is_QH: bool) -> int:
+    """
+    Returns the factor to convert power (MW) into energy (MWh) for a market period.
+
+    Periods are 15 minutes long in QH markets and 1 hour long otherwise, so power
+    must be divided by 4 to get energy in QH markets.
+
+    Args:
+        is_QH (bool): Whether the market is a QH market.
+
+    Returns:
+        int: The power-to-energy scalator (4 for QH markets, 1 otherwise).
+    """
+
+    return 4 if is_QH else 1
+
+
+def transform_hxqx_period_to_int(period_series: pd.Series) -> pd.Series:
+    """
+    Transforms a series of period strings in the format 'HxQx' to integers.
+
+    Args:
+        period_series (pd.Series): A series of period strings in the format 'HxQx'.
+
+    Returns:
+        pd.Series: A series of integers.
+    """
+    return period_series.str.extract(r"H(\d+)Q(\d+)").apply(
+        lambda x: (int(x[0]) - 1) * 4 + int(x[1]), axis=1
+    )

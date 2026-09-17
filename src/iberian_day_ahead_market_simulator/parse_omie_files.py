@@ -1,3 +1,4 @@
+from operator import is_
 import os
 from typing import Literal
 
@@ -5,7 +6,15 @@ import pandas as pd
 import logging
 
 import iberian_day_ahead_market_simulator.columns as cols
-from iberian_day_ahead_market_simulator.const import FRONTIER_MAPPING_REVERSE
+from iberian_day_ahead_market_simulator.const import (
+    FRONTIER_MAPPING_REVERSE,
+    TOTAL_PERIODS_H_OPTIONS,
+    TOTAL_PERIODS_QH_OPTIONS,
+)
+from iberian_day_ahead_market_simulator.tools import (
+    get_market_periods_count,
+    transform_hxqx_period_to_int,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -294,29 +303,13 @@ def parse_det_file(det_filepath: str) -> pd.DataFrame:
                 },
             }
             det_data.append(record)
+
     det = (
         pd.DataFrame(det_data)
         .astype({entry["field"]: entry["type"] for entry in DET_FORMAT})
         .rename(columns=DET_RENAMING, errors="raise")[DET_COLUMNS]
     )
-    det_25_hour = det[det[cols.INT_PERIOD] == 25]
 
-    # det files can have 25 periods when they are hourly data, but many times is just
-    # false data, so we drop it when it represents less than 1% of the data
-    if not det_25_hour.empty:
-
-        print(len(det_25_hour), len(det) / 24)
-        if len(det_25_hour) < 0.1 * (len(det) / 24):
-            logger.warning(
-                "Periodo 25 size is less than 0.1 times the size of the other periods, dropping it. You can ignore this, this is a typical issue with OMIE det files. File: %s",
-                det_filepath,
-            )
-            det = det[det[cols.INT_PERIOD] != 25]
-        else:
-            logger.warning(
-                "Detected period 25 in DET file %s",
-                det_filepath,
-            )
     return det
 
 
@@ -337,7 +330,11 @@ def det_files_to_parquet(det_folder, output_path="det.parquet"):
     det_dfs = []
 
     for file in det_files:
-        det_dfs.append(parse_det_file(det_folder + file))
+        det_file_df = parse_det_file(det_folder + file)
+        market_periods_count = get_market_periods_count(det_file_df)
+        det_dfs.append(
+            det_file_df.loc[det_file_df[cols.INT_PERIOD] <= market_periods_count]
+        )
 
     logger.info("Saving DET to parquet at %s", output_path)
     det = pd.concat(det_dfs, ignore_index=True)
@@ -347,10 +344,41 @@ def det_files_to_parquet(det_folder, output_path="det.parquet"):
     return det
 
 
+def parse_curva_pbc_file(curva_pbc_filepath: str) -> pd.DataFrame:
+    """
+    Parses a single curva_pbc or curva_pbc_uof CSV file and returns a DataFrame.
+
+    Args:
+        curva_pbc_filepath (str): Path to the curva_pbc CSV file.
+    Returns:
+        pd.DataFrame: The parsed curva_pbc DataFrame.
+    """
+
+    curva_pbc_data = pd.read_csv(
+        curva_pbc_filepath,
+        sep=";",
+        skiprows=2,
+        encoding="latin1",
+        decimal=",",
+        thousands=".",
+        parse_dates=["Fecha"],
+        dayfirst=True,
+        skipfooter=1,
+        engine="python",
+    )
+
+    curva_pbc_data = curva_pbc_data.rename(
+        columns=CURVA_PBC_UOF_RENAMING, errors="raise"
+    )[CURVA_PBC_UOF_COLUMNS].astype(CURVA_PBC_UOF_TYPING)
+
+    return curva_pbc_data
+
+
 def parse_capacidad_inter_file(
     capacidad_inter_filepath: str,
-    bidding_zone: Literal["ES", "PT", "FR", "MA"] = None,
+    bidding_zone: Literal["ES", "PT", "FR", "MA"] | None = None,
     only_capacity_columns: bool = False,
+    is_QH: bool = None,
 ) -> pd.DataFrame:
     """
     Parses a single capacidad_inter CSV file and returns a DataFrame.
@@ -358,6 +386,9 @@ def parse_capacidad_inter_file(
     Args:
         capacidad_inter_filepath (str): Path to the capacidad_inter CSV file.
         bidding_zone (Literal["ES", "PT", "FR", "MA"], optional): If provided, filters the DataFrame to only include rows for the specified bidding zone. Defaults to None.
+        only_capacity_columns (bool, optional): If True, only includes capacity columns. Defaults to False.
+        is_QH (bool, optional): If True, indicates that the data is in quarter-hourly format. Defaults to False.
+
     Returns:
         pd.DataFrame: The parsed capacidad_inter DataFrame.
     """
@@ -375,11 +406,27 @@ def parse_capacidad_inter_file(
         engine="python",
     )
 
+    if is_QH is None:
+        periods_count = capacidad_inter_data["Periodo"].nunique()
+        if periods_count in TOTAL_PERIODS_H_OPTIONS:
+            is_QH = False
+        elif periods_count in TOTAL_PERIODS_QH_OPTIONS:
+            is_QH = True
+        else:
+            raise ValueError(
+                f"Unexpected number of unique periods ({periods_count}) in capacidad_inter data. Cannot determine if data is hourly or quarter-hourly."
+            )
+
     if "Hora" in capacidad_inter_data.columns:
         capacidad_inter_data["Periodo"] = (
             capacidad_inter_data["Periodo"]
             .fillna(capacidad_inter_data["Hora"])
             .astype(int)
+        )
+
+    if is_QH:
+        capacidad_inter_data["Periodo"] = transform_hxqx_period_to_int(
+            capacidad_inter_data["Periodo"]
         )
 
     if only_capacity_columns:
@@ -400,7 +447,9 @@ def parse_capacidad_inter_file(
     return capacidad_inter_data
 
 
-def capacidad_inter_files_to_parquet(capacidad_inter_folder: str, output_path: str):
+def capacidad_inter_files_to_parquet(
+    capacidad_inter_folder: str, output_path: str, qh_output=False
+):
     """
     Reads all capacidad_inter CSV files from a folder, cleans and transforms the data, and saves the result as a parquet file.
 
@@ -416,28 +465,22 @@ def capacidad_inter_files_to_parquet(capacidad_inter_folder: str, output_path: s
     logger.info("Found capacidad_inter files: %d", len(capacidad_inter_raw_filepaths))
 
     capacidad_inter_dfs = [
-        parse_capacidad_inter_file(capacidad_inter_folder + f)
+        parse_capacidad_inter_file(
+            os.path.join(capacidad_inter_folder, f), is_QH=qh_output
+        )
         for f in capacidad_inter_raw_filepaths
     ]
 
     capacidad_inter_data = pd.concat(capacidad_inter_dfs, ignore_index=True)
 
-    # TODO: use when working in quarter hourly
-    # is_hourly_data = capacidad_inter_data[cols.INT_PERIOD].max() <= 25
-    # if is_hourly_data:
-    #     logger.info(
-    #         "Detected hourly data in capacidad_inte,r, converting to quarter-hourly..."
-    #     )
-
-    #     capacidad_inter_data_quarterly_dfs = []
-    #     for i in range(1, 5):
-    #         capacidad_inter_data_quarterly = capacidad_inter_data.copy()
-    #         capacidad_inter_data_quarterly[cols.INT_PERIOD] = (
-    #             capacidad_inter_data_quarterly[cols.INT_PERIOD] - 1
-    #         ) * 4 + i
-    #         capacidad_inter_data_quarterly_dfs.append(capacidad_inter_data_quarterly)
-
-    #     capacidad_inter_data = pd.concat(capacidad_inter_data_quarterly_dfs)
+    capacidad_inter_is_hourly_data = (
+        capacidad_inter_data.groupby(cols.DATE_SESION)[cols.INT_PERIOD].max()
+        <= max(TOTAL_PERIODS_H_OPTIONS)
+    ).any()
+    if capacidad_inter_is_hourly_data and qh_output:
+        raise ValueError(
+            "The capacidad_inter data is in hourly format, but qh_output is set to True. Please provide quarter-hourly data or set qh_output to False."
+        )
 
     capacidad_inter_data = capacidad_inter_data.sort_values(
         by=[cols.DATE_SESION, cols.INT_PERIOD]

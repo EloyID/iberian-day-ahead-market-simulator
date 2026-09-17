@@ -10,16 +10,17 @@ import pytest
 
 from iberian_day_ahead_market_simulator import columns as cols
 from iberian_day_ahead_market_simulator.clear_mibel_with_price_curve import (
-    calculate_cleared_energy_from_exclusive_block_order_groups,
-    calculate_cleared_energy_from_SCOs,
-    get_cleared_energy_from_non_exclusive_block_order,
-    get_cleared_energy_from_SCO,
+    calculate_cleared_power_from_exclusive_block_order_groups,
+    calculate_cleared_power_from_SCOs,
+    get_cleared_power_from_non_exclusive_block_order,
+    get_cleared_power_from_SCO,
     get_cleared_power_as_simple_bids_with_price_curve,
+    get_cleared_power_with_price_curve,
 )
 
 
-class TestGetClearedEnergyFromNonExclusiveBlockOrder:
-    """Test suite for get_cleared_energy_from_non_exclusive_block_order function."""
+class TestGetClearedPowerFromNonExclusiveBlockOrder:
+    """Test suite for get_cleared_power_from_non_exclusive_block_order function."""
 
     @pytest.fixture
     def block_order_data(self):
@@ -35,7 +36,7 @@ class TestGetClearedEnergyFromNonExclusiveBlockOrder:
         """Test block order clears when weighted average price >= bid price."""
         block_order_data = block_order_data.copy()
         block_order_data[cols.FLOAT_CLEARED_PRICE] = [35.0, 36.0, 37.0]
-        result = get_cleared_energy_from_non_exclusive_block_order(block_order_data)
+        result = get_cleared_power_from_non_exclusive_block_order(block_order_data)
 
         # Average price = (35*100 + 36*110 + 37*120) / (100+110+120)
         # = (3500 + 3960 + 4440) / 330 = 11900 / 330 = 36.06
@@ -48,7 +49,7 @@ class TestGetClearedEnergyFromNonExclusiveBlockOrder:
         block_order_data = block_order_data.copy()
         block_order_data[cols.FLOAT_CLEARED_PRICE] = [30.0, 31.0, 32.0]
 
-        result = get_cleared_energy_from_non_exclusive_block_order(block_order_data)
+        result = get_cleared_power_from_non_exclusive_block_order(block_order_data)
 
         # Let me recalculate: (3000 + 3410 + 3840) / 330 = 10250 / 330 = 31.06
         # 31.06 < 33.0, so not cleared (all zeros)
@@ -57,7 +58,7 @@ class TestGetClearedEnergyFromNonExclusiveBlockOrder:
 
         block_order_data[cols.FLOAT_CLEARED_PRICE] = [30.0, 31.0, 35.0]
 
-        result = get_cleared_energy_from_non_exclusive_block_order(block_order_data)
+        result = get_cleared_power_from_non_exclusive_block_order(block_order_data)
 
         # Let me recalculate: (3000 + 3410 + 4200) / 330 = 10610 / 330 = 32.15
         # 32.15 < 33.0, so not cleared (all zeros)
@@ -70,13 +71,13 @@ class TestGetClearedEnergyFromNonExclusiveBlockOrder:
         block_order_data[cols.FLOAT_CLEARED_PRICE] = [35.0, 36.0, 37.0]
         block_order_data.index = [10, 20, 30]
 
-        result = get_cleared_energy_from_non_exclusive_block_order(block_order_data)
+        result = get_cleared_power_from_non_exclusive_block_order(block_order_data)
 
         assert list(result.index) == [10, 20, 30]
 
 
-class TestGetClearedEnergyFromSCO:
-    """Test suite for get_cleared_energy_from_SCO function."""
+class TestGetClearedPowerFromSCO:
+    """Test suite for get_cleared_power_from_SCO function."""
 
     @pytest.fixture
     def sco_order(self):
@@ -97,9 +98,9 @@ class TestGetClearedEnergyFromSCO:
         """Test SCO clears when collection rights >= expected."""
         sco_order = sco_order.copy()
         sco_order[cols.FLOAT_CLEARED_PRICE] = [40.0, 41.0, 42.0]
-        result = get_cleared_energy_from_SCO(sco_order)
+        result = get_cleared_power_from_SCO(sco_order, is_QH=False)
 
-        # Cleared energy where price >= bid: [100, 110, 120]
+        # Cleared power where price >= bid: [100, 110, 120]
         # Collection = 100*40 + 110*41 + 120*42 = 4000 + 4510 + 5040 = 13550
         # Expected = 100*35 + 110*35 + 120*35 + 1000 = 8050 + 1000 = 9050
         # 13550 >= 9050, so clears
@@ -110,7 +111,7 @@ class TestGetClearedEnergyFromSCO:
         """Test SCO doesn't clear when collection rights < expected."""
         sco_order = sco_order.copy()
         sco_order[cols.FLOAT_CLEARED_PRICE] = [34.0, 34.0, 34.0]
-        result = get_cleared_energy_from_SCO(sco_order)
+        result = get_cleared_power_from_SCO(sco_order, is_QH=False)
 
         # All zeros when not clearing
         expected = pd.Series([0.0, 0.0, 0.0], dtype=float)
@@ -120,7 +121,7 @@ class TestGetClearedEnergyFromSCO:
         """Test SCO doesn't clear when collection rights < expected."""
         sco_order = sco_order.copy()
         sco_order[cols.FLOAT_CLEARED_PRICE] = [40.0, 41.0, 30.0]
-        result = get_cleared_energy_from_SCO(sco_order)
+        result = get_cleared_power_from_SCO(sco_order, is_QH=False)
 
         # Collection = 100*40 + 110*41 + 50*30 = 4000 + 4510 + 1500 = 10010
         # Expected = 100*35 + 110*35 + 50*35 + 1000 = 10100
@@ -136,9 +137,32 @@ class TestGetClearedEnergyFromSCO:
         expected = pd.Series([0.0, 0.0, 0.0], dtype=float)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
+    def test_qh_scales_power_to_energy_for_collection_rights(self, sco_order):
+        """Regression test: in QH markets, cleared power must be divided by 4 to
+        get energy before comparing collection rights against the fixed MIC cost.
+        With the same clearing prices that clear the SCO hourly (is_QH=False), the
+        SCO must NOT clear in a QH market, because collection rights scale down
+        with energy while the fixed MIC cost does not."""
+        sco_order = sco_order.copy()
+        sco_order[cols.FLOAT_CLEARED_PRICE] = [40.0, 41.0, 42.0]
 
-class TestGetClearedEnergyFromExclusiveBlockOrderGroups:
-    """Test suite for get_cleared_energy_from_exclusive_block_order_groups function."""
+        result_hourly = get_cleared_power_from_SCO(sco_order, is_QH=False)
+        result_qh = get_cleared_power_from_SCO(sco_order, is_QH=True)
+
+        # Hourly: collection = 100*40 + 110*41 + 120*42 = 13550
+        #         expected   = 100*35 + 110*35 + 120*35 + 1000 = 12550 -> clears
+        expected_hourly = pd.Series([100.0, 110.0, 120.0], dtype=float)
+        pd.testing.assert_series_equal(result_hourly, expected_hourly, check_names=False)
+
+        # QH: energy = power / 4 = [25, 27.5, 30]
+        #     collection = 25*40 + 27.5*41 + 30*42 = 3387.5
+        #     expected   = 25*35 + 27.5*35 + 30*35 + 1000 = 3887.5 -> doesn't clear
+        expected_qh = pd.Series([0.0, 0.0, 0.0], dtype=float)
+        pd.testing.assert_series_equal(result_qh, expected_qh, check_names=False)
+
+
+class TestGetClearedPowerFromExclusiveBlockOrderGroups:
+    """Test suite for get_cleared_power_from_exclusive_block_order_groups function."""
 
     @pytest.fixture
     def block_group_data(self):
@@ -156,15 +180,15 @@ class TestGetClearedEnergyFromExclusiveBlockOrderGroups:
 
     def test_clears_only_highest_clearing_block(self, block_group_data):
         """Test only the block with highest clearing price clears."""
-        result = calculate_cleared_energy_from_exclusive_block_order_groups(
+        result = calculate_cleared_power_from_exclusive_block_order_groups(
             block_group_data
         )
         expected = pd.Series([100.0, 110.0, 0.0, 0.0], dtype=float)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
 
-class TestCalculateClearedEnergyFromNonExclusiveBlockOrders:
-    """Test suite for calculate_cleared_energy_from_non_exclusive_block_orders function."""
+class TestCalculateClearedPowerFromNonExclusiveBlockOrders:
+    """Test suite for calculate_cleared_power_from_non_exclusive_block_orders function."""
 
     @pytest.fixture
     def multiple_blocks(self):
@@ -184,15 +208,15 @@ class TestCalculateClearedEnergyFromNonExclusiveBlockOrders:
 
     def test_clears_all_matching_blocks(self, multiple_blocks):
         """Test that all matching block orders are cleared."""
-        result = calculate_cleared_energy_from_exclusive_block_order_groups(
+        result = calculate_cleared_power_from_exclusive_block_order_groups(
             multiple_blocks
         )
         expected = pd.Series([100.0, 110.0, 120.0, 0.0, 0.0], dtype=float)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
 
-class TestCalculateClearedEnergyFromSCOs:
-    """Test suite for calculate_cleared_energy_from_SCOs function."""
+class TestCalculateClearedPowerFromSCOs:
+    """Test suite for calculate_cleared_power_from_SCOs function."""
 
     @pytest.fixture
     def multiple_scos(self):
@@ -213,8 +237,89 @@ class TestCalculateClearedEnergyFromSCOs:
 
     def test_processes_all_scos(self, multiple_scos):
         """Test that all SCO orders are processed."""
-        result = calculate_cleared_energy_from_SCOs(multiple_scos)
+        result = calculate_cleared_power_from_SCOs(multiple_scos, is_QH=False)
         expected = pd.Series([100.0, 110.0, 120.0, 0.0, 0.0], dtype=float)
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+
+    def test_empty_dataframe_returns_empty_series(self):
+        """Test that an empty DataFrame short-circuits instead of erroring out of
+        the groupby/apply call."""
+        empty_df = pd.DataFrame(
+            {
+                cols.ID_ORDER: pd.Series(dtype="object"),
+                cols.INT_PERIOD: pd.Series(dtype="int64"),
+                cols.FLOAT_CLEARED_PRICE: pd.Series(dtype="float64"),
+                cols.FLOAT_BID_PRICE: pd.Series(dtype="float64"),
+                cols.FLOAT_BID_POWER: pd.Series(dtype="float64"),
+                cols.FLOAT_MAV: pd.Series(dtype="float64"),
+                cols.FLOAT_MIC: pd.Series(dtype="float64"),
+            }
+        )
+
+        result = calculate_cleared_power_from_SCOs(empty_df, is_QH=False)
+
+        assert len(result) == 0
+        assert result.dtype == float
+
+
+class TestGetClearedPowerWithPriceCurveQHWiring:
+    """Test suite verifying get_cleared_power_with_price_curve() correctly
+    derives is_QH from market_periods_count and threads it through to
+    calculate_cleared_power_from_SCOs()."""
+
+    @pytest.fixture
+    def sco_det_cab(self):
+        """Single C02 SCO order across 2 periods."""
+        return pd.DataFrame(
+            {
+                cols.INT_PERIOD: [1, 2],
+                cols.ID_ORDER: ["SCO1", "SCO1"],
+                cols.CAT_BUY_SELL: ["V", "V"],
+                cols.CAT_ORDER_TYPE: ["C02", "C02"],
+                cols.FLOAT_BID_PRICE: [35.0, 35.0],
+                cols.FLOAT_BID_POWER: [100.0, 110.0],
+                cols.FLOAT_MAV: [50.0, 50.0],
+                cols.FLOAT_MIC: [1000.0, 1000.0],
+                cols.INT_NUM_BLOCK: [0, 0],
+                cols.INT_NUM_EXCL_GROUP: [0, 0],
+            }
+        )
+
+    def test_qh_market_periods_count_scales_sco_clearing(self, sco_det_cab):
+        """With a QH market_periods_count (e.g. 96), the SCO must clear using
+        energy (power / 4), not power, exactly like get_cleared_power_from_SCO
+        does directly (see TestGetClearedPowerFromSCO.
+        test_qh_scales_power_to_energy_for_collection_rights)."""
+        price_curve = np.zeros(96)
+        price_curve[0] = 40.0
+        price_curve[1] = 41.0
+
+        result = get_cleared_power_with_price_curve(
+            price_curve, sco_det_cab, market_periods_count=96
+        )
+
+        # energy = power / 4 = [25, 27.5]
+        # collection = 25*40 + 27.5*41 = 2127.5
+        # expected   = 25*35 + 27.5*35 + 1000 = 2837.5 -> doesn't clear
+        expected = pd.Series([0.0, 0.0], dtype=float, index=sco_det_cab.index)
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+
+    def test_hourly_market_periods_count_does_not_scale_sco_clearing(
+        self, sco_det_cab
+    ):
+        """The same SCO, with the exact same prices, clears under an hourly
+        market_periods_count (e.g. 24) since power is used directly as energy."""
+        price_curve = np.zeros(24)
+        price_curve[0] = 40.0
+        price_curve[1] = 41.0
+
+        result = get_cleared_power_with_price_curve(
+            price_curve, sco_det_cab, market_periods_count=24
+        )
+
+        # collection = 100*40 + 110*41 = 8510
+        # expected   = 100*35 + 110*35 + 1000 = 8350 -> clears
+        expected = pd.Series([100.0, 110.0], dtype=float, index=sco_det_cab.index)
         pd.testing.assert_series_equal(result, expected, check_names=False)
 
 
@@ -249,7 +354,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([35.0, 35.0, 35.0, 35.0] + [25.0] * 20)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # Period 1: buy S (35>=35? Yes, 100), sell S (30<=35? Yes, 150)
@@ -269,7 +374,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([25.0, 25.0, 25.0, 25.0] + [35.0] * 20)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # Period 1: buy S (35>=25? Yes, 100), sell S (30<=25? No, 0)
@@ -294,7 +399,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0] * 24)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # All have bid <= 35 (cleared), so all clear with simple logic
         # S: 30<=35? Yes (100), C01: 32<=35? Yes (110), C02: 33<=35? Yes (120), C04: 34<=35? Yes (130)
@@ -314,7 +421,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0, 35.0, 35.0, 35.0] + [25.0] * 20)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # All at boundary: bid=35, cleared=35, so 35<=35? Yes, all clear
         expected = pd.Series([100.0, 110.0, 120.0, 130.0], dtype=float)
@@ -327,7 +436,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([50.0] * 24)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # All buys: bid=35, cleared=50, so 35>=50? No, none clear
@@ -342,7 +451,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([20.0] * 24)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # All buys: bid=35, cleared=20, so 35>=20? Yes, all clear
@@ -358,7 +467,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         mixed_simple_and_complex_orders.index = list(range(100, 110))
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         assert list(result.index) == list(range(100, 110))
@@ -377,7 +486,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, empty_df
+            price_curve, empty_df, market_periods_count=24
         )
 
         assert len(result) == 0
@@ -396,7 +505,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0, 30.0, 25.0] + [25.0] * 21)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # Period 1: C01 at 30, cleared=35, so 30<=35? Yes (100)
         # Period 2: C01 at 35, cleared=30, so 35<=30? No (0)
@@ -417,7 +528,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0, 30.0, 25.0] + [25.0] * 21)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # Period 1: C02 at 32, cleared=35, so 32<=35? Yes (110)
         # Period 2: C02 at 34, cleared=30, so 34<=30? No (0)
@@ -438,7 +551,9 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         )
         price_curve = np.array([35.0, 30.0, 25.0] + [25.0] * 21)
 
-        result = get_cleared_power_as_simple_bids_with_price_curve(price_curve, df)
+        result = get_cleared_power_as_simple_bids_with_price_curve(
+            price_curve, df, market_periods_count=24
+        )
 
         # Period 1: C04 at 33, cleared=35, so 33<=35? Yes (120)
         # Period 2: C04 at 36, cleared=30, so 36<=30? No (0)
@@ -452,7 +567,7 @@ class TestGetClearedPowerAsSimpleBidsWithPriceCurve:
         price_curve = np.array([30.0, 35.0, 40.0, 32.0] + [25.0] * 20)
 
         result = get_cleared_power_as_simple_bids_with_price_curve(
-            price_curve, mixed_simple_and_complex_orders
+            price_curve, mixed_simple_and_complex_orders, market_periods_count=24
         )
 
         # Period 1: buy 35>=30? Yes (100), sell S 30<=30? Yes (150)

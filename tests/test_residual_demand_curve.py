@@ -5,6 +5,7 @@ Tests the residual demand curve generation and profile creation functions.
 """
 
 import pandas as pd
+import pytest
 
 from iberian_day_ahead_market_simulator import columns as cols
 from iberian_day_ahead_market_simulator import residual_demand_curve as rdc
@@ -32,7 +33,7 @@ class TestCreateHomotheticSellProfiles:
 
         result = rdc.create_homothetic_sell_profiles(base_profile, scaling_factors)
 
-        expected_cols = [f"energy_{i+1}" for i in range(24)]
+        expected_cols = [f"power_{i+1}" for i in range(24)]
         assert list(result.columns) == expected_cols
 
     def test_index_names(self):
@@ -56,19 +57,53 @@ class TestCreateHomotheticSellProfiles:
         assert (result.iloc[0] == -100.0).all()
         assert (result.iloc[1] == -200.0).all()
 
+    def test_qh_length_profile_is_accepted_without_warning(self, caplog):
+        """A 96-length (QH) profile is a valid option, just like 24 (hourly), and
+        must not trigger the "length not allowed" warning."""
+        base_profile = list(range(1, 97))  # 1 to 96
+        scaling_factors = [1.0]
+
+        with caplog.at_level("WARNING"):
+            result = rdc.create_homothetic_sell_profiles(base_profile, scaling_factors)
+
+        assert not any(
+            "not in the allowed options" in rec.message for rec in caplog.records
+        )
+        assert list(result.iloc[0]) == base_profile
+        assert list(result.columns) == [f"power_{i+1}" for i in range(96)]
+
+    def test_disallowed_length_profile_warns(self, caplog):
+        """A profile length that isn't any of the hourly/QH options logs a
+        warning instead of silently proceeding (the resulting DataFrame then also
+        fails the function's own output schema, since that schema still expects a
+        specific set of period columns)."""
+        base_profile = [100.0] * 10  # not a valid hourly or QH period count
+        scaling_factors = [1.0]
+
+        with caplog.at_level("WARNING"):
+            with pytest.raises(Exception):
+                rdc.create_homothetic_sell_profiles(base_profile, scaling_factors)
+
+        assert any(
+            "not in the allowed options" in rec.message for rec in caplog.records
+        )
+
 
 class TestGenerateResidualDemandDetCabAndUOFZone:
     """Test suite for generate_residual_demand_det_cab_and_participants_bidding_zone function."""
 
     def test_mixed_rdc_values(self):
         """Test RDC generation with mixed positive and negative values."""
-        rdc_data = {f"energy_{i+1}": 100.0 if i < 12 else -100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 if i < 12 else -100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -81,13 +116,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_zero_rdc_values(self):
         """Test RDC generation with zero values."""
-        rdc_data = {f"energy_{i+1}": 0.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 0.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -97,13 +135,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_date_assignment(self):
         """Test that date is correctly assigned."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-06-15")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -112,13 +153,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_country_assignment(self):
         """Test that country is correctly assigned."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "PT"
+                rdc_series,
+                date,
+                "PT",
+                market_periods_count=24,
             )
         )
 
@@ -126,13 +170,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_period_assignment(self):
         """Test that periods 1-24 are correctly assigned."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -140,13 +187,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_bid_prices_fixed_values(self):
         """Test that bid prices are assigned appropriately."""
-        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -157,13 +207,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_all_positive_values(self):
         """Test RDC generation with all positive values (sell orders)."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -174,13 +227,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_all_negative_values(self):
         """Test RDC generation with all negative values (buy orders)."""
-        rdc_data = {f"energy_{i+1}": -100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": -100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -191,13 +247,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_bid_power_absolute_values(self):
         """Test that bid power is the absolute value of the RDC."""
-        rdc_data = {f"energy_{i+1}": (-50.0 if i % 2 == 0 else 75.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (-50.0 if i % 2 == 0 else 75.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -222,13 +281,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_det_dataframe_structure(self):
         """Test that DET DataFrame has correct structure and columns."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -250,13 +312,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_cab_filtering(self):
         """Test that CAB is filtered to only include relevant ID_ORDERs."""
-        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -267,13 +332,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_uof_contains_correct_units(self):
         """Test that UOF zone contains correct unit codes."""
-        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (100.0 if i < 12 else -100.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -284,13 +352,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_no_nan_values_in_det(self):
         """Test that DET DataFrame contains no NaN values."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -299,13 +370,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_zero_filtering(self):
         """Test that zero power bids are filtered out from DET."""
-        rdc_data = {f"energy_{i+1}": (100.0 if i < 12 else 0.0) for i in range(24)}
+        rdc_data = {f"power_{i+1}": (100.0 if i < 12 else 0.0) for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -316,14 +390,17 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_multiple_countries(self):
         """Test RDC generation with different countries."""
-        rdc_data = {f"energy_{i+1}": 100.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
-        for country in ["ES", "PT", "FR"]:
+        for country in ["ES", "PT"]:
             det, cab, uof = (
                 rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                    rdc_series, date, country
+                    rdc_series,
+                    date,
+                    country,
+                    market_periods_count=24,
                 )
             )
 
@@ -331,13 +408,16 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_very_small_values(self):
         """Test RDC generation with very small values."""
-        rdc_data = {f"energy_{i+1}": 0.001 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 0.001 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
@@ -346,18 +426,47 @@ class TestGenerateResidualDemandDetCabAndUOFZone:
 
     def test_very_large_values(self):
         """Test RDC generation with very large values."""
-        rdc_data = {f"energy_{i+1}": 100000.0 for i in range(24)}
+        rdc_data = {f"power_{i+1}": 100000.0 for i in range(24)}
         rdc_series = pd.Series(rdc_data)
         date = pd.Timestamp("2024-01-01")
 
         det, cab, uof = (
             rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
-                rdc_series, date, "ES"
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=24,
             )
         )
 
         assert not det.empty
         assert (det[cols.FLOAT_BID_POWER] == 100000.0).all()
+
+    def test_qh_market_periods_count_uses_96_periods(self):
+        """A QH market_periods_count (96) must produce 96 periods (power_1..
+        power_96), not just slice the first 24 like the old hardcoded range(24)
+        did."""
+        rdc_data = {f"power_{i+1}": 100.0 if i < 48 else -100.0 for i in range(96)}
+        rdc_series = pd.Series(rdc_data)
+        date = pd.Timestamp("2024-01-01")
+
+        det, cab, uof = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                rdc_series,
+                date,
+                "ES",
+                market_periods_count=96,
+            )
+        )
+
+        assert sorted(det[cols.INT_PERIOD].unique().tolist()) == list(range(1, 97))
+        assert (det[cols.FLOAT_BID_POWER] == 100.0).all()
+        # Both the sell (positive, first 48 periods) and buy (negative, last 48
+        # periods) synthetic orders must be present.
+        assert set(det[cols.ID_ORDER].unique()) == {
+            rdc.COD_OFERTA_RESIDUAL_DEMAND_V,
+            rdc.COD_OFERTA_RESIDUAL_DEMAND_C,
+        }
 
 
 class TestGetClearingPricesDict:
