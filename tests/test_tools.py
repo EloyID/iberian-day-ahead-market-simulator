@@ -27,6 +27,7 @@ class TestGetFloatBidPowerCumsum:
         pd.testing.assert_series_equal(
             float_bid_power_cumsum,
             full_simplified_det_cab_dataframe[cols.FLOAT_BID_POWER_CUMSUM].rename(None),
+            check_dtype=False,
         )
 
     def test_cumsum_output_is_series(self):

@@ -13,11 +13,11 @@ from iberian_day_ahead_market_simulator.const import (
 columns_dict = {
     cols.DATE_SESION: pa.Column(pa.Timestamp, nullable=True, required=False),
 
-    cols.ID_ORDER:          pa.Column(str                            ),
-    cols.ID_UNIDAD:         pa.Column(str                            ),
-    cols.ID_INDIVIDUAL_BID: pa.Column(str, nullable=True, unique=True),
-    cols.ID_BLOCK_ORDER:    pa.Column(str, nullable=True             ),
-    cols.ID_SCO:            pa.Column(str, nullable=True             ),
+    cols.ID_ORDER:          pa.Column(str,                             coerce=True),
+    cols.ID_UNIDAD:         pa.Column(str,                             coerce=True),
+    cols.ID_INDIVIDUAL_BID: pa.Column(str, nullable=True, unique=True, coerce=True),
+    cols.ID_BLOCK_ORDER:    pa.Column(str, nullable=True,              coerce=True),
+    cols.ID_SCO:            pa.Column(str, nullable=True,              coerce=True),
 
     cols.CAT_BUY_SELL:   pa.Column(pa.Category, checks=[pa.Check.isin(BUY_SELL_OPTIONS)],                     coerce=True),
     cols.CAT_BIDDING_ZONE:       pa.Column(pa.Category, checks=[pa.Check.isin(BIDDING_ZONES_OPTIONS)],                         coerce=True),

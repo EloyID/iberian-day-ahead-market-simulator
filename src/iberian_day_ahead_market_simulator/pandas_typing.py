@@ -159,17 +159,25 @@ CURVAS_OFERTAS_AFRR_CATEGORIES_DICT = {
 }
 CURVAS_OFERTAS_AFRR_COLUMNS = CURVAS_OFERTAS_AFRR_TYPING.keys()
 
-
+# fmt: off
 DET_CAB_DAM_SIMULATOR_TYPING = {
-    cols.INT_PERIOD: "int8",
-    cols.INT_NUM_BLOCK: "int8",
-    cols.INT_NUM_SUBORDER: "int8",
-    cols.INT_NUM_EXCL_GROUP: "int8",
-    cols.ID_ORDER: "string",
-    cols.ID_UNIDAD: "string",
-    cols.CAT_BUY_SELL: "category",
-    cols.CAT_ORDER_TYPE: "category",
-    cols.ID_BLOCK_ORDER: "string",
-    cols.ID_SCO: "string",
-    cols.CAT_BIDDING_ZONE: "category",
+    cols.ID_ORDER:                              'category',
+    cols.ID_UNIDAD:                             'category',
+    cols.CAT_BUY_SELL:                          'category',
+    cols.FLOAT_MIC:                             'float32',
+    cols.FLOAT_MAX_POWER:                       'float32'    ,
+    cols.INT_PERIOD:                            'int8',
+    cols.INT_NUM_BLOCK:                         'int8',
+    cols.INT_NUM_SUBORDER:                      'int8',
+    cols.INT_NUM_EXCL_GROUP:                    'int8',
+    cols.FLOAT_BID_PRICE:                       'float32',
+    cols.FLOAT_BID_POWER:                       'float32',
+    cols.FLOAT_MAV:                             'float32',
+    cols.FLOAT_MAR:                             'float32',
+    cols.ID_INDIVIDUAL_BID:                     'category',
+    cols.ID_BLOCK_ORDER:                        'category',
+    cols.ID_SCO:                                'category',
+    cols.CAT_ORDER_TYPE:                        'category',
+    cols.FLOAT_BID_POWER_CUMSUM:                'float32',
+    cols.FLOAT_BID_POWER_CUMSUM_BY_COUNTRY:     'float32',
 }

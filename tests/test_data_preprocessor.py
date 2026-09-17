@@ -196,8 +196,9 @@ class TestGetDetCabDateForSimulation:
         ).sort_index()
 
         pd.testing.assert_frame_equal(
-            det_cab.reset_index(drop=True),
-            full_simplified_det_cab_dataframe.reset_index(drop=True),
+            # astype object to compare string and category columns
+            det_cab.reset_index(drop=True).astype(object),
+            full_simplified_det_cab_dataframe.reset_index(drop=True).astype(object),
         )
 
 
@@ -228,10 +229,10 @@ class TestGetDetCabDateIdBlockOrder:
     def test_get_det_cab_id_block_order(self, full_simplified_det_cab_dataframe):
         id_block_order = get_det_cab_id_block_order(full_simplified_det_cab_dataframe)
         pd.testing.assert_series_equal(
-            pd.Series(id_block_order),
-            full_simplified_det_cab_dataframe[cols.ID_BLOCK_ORDER],
+            # astype object to compare string and category columns
+            pd.Series(id_block_order).astype(object),
+            full_simplified_det_cab_dataframe[cols.ID_BLOCK_ORDER].astype(object),
             check_names=False,
-            check_dtype=False,
         )
 
 
@@ -240,8 +241,8 @@ class TestGetDetCabDateIdSco:
     def test_get_det_cab_id_sco(self, full_simplified_det_cab_dataframe):
         id_sco = get_det_cab_id_sco(full_simplified_det_cab_dataframe)
         pd.testing.assert_series_equal(
-            pd.Series(id_sco),
-            full_simplified_det_cab_dataframe[cols.ID_SCO],
+            # astype object to compare string and category columns
+            pd.Series(id_sco).astype(object),
+            full_simplified_det_cab_dataframe[cols.ID_SCO].astype(object),
             check_names=False,
-            check_dtype=False,
         )
