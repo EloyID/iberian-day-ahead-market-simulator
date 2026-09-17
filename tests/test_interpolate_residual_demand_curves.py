@@ -177,6 +177,22 @@ class TestInterpolateResidualDemandCurves:
         # Index preserved
         assert list(result.index) == ["low", "mid", "high"]
 
+    def test_default_columns_restore_old_2_arg_calling_convention(self):
+        """Regression test for the fixed bug: this function used to default its
+        4 column-list parameters to fixed 24-hour constants, letting callers
+        invoke it with just the 2 positional DataFrames. Those defaults were
+        dropped when the constants became parametrized by market_periods_count,
+        breaking any external caller relying on the old convention. The fix
+        restores equivalent (hourly) defaults."""
+        residual = _build_linear_residual_demand_curves()
+        target = _build_target_power_levels(index_labels=("mid",))
+
+        result = interpolate_residual_demand_curves(target, residual)
+
+        expected_price = 15.0
+        for price_col in RDC_PRICE_COLUMNS_HOURLY:
+            assert np.isclose(result.loc["mid", price_col], expected_price)
+
     def test_works_with_qh_columns(self):
         """The power/price column lists are now caller-supplied (they used to be
         hardcoded 24-hour constants), so a QH (96-period) column set - a

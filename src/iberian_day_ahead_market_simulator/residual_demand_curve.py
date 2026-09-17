@@ -289,12 +289,23 @@ def calculate_residual_demand_curves(
 def interpolate_residual_demand_curves(
     target_power_levels,
     residual_demand_curves,
-    target_power_columns: list[str],
-    target_price_columns: list[str],
-    residual_demand_power_columns: list[str],
-    residual_demand_price_columns: list[str],
+    target_power_columns: list[str] | None = None,
+    target_price_columns: list[str] | None = None,
+    residual_demand_power_columns: list[str] | None = None,
+    residual_demand_price_columns: list[str] | None = None,
     extrapolate_action: Literal["limit", "nan", "warning", "raise"] = "warning",
 ):
+
+    periods_count = len(target_power_levels.columns)
+    target_power_columns = target_power_columns or get_rdc_power_columns(periods_count)
+    target_price_columns = target_price_columns or get_rdc_price_columns(periods_count)
+    residual_demand_power_columns = (
+        residual_demand_power_columns or get_rdc_power_columns(periods_count)
+    )
+    residual_demand_price_columns = (
+        residual_demand_price_columns or get_rdc_price_columns(periods_count)
+    )
+
     interpolated_prices = {}
     for (
         target_power_column,
