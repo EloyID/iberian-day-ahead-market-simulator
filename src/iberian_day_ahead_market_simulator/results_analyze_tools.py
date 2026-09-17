@@ -97,8 +97,8 @@ def summary_curva_pbc_uof(curva_pbc_uof: pd.DataFrame):
 def summary_det_cab_and_curva_pbc_uof(
     det_cab: pd.DataFrame, curva_pbc_uof: pd.DataFrame
 ):
-    if "qua_potencia" in curva_pbc_uof.columns:
-        curva_pbc_uof = curva_pbc_uof.rename(columns={"qua_potencia": "qua_potencia"})
+    if "qua_energia" in curva_pbc_uof.columns:
+        curva_pbc_uof = curva_pbc_uof.rename(columns={"qua_energia": "qua_potencia"})
 
     reference_summary = summary_curva_pbc_uof(curva_pbc_uof)
     calculated_summary = summary_det_cab(det_cab)
