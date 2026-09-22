@@ -117,14 +117,4 @@ def run_model(
     model.v_u_activated_FRANCE_IMPORT_BIDS.fix()
     model.dual = Suffix(direction=Suffix.IMPORT)
 
-    if solver_factory_type == "highs":
-        TransformationFactory("core.relax_integer_vars").apply_to(model)
-
-    opt = _build_solver(
-        solver_factory_type=solver_factory_type,
-        solver_options=solver_options,
-    )
-    results = opt.solve(model, tee=False)  # True)
-    # results.write()
-
     return model, model_binaries, results
