@@ -251,10 +251,15 @@ def get_leftout_paradoxical_orders_summary(
             """)
     )
 
-    assert det_cab_paradoxical_orders[cols.FLOAT_NET_INCOME].notna().all()
-    assert (
-        det_cab_paradoxical_orders[cols.FLOAT_RATIO_NET_INCOME_BID_ENERGY].notna().all()
+    # if no power is competitive, FLOAT_MAXIMIZED_COMPETITIVE_BID_ENERGY is zero, so this will be nan
+    # set as -np.inf so it falls at the bottom of the merit list
+    det_cab_paradoxical_orders[cols.FLOAT_RATIO_NET_INCOME_BID_ENERGY] = (
+        det_cab_paradoxical_orders[cols.FLOAT_RATIO_NET_INCOME_BID_ENERGY].fillna(
+            -np.inf
+        )
     )
+
+    assert det_cab_paradoxical_orders[cols.FLOAT_NET_INCOME].notna().all()
     return det_cab_paradoxical_orders
 
 
