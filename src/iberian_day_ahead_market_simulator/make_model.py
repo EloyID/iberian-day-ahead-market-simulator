@@ -125,7 +125,7 @@ def make_model(
     block_orders_by_country_fnc = lambda country: det_cab_V_block.query(f"{cols.CAT_BIDDING_ZONE} == @country")[cols.ID_BLOCK_ORDER].unique().tolist()
     block_orders_by_country = {country: block_orders_by_country_fnc(country) for country in countries}
 
-    model.BUYER_BIDS_PER_PERIOD_AND_COUNTRY =           Set(model.PERIODS,      model.COUNTRIES, initialize=buyer_bids_per_period_and_country,          doc="Buyer individual bid ids per peri        od and country")
+    model.BUYER_BIDS_PER_PERIOD_AND_COUNTRY =           Set(model.PERIODS,      model.COUNTRIES, initialize=buyer_bids_per_period_and_country,          doc="Buyer individual bid ids per period and country")
     model.SIMPLE_SELLER_BIDS_PER_PERIOD_AND_COUNTRY =   Set(model.PERIODS,      model.COUNTRIES, initialize=simple_seller_bids_per_period_and_country,  doc="Simple seller individual bids per period and country")
     model.SCO_SELLER_BIDS_PER_PERIOD_AND_COUNTRY =      Set(model.PERIODS,      model.COUNTRIES, initialize=sco_seller_bids_per_period_and_country,     doc="SCO seller individual bids per period and country")
     model.SCO_SELLER_BIDS_PER_SCO =                     Set(model.SCO_ORDERS,                    initialize=sco_seller_bids_per_sco,                    doc="SCO seller individual bids per SCO order")
