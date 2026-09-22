@@ -276,7 +276,10 @@ def make_model(
                 m.v_x_FRANCE_EXPORT_BIDS[b] * m.p_quantity_FRANCE_EXPORT_BIDS[b]
                 for b in m.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, c]
             ]
-            if c == SPAIN_ZONE
+            if (
+                c == SPAIN_ZONE
+                and len(m.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, c]) > 0
+            )
             else []
         )
         + (
@@ -302,7 +305,10 @@ def make_model(
                 m.v_x_FRANCE_IMPORT_BIDS[b] * m.p_quantity_FRANCE_IMPORT_BIDS[b]
                 for b in m.FRANCE_IMPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, c]
             ]
-            if c == SPAIN_ZONE
+            if (
+                c == SPAIN_ZONE
+                and len(m.FRANCE_IMPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, c]) > 0
+            )
             else []
         ),
         doc="Supply and demand balance in each country and period",
@@ -422,21 +428,43 @@ def make_model(
 
         model.c_France_Export_Fixed = Constraint(
             model.PERIODS,
-            rule=lambda m, p: sum(
-                m.v_x_FRANCE_EXPORT_BIDS[b] * m.p_quantity_FRANCE_EXPORT_BIDS[b]
-                for b in m.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, SPAIN_ZONE]
-            )
-            == m.p_France_Export_Exchange_Fixed[p],
+            rule=lambda m, p: (
+                (
+                    sum(
+                        [
+                            m.v_x_FRANCE_EXPORT_BIDS[b]
+                            * m.p_quantity_FRANCE_EXPORT_BIDS[b]
+                            for b in m.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY[
+                                p, SPAIN_ZONE
+                            ]
+                        ]
+                    )
+                    == m.p_France_Export_Exchange_Fixed[p]
+                )
+                if (len(m.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, SPAIN_ZONE]) > 0)
+                else Constraint.Feasible
+            ),
             doc="If there is a fixed quantity to be exported from Spain to France, it must be met",
         )
 
         model.c_France_Import_Fixed = Constraint(
             model.PERIODS,
-            rule=lambda m, p: sum(
-                m.v_x_FRANCE_IMPORT_BIDS[b] * m.p_quantity_FRANCE_IMPORT_BIDS[b]
-                for b in m.FRANCE_IMPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, SPAIN_ZONE]
-            )
-            == -m.p_France_Import_Exchange_Fixed[p],
+            rule=lambda m, p: (
+                (
+                    sum(
+                        [
+                            m.v_x_FRANCE_IMPORT_BIDS[b]
+                            * m.p_quantity_FRANCE_IMPORT_BIDS[b]
+                            for b in m.FRANCE_IMPORT_BIDS_PER_PERIOD_AND_COUNTRY[
+                                p, SPAIN_ZONE
+                            ]
+                        ]
+                    )
+                    == -m.p_France_Import_Exchange_Fixed[p]
+                )
+                if (len(m.FRANCE_EXPORT_BIDS_PER_PERIOD_AND_COUNTRY[p, SPAIN_ZONE]) > 0)
+                else Constraint.Feasible
+            ),
             doc="If there is a fixed quantity to be imported from France to Spain, it must be met",
         )
 
