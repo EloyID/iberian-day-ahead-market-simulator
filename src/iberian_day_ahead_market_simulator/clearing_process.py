@@ -817,12 +817,13 @@ def run_iterative_loop(
         solver_options=solver_options,
     )
 
-    # Attach the solver results for the winning combination only. This is
-    # the same object other iterations would have stored per-attempt before,
-    # but keeping it for every one of the (up to iterations_count) attempts
-    # kept a full solver-results object alive for each of them for no
-    # downstream benefit, since only the winning row's is ever read.
-    iterations_df.loc[best_iteration.name, cols.SOLVER_RESULTS_COLUMN] = results
+    # Attach the solver results for the winning combination only.
+    # Pyomo's SolverResults is iterable/mapping-like. Pre-creating the
+    # column (if needed) and using `.at` for the scalar set avoids that
+    # broadcasting path entirely.
+    if cols.SOLVER_RESULTS_COLUMN not in iterations_df.columns:
+        iterations_df[cols.SOLVER_RESULTS_COLUMN] = None
+    iterations_df.at[best_iteration.name, cols.SOLVER_RESULTS_COLUMN] = results
 
     return iterations_df, best_model, best_model_binary
 
