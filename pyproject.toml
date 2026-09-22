@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iberian-day-ahead-market-simulator"
-version = "0.2.0a3"
+version = "0.2.0a4"
 description = "Iberian day-ahead electricity market clearing simulator"
 readme = "README.md"
 requires-python = ">=3.10"
