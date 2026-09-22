@@ -33,6 +33,22 @@ EPSILON = 1e-6
 # the code
 
 
+def _group_individual_bids(df: pd.DataFrame, group_cols: list[str], all_keys) -> dict:
+    """
+    Groups df[cols.ID_INDIVIDUAL_BID] values by group_cols in a single pass,
+    then reindexes onto every key in all_keys (the full Pyomo index this
+    feeds), filling in an empty list for keys with no matching bids.
+    """
+    if df.empty:
+        return {key: [] for key in all_keys}
+    grouped = (
+        df.groupby(group_cols, observed=True)[cols.ID_INDIVIDUAL_BID]
+        .apply(list)
+        .to_dict()
+    )
+    return {key: grouped.get(key, []) for key in all_keys}
+
+
 def make_model(
     det_cab,
     capacidad_inter_PBC_pt,
@@ -92,27 +108,22 @@ def make_model(
     model.FRANCE_EXPORT_BIDS =  Set(initialize=france_export_bids,  doc="France export individual bid ids")
     model.FRANCE_IMPORT_BIDS =  Set(initialize=france_import_bids,  doc="France import individual bid ids")
 
-    buyer_bids_per_period_and_country_fnc =          lambda period, country:   det_cab_C          .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_order_bids_by_block_and_period_fnc =       lambda block_id, period: det_cab_V_block   .query(f"{cols.ID_BLOCK_ORDER} == @block_id   and {cols.INT_PERIOD} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
-    simple_seller_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_V_simple   .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_order_bids_by_block_fnc =                  lambda block_id:         det_cab_V_block   .query(f"{cols.ID_BLOCK_ORDER} == @block_id"                                     )[cols.ID_INDIVIDUAL_BID].tolist()
-    sco_seller_bids_per_period_and_country_fnc =     lambda period, country:   det_cab_V_sco      .query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    sco_seller_bids_per_sco =                        lambda sco:               det_cab_V_sco      .query(f"{cols.ID_SCO} == @sco"                                                   )[cols.ID_INDIVIDUAL_BID].tolist()
-    sco_seller_bids_per_sco_and_period_fnc =         lambda sco, period:       det_cab_V_sco      .query(f"{cols.ID_SCO} == @sco                 and {cols.INT_PERIOD} == @period" )[cols.ID_INDIVIDUAL_BID].tolist()
-    block_orders_by_country_fnc =                    lambda country:           det_cab_V_block   .query(f"{cols.CAT_BIDDING_ZONE} == @country"                                             )[cols.ID_BLOCK_ORDER].unique().tolist()
-    france_export_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_C_export_FR.query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
-    france_import_bids_per_period_and_country_fnc =  lambda period, country:   det_cab_V_import_FR.query(f"{cols.INT_PERIOD} == @period         and {cols.CAT_BIDDING_ZONE} == @country"   )[cols.ID_INDIVIDUAL_BID].tolist()
+    period_country_keys =  [(period, country)   for period in periods           for country in countries]
+    block_id_period_keys = [(block_id, period)  for block_id in block_orders    for period in periods]
+    sco_id_period_keys =   [(sco, period)       for sco in sco_orders           for period in periods]
 
-    buyer_bids_per_period_and_country =         {(period, country):   buyer_bids_per_period_and_country_fnc(period, country)          for period in periods           for country in countries}
-    block_order_bids_by_block_and_period =      {(block_id, period): block_order_bids_by_block_and_period_fnc(block_id, period)     for block_id in block_orders   for period in periods}
-    simple_seller_bids_per_period_and_country = {(period, country):   simple_seller_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
-    block_order_bids_by_block =                 {block_id:           block_order_bids_by_block_fnc(block_id)                        for block_id in block_orders}
-    sco_seller_bids_per_period_and_country =    {(period, country):   sco_seller_bids_per_period_and_country_fnc(period, country)     for period in periods           for country in countries}
-    sco_seller_bids_per_sco =                   {sco:                 sco_seller_bids_per_sco(sco)                                    for sco in sco_orders}
-    sco_seller_bids_per_sco_and_period =        {(sco, period):       sco_seller_bids_per_sco_and_period_fnc(sco, period)             for sco in sco_orders           for period in periods}
-    block_orders_by_country =                   {country:             block_orders_by_country_fnc(country)                                                            for country in countries}
-    france_export_bids_per_period_and_country = {(period, country):   france_export_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
-    france_import_bids_per_period_and_country = {(period, country):   france_import_bids_per_period_and_country_fnc(period, country)  for period in periods           for country in countries}
+    buyer_bids_per_period_and_country =             _group_individual_bids(det_cab_C,           [cols.INT_PERIOD,     cols.CAT_BIDDING_ZONE], period_country_keys)
+    block_order_bids_by_block_and_period =          _group_individual_bids(det_cab_V_block,     [cols.ID_BLOCK_ORDER, cols.INT_PERIOD],       block_id_period_keys)
+    simple_seller_bids_per_period_and_country =     _group_individual_bids(det_cab_V_simple,    [cols.INT_PERIOD,     cols.CAT_BIDDING_ZONE], period_country_keys)
+    block_order_bids_by_block =                     _group_individual_bids(det_cab_V_block,     [cols.ID_BLOCK_ORDER],                        block_orders)
+    sco_seller_bids_per_period_and_country =        _group_individual_bids(det_cab_V_sco,       [cols.INT_PERIOD,     cols.CAT_BIDDING_ZONE], period_country_keys)
+    sco_seller_bids_per_sco =                       _group_individual_bids(det_cab_V_sco,       [cols.ID_SCO],                                sco_orders)
+    sco_seller_bids_per_sco_and_period =            _group_individual_bids(det_cab_V_sco,       [cols.ID_SCO,         cols.INT_PERIOD],       sco_id_period_keys)
+    france_export_bids_per_period_and_country =     _group_individual_bids(det_cab_C_export_FR, [cols.INT_PERIOD,     cols.CAT_BIDDING_ZONE], period_country_keys,)
+    france_import_bids_per_period_and_country =     _group_individual_bids(det_cab_V_import_FR, [cols.INT_PERIOD,     cols.CAT_BIDDING_ZONE], period_country_keys,)
+
+    block_orders_by_country_fnc = lambda country: det_cab_V_block.query(f"{cols.CAT_BIDDING_ZONE} == @country")[cols.ID_BLOCK_ORDER].unique().tolist()
+    block_orders_by_country = {country: block_orders_by_country_fnc(country) for country in countries}
 
     model.BUYER_BIDS_PER_PERIOD_AND_COUNTRY =           Set(model.PERIODS,      model.COUNTRIES, initialize=buyer_bids_per_period_and_country,          doc="Buyer individual bid ids per peri        od and country")
     model.SIMPLE_SELLER_BIDS_PER_PERIOD_AND_COUNTRY =   Set(model.PERIODS,      model.COUNTRIES, initialize=simple_seller_bids_per_period_and_country,  doc="Simple seller individual bids per period and country")
