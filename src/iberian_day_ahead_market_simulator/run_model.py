@@ -87,6 +87,7 @@ def run_model(
     france_fixed_exchange,
     solver_factory_type: str = "gurobi",
     solver_options: Mapping[str, object] | None = None,
+    return_binary_model: bool = True,
 ):
     ########################### Load Model ########################
     model = make_model(
@@ -101,10 +102,14 @@ def run_model(
         solver_factory_type=solver_factory_type,
         solver_options=solver_options,
     )
-    results = opt.solve(model, tee=False)  # True)
+    results = opt.solve(model, tee=False)
     # results.write()
 
-    model_binaries = model.clone()
+    # Cloning the solved MIP is only needed by callers that want the
+    # original (pre-fix) binary model back; the iterative search loop
+    # calls run_model up to `iterations_count` times per day and never
+    # uses it, so skip the deep copy there to save time and memory.
+    model_binaries = model.clone() if return_binary_model else None
 
     model.v_u_activated_BLOCK_ORDERS.fix()
     model.v_u_activated_SCO_ORDERS.fix()

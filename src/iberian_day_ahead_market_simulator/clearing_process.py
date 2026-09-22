@@ -296,7 +296,10 @@ def sort_iterations_df_by_most_promising(iterations_df: pd.DataFrame) -> pd.Data
                 ascending=[True, False],
             ),
         ],
-        ignore_index=True,
+        # Keep the original iterations_df index (rather than resetting it) so
+        # callers like get_best_iteration can map the returned row back to
+        # its row in iterations_df, e.g. to backfill data computed after the
+        # fact for just the winning iteration.
     )
     return sorted_promising_iterations_df
 
@@ -542,13 +545,15 @@ def iterative_function(
         det_cab, paradoxical_orders
     )
 
-    # Run market model
-    model, _, results = run_model(
+    # Run market model. The binary (pre-fix) model clone is never used here,
+    # only in the final re-solve of the winning combination, so skip it.
+    model, _, _ = run_model(
         det_cab_paradoxical_orders_filtered,
         capacidad_inter_PBC_pt,
         france_fixed_exchange,
         solver_factory_type=solver_factory_type,
         solver_options=solver_options,
+        return_binary_model=False,
     )
 
     # Extract information from the model
@@ -582,8 +587,6 @@ def iterative_function(
             get_spain_portugal_transmissions(model, market_periods_count)
         ],
     }
-    if solver_factory_type == "gurobi":
-        iteration_df_entry[cols.SOLVER_RESULTS_COLUMN] = [results]
 
     return pd.DataFrame(iteration_df_entry)
 
@@ -813,6 +816,13 @@ def run_iterative_loop(
         solver_factory_type=solver_factory_type,
         solver_options=solver_options,
     )
+
+    # Attach the solver results for the winning combination only. This is
+    # the same object other iterations would have stored per-attempt before,
+    # but keeping it for every one of the (up to iterations_count) attempts
+    # kept a full solver-results object alive for each of them for no
+    # downstream benefit, since only the winning row's is ever read.
+    iterations_df.loc[best_iteration.name, cols.SOLVER_RESULTS_COLUMN] = results
 
     return iterations_df, best_model, best_model_binary
 
