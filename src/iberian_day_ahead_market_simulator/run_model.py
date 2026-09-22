@@ -103,7 +103,6 @@ def run_model(
         solver_options=solver_options,
     )
     results = opt.solve(model, tee=False)
-    # results.write()
 
     # Cloning the solved MIP is only needed by callers that want the
     # original (pre-fix) binary model back; the iterative search loop
@@ -116,5 +115,13 @@ def run_model(
     model.v_u_activated_FRANCE_EXPORT_BIDS.fix()
     model.v_u_activated_FRANCE_IMPORT_BIDS.fix()
     model.dual = Suffix(direction=Suffix.IMPORT)
+
+    if solver_factory_type == "highs":
+        TransformationFactory("core.relax_integer_vars").apply_to(model)
+
+    opt = _build_solver(
+        solver_factory_type=solver_factory_type, solver_options=solver_options
+    )
+    results = opt.solve(model, tee=False)
 
     return model, model_binaries, results
