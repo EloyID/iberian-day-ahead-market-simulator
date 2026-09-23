@@ -65,7 +65,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [build, publish-testpypi]
+    needs: [build]
     if: needs.build.outputs.is_alpha == 'false'
     runs-on: ubuntu-latest
     environment: pypi
