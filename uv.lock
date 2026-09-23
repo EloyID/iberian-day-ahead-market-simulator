@@ -793,7 +793,7 @@ wheels = [
 
 [[package]]
 name = "iberian-day-ahead-market-simulator"
-version = "0.2.0a3"
+version = "0.2.0a4"
 source = { editable = "." }
 dependencies = [
     { name = "matplotlib", version = "3.10.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
