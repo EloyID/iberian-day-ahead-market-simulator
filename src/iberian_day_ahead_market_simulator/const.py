@@ -1,3 +1,5 @@
+import re
+
 import iberian_day_ahead_market_simulator.columns as cols
 
 SPAIN_ZONE = "ES"
@@ -124,6 +126,53 @@ get_rdc_power_columns = lambda market_periods_count: [
     f"power_{i}" for i in range(1, market_periods_count + 1)
 ]
 
+
+def get_rdc_period_numbers(columns, prefix: str) -> list[int]:
+    """
+    Read the market period numbers out of the power_<i> or price_<i> column names.
+
+    Args:
+        columns: Column names to scan.
+        prefix (str): Either "power" or "price".
+
+    Returns:
+        list[int]: The period numbers found, in ascending order.
+    """
+    return sorted(
+        int(match.group(1))
+        for column in columns
+        if (match := re.fullmatch(rf"{prefix}_(\d+)", str(column)))
+    )
+
+
+def spans_whole_market_session(period_numbers: list[int]) -> bool:
+    """
+    Tell whether period numbers run from 1 to the end of an allowed session.
+
+    A session is one of TOTAL_PERIODS_OPTIONS periods long and its periods are
+    numbered without a gap, so this rejects both an unknown session length and a
+    set of columns that lost a period in the middle.
+
+    Args:
+        period_numbers (list[int]): Period numbers in ascending order.
+
+    Returns:
+        bool: True when the numbers are exactly 1..n for an allowed n.
+    """
+    return (
+        len(period_numbers) in TOTAL_PERIODS_OPTIONS
+        and period_numbers == list(range(1, len(period_numbers) + 1))
+    )
+
 TOTAL_PERIODS_H_OPTIONS = [23, 24, 25]
 TOTAL_PERIODS_QH_OPTIONS = [92, 96, 100]
 TOTAL_PERIODS_OPTIONS = TOTAL_PERIODS_H_OPTIONS + TOTAL_PERIODS_QH_OPTIONS
+
+##### MARKET PRICE LIMITS #####
+
+# price range a bid can span, used both to make a residual demand order a price
+# taker and as the span of the default price grid a residual demand curve is
+# sampled on. A grid that stopped short of MAX_BID_PRICE would silently
+# truncate the curve where expensive orders still sit.
+MIN_BID_PRICE = -500.0
+MAX_BID_PRICE = 3500.0
