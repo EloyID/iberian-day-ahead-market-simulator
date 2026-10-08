@@ -511,3 +511,101 @@ class TestGetClearingPricesDict:
         prices_dict = rdc.get_clearing_prices_dict(results, "FR")
 
         assert len(prices_dict) == 0
+
+
+class TestGenerateResidualDemandParticipantsConsistency:
+    """Every declared residual demand UOF must have a matching order, because
+    the zero-power periods are dropped from the DET after the UOF list is built."""
+
+    def test_mixed_profile_declares_both_units(self):
+        profile = pd.Series({"power_1": -5.0, "power_2": 7.0})
+
+        rdc_det, rdc_cab, participants = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                profile, pd.Timestamp("2026-02-18"), "ES", 2
+            )
+        )
+
+        assert set(rdc_det[cols.ID_ORDER]) == {
+            "RESIDUAL_DEMAND_C",
+            "RESIDUAL_DEMAND_V",
+        }
+        assert set(participants[cols.ID_UNIDAD]) == {"RDC_C", "RDC_V"}
+
+    def test_zero_entry_does_not_declare_an_orderless_sell_unit(self):
+        """power_1 == 0.0 counts as >= 0 and adds the sell unit, but it is then
+        dropped from the DET for having no power."""
+        profile = pd.Series({"power_1": 0.0, "power_2": -5.0})
+
+        rdc_det, rdc_cab, participants = (
+            rdc.generate_residual_demand_det_cab_and_participants_bidding_zone(
+                profile, pd.Timestamp("2026-02-18"), "ES", 2
+            )
+        )
+
+        assert set(rdc_det[cols.ID_ORDER]) == {"RESIDUAL_DEMAND_C"}
+        assert set(rdc_cab[cols.ID_ORDER]) == {"RESIDUAL_DEMAND_C"}
+        assert set(participants[cols.ID_UNIDAD]) == {"RDC_C"}
+
+
+class TestDaylightSavingShortDay:
+    """TOTAL_PERIODS_H_OPTIONS allows 23 periods (the spring-forward day) and
+    TOTAL_PERIODS_QH_OPTIONS allows 92, so the schemas must not require a
+    period 24 column."""
+
+    def test_23_period_profile_is_accepted(self):
+        result = rdc.create_homothetic_sell_profiles([10.0] * 23, [1.0, 2.0])
+
+        assert list(result.columns) == [f"power_{i}" for i in range(1, 24)]
+
+    def test_25_period_profile_is_accepted(self):
+        """The autumn fall-back day has 25 periods and must keep working."""
+        result = rdc.create_homothetic_sell_profiles([10.0] * 25, [1.0])
+
+        assert list(result.columns) == [f"power_{i}" for i in range(1, 26)]
+
+
+class TestInterpolateResidualDemandCurvesPeriodInference:
+    """The default column lists are derived from the number of columns of
+    target_power_levels, which only holds if it carries power columns alone."""
+
+    @pytest.fixture
+    def residual_demand_curves(self):
+        return pd.DataFrame(
+            {
+                "power_1": [0.0, 100.0],
+                "power_2": [0.0, 100.0],
+                "price_1": [5.0, 50.0],
+                "price_2": [5.0, 50.0],
+            }
+        )
+
+    def test_power_only_target_uses_every_period(self, residual_demand_curves):
+        target = pd.DataFrame({"power_1": [50.0], "power_2": [25.0]})
+
+        result = rdc.interpolate_residual_demand_curves(
+            target, residual_demand_curves
+        )
+
+        assert result["price_1"].iloc[0] == pytest.approx(27.5)
+        assert result["price_2"].iloc[0] == pytest.approx(16.25)
+
+    def test_target_carrying_price_columns_infers_the_period_count(
+        self, residual_demand_curves
+    ):
+        """A residual demand curve frame holds both power_i and price_i, so
+        passing one straight back in is an easy and silent mistake."""
+        target = pd.DataFrame(
+            {
+                "power_1": [50.0],
+                "power_2": [25.0],
+                "price_1": [0.0],
+                "price_2": [0.0],
+            }
+        )
+
+        result = rdc.interpolate_residual_demand_curves(
+            target, residual_demand_curves
+        )
+
+        assert result["price_1"].iloc[0] == pytest.approx(27.5)

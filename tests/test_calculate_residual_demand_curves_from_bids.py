@@ -476,3 +476,115 @@ class TestCalculateComplexResidualDemandIIWithMarketSplit:
 
         assert result.name == "complex_residual_demand_II_with_market_split_curves"
         assert list(result.index) == [1, 2]
+
+
+class TestCalculateComplexResidualDemandIIRowOrderIndependence:
+    """The capacity limits are looked up per period, so the row order in which
+    capacidad_inter_pbc happens to arrive must not change the result."""
+
+    @pytest.fixture
+    def det_cab(self):
+        return pd.DataFrame(
+            {
+                cols.INT_PERIOD: [1, 1, 1, 1, 2, 2, 2, 2],
+                cols.CAT_BUY_SELL: ["C", "V", "C", "V", "C", "V", "C", "V"],
+                cols.CAT_BIDDING_ZONE: [
+                    SPAIN_ZONE,
+                    SPAIN_ZONE,
+                    PORTUGAL_ZONE,
+                    PORTUGAL_ZONE,
+                    SPAIN_ZONE,
+                    SPAIN_ZONE,
+                    PORTUGAL_ZONE,
+                    PORTUGAL_ZONE,
+                ],
+                # period 1: PT residual = 250 - 50 = +200 (above the export cap)
+                # period 2: PT residual = 30 - 150 = -120
+                cols.FLOAT_CLEARED_POWER: [
+                    200.0,
+                    50.0,
+                    250.0,
+                    50.0,
+                    100.0,
+                    40.0,
+                    30.0,
+                    150.0,
+                ],
+            }
+        )
+
+    @pytest.fixture
+    def capacidad_inter_pt_per_period(self):
+        """Deliberately different limits per period, so a positional lookup
+        instead of a per-period lookup is visible in the result."""
+        return pd.DataFrame(
+            {
+                cols.INT_PERIOD: [1, 2],
+                cols.FLOAT_IMPORT_CAPACITY: [100.0, 900.0],
+                cols.FLOAT_EXPORT_CAPACITY: [150.0, 800.0],
+            }
+        )
+
+    def test_ascending_period_order_saturates_at_the_period_limit(
+        self, det_cab, capacidad_inter_pt_per_period
+    ):
+        result = calculate_complex_residual_demand_II_with_market_split(
+            det_cab, capacidad_inter_pt_per_period
+        )
+
+        # PT residual 200 is clamped to period 1's export cap of 150,
+        # on top of Spain's own residual of 200 - 50 = 150
+        assert result.loc[1] == pytest.approx(300.0)
+        assert result.loc[2] == pytest.approx(-60.0)
+
+    def test_descending_period_order_gives_the_same_result(
+        self, det_cab, capacidad_inter_pt_per_period
+    ):
+        capacidad_reversed = capacidad_inter_pt_per_period.iloc[::-1].reset_index(
+            drop=True
+        )
+
+        result = calculate_complex_residual_demand_II_with_market_split(
+            det_cab, capacidad_reversed
+        )
+
+        assert result.loc[1] == pytest.approx(300.0)
+        assert result.loc[2] == pytest.approx(-60.0)
+
+
+class TestResidualDemandWithAPeriodWithoutOrders:
+    """A market period can legitimately end up with no orders at all; the
+    residual demand must still be reported for every period of the session."""
+
+    @pytest.fixture
+    def det_cab_missing_period_2(self):
+        return pd.DataFrame(
+            {
+                cols.INT_PERIOD: [1, 1, 3, 3],
+                cols.CAT_BUY_SELL: ["C", "V", "C", "V"],
+                cols.CAT_BIDDING_ZONE: [SPAIN_ZONE] * 4,
+                cols.CAT_ORDER_TYPE: ["S"] * 4,
+                cols.FLOAT_CLEARED_POWER: [100.0, 40.0, 80.0, 30.0],
+                "float_cleared_power_as_simple_bid": [100.0, 40.0, 80.0, 30.0],
+            }
+        )
+
+    def test_periods_present_are_calculated_correctly(
+        self, det_cab_missing_period_2
+    ):
+        result = calculate_complex_residual_demand_I_without_market_split(
+            det_cab_missing_period_2
+        )
+
+        assert result.loc[1] == pytest.approx(60.0)
+        assert result.loc[3] == pytest.approx(50.0)
+
+    def test_empty_period_is_reported_as_zero_residual_demand(
+        self, det_cab_missing_period_2
+    ):
+        result = calculate_complex_residual_demand_I_without_market_split(
+            det_cab_missing_period_2
+        )
+
+        assert list(result.index) == [1, 2, 3]
+        assert result.loc[2] == pytest.approx(0.0)

@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Literal
 
 import numpy as np
@@ -12,8 +13,8 @@ from iberian_day_ahead_market_simulator.clearing_process import (
 from iberian_day_ahead_market_simulator.const import (
     COD_OFERTA_RESIDUAL_DEMAND_C,
     COD_OFERTA_RESIDUAL_DEMAND_V,
-    CODIGO_UNIDAD_RESIDUAL_DEMAND_C,
-    CODIGO_UNIDAD_RESIDUAL_DEMAND_V,
+    MAX_BID_PRICE,
+    MIN_BID_PRICE,
     RDC_CAB_C_BASE,
     RDC_CAB_V_BASE,
     TOTAL_PERIODS_OPTIONS,
@@ -59,20 +60,19 @@ def generate_residual_demand_det_cab_and_participants_bidding_zone(
     Returns:
         tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: Residual demand DET, CAB, and UOF zone dataframes.
     """
-    rdc_sorted = rdc[[f"power_{i+1}" for i in range(market_periods_count)]]
+    rdc_sorted = rdc[get_rdc_power_columns(market_periods_count)]
     rdc_cab_rows = []
-    uof_ids = []
     if (rdc_sorted >= 0).any():
         rdc_cab_rows.append(RDC_CAB_V_BASE)
-        uof_ids.append(CODIGO_UNIDAD_RESIDUAL_DEMAND_V)
     if (rdc_sorted < 0).any():
         rdc_cab_rows.append(RDC_CAB_C_BASE)
-        uof_ids.append(CODIGO_UNIDAD_RESIDUAL_DEMAND_C)
 
     periods = list(range(1, market_periods_count + 1))
     sell_profile = rdc_sorted.values
     buy_sell = np.where(sell_profile >= 0, "V", "C")
-    bid_price = np.where(buy_sell == "V", -500, 3500)
+    # a residual demand order has to clear whatever the price is, so it is bid at
+    # the limit of the price range on the side it sits
+    bid_price = np.where(buy_sell == "V", MIN_BID_PRICE, MAX_BID_PRICE)
     id_order = np.where(
         buy_sell == "V", COD_OFERTA_RESIDUAL_DEMAND_V, COD_OFERTA_RESIDUAL_DEMAND_C
     )
@@ -107,9 +107,12 @@ def generate_residual_demand_det_cab_and_participants_bidding_zone(
         f"{cols.ID_ORDER} in {rdc_det[cols.ID_ORDER].unique().tolist()}"
     )
 
+    # derive the units from the CAB rows that survived, so that a profile whose only
+    # non negative entries are exactly 0 does not declare a selling unit whose order
+    # was just dropped for carrying no power
     participants_bidding_zone = pd.DataFrame(
         {
-            cols.ID_UNIDAD: uof_ids,
+            cols.ID_UNIDAD: rdc_cab[cols.ID_UNIDAD].unique(),
             cols.CAT_BIDDING_ZONE: sell_country,
         }
     )
@@ -143,7 +146,7 @@ def create_homothetic_sell_profiles(
     sell_profiles = pd.DataFrame(
         sell_profiles_values,
         index=[f"scale_{factor:.2f}" for factor in scaling_factors],
-        columns=[f"power_{i+1}" for i in range(market_periods)],
+        columns=get_rdc_power_columns(market_periods),
     )
     return sell_profiles
 
@@ -229,9 +232,23 @@ def calculate_residual_demand_curves(
         )
     CapacidadInterPTSchema.validate(capacidad_inter_pbc)
 
+    # the sell profiles are indexed per market period below, so a profile that does
+    # not span the session has to be reported here and not as a KeyError on a
+    # power_<i> column that the caller never supplied
+    missing_power_columns = [
+        power_column
+        for power_column in get_rdc_power_columns(market_periods_count)
+        if power_column not in sell_profiles.columns
+    ]
+    if missing_power_columns:
+        raise ValueError(
+            f"The DET file is a {market_periods_count} period session but sell_profiles "
+            f"is missing {missing_power_columns}. Pass one power per market period."
+        )
+
     residual_demand_curves = pd.DataFrame(
-        columns=[f"price_{i+1}" for i in range(market_periods_count)]
-        + [f"power_{i+1}" for i in range(market_periods_count)],
+        columns=get_rdc_price_columns(market_periods_count)
+        + get_rdc_power_columns(market_periods_count),
         index=sell_profiles.index,
     )
 
@@ -295,8 +312,21 @@ def interpolate_residual_demand_curves(
     residual_demand_price_columns: list[str] | None = None,
     extrapolate_action: Literal["limit", "nan", "warning", "raise"] = "warning",
 ):
+    extrapolate_actions = ("limit", "nan", "warning", "raise")
+    if extrapolate_action not in extrapolate_actions:
+        raise ValueError(
+            f"extrapolate_action must be one of {extrapolate_actions}, "
+            f"got {extrapolate_action!r}."
+        )
 
-    periods_count = len(target_power_levels.columns)
+    # count only the power columns: a residual demand curve dataframe carries both
+    # power_<i> and price_<i>, and passing one straight back in as the target would
+    # otherwise infer twice as many periods as the session has
+    periods_count = sum(
+        1
+        for column in target_power_levels.columns
+        if re.fullmatch(r"power_\d+", str(column))
+    )
     target_power_columns = target_power_columns or get_rdc_power_columns(periods_count)
     target_price_columns = target_price_columns or get_rdc_price_columns(periods_count)
     residual_demand_power_columns = (

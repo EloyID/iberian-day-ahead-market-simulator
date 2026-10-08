@@ -32,12 +32,20 @@ from iberian_day_ahead_market_simulator.plot_helpers import (
 )
 
 import iberian_day_ahead_market_simulator.columns as cols
+from iberian_day_ahead_market_simulator.residual_demand_curve import (
+    calculate_residual_demand_curves,
+    create_homothetic_sell_profiles,
+    interpolate_residual_demand_curves,
+)
 from iberian_day_ahead_market_simulator.results_analyze_tools import (
     summary_det_cab_and_curva_pbc_uof,
 )
 
 __all__ = [
     "run_iberian_day_ahead_market_simulator",
+    "calculate_residual_demand_curves",
+    "create_homothetic_sell_profiles",
+    "interpolate_residual_demand_curves",
     "parse_cab_file",
     "parse_det_file",
     "parse_capacidad_inter_file",

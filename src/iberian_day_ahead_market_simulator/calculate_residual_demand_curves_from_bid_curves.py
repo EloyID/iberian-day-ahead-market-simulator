@@ -1,7 +1,11 @@
+import logging
+
 import numpy as np
 import pandas as pd
 
 from iberian_day_ahead_market_simulator.const import (
+    MAX_BID_PRICE,
+    MIN_BID_PRICE,
     get_rdc_power_columns,
     get_rdc_price_columns,
 )
@@ -9,6 +13,8 @@ from iberian_day_ahead_market_simulator.parse_omie_files import parse_curva_pbc_
 
 import iberian_day_ahead_market_simulator.columns as cols
 from iberian_day_ahead_market_simulator.tools import get_float_bid_power_cumsum
+
+logger = logging.getLogger(__name__)
 
 
 def format_curva_pbc_rdc(
@@ -42,6 +48,19 @@ def format_curva_pbc_rdc(
         curva_pbc_period = curva_pbc_C_extended_rdc.query(
             f"{cols.INT_PERIOD} == {period}"
         )
+
+        # a period holding no bid at all has no curve to read a residual demand off,
+        # which is reported as a missing column rather than as an empty sample array
+        # error from inside np.interp
+        if curva_pbc_period.empty:
+            logger.warning(
+                "No bid curve for period %s of %s, its residual demand is set to NaN.",
+                period,
+                market_periods_count,
+            )
+            cleared_bids_continued_with_submitted_residual_demand[power_col] = np.nan
+            continue
+
         residual_demand_period = np.interp(
             price_points,
             curva_pbc_period[cols.FLOAT_BID_PRICE],
@@ -78,12 +97,9 @@ def calculate_residual_demand(curva_pbc_C_extended: pd.DataFrame) -> pd.DataFram
         .drop_duplicates(subset=[cols.INT_PERIOD, cols.FLOAT_BID_PRICE], keep="last")
     )
 
-    # concatenate the two dataframes and sort by price
+    # concatenate the two dataframes
     curva_pbc_C_extended_rdc = pd.concat(
         [curva_pbc_C_extended_rdc_C, curva_pbc_C_extended_rdc_V], ignore_index=True
-    )
-    curva_pbc_C_extended_rdc = curva_pbc_C_extended_rdc.sort_values(
-        by=[cols.FLOAT_BID_PRICE]  # , "aux_float_bid_power_cumsum"]
     )
 
     # at each price point, we want to know the cumulative power sold and bought
@@ -98,6 +114,18 @@ def calculate_residual_demand(curva_pbc_C_extended: pd.DataFrame) -> pd.DataFram
         np.nan,
     )
 
+    # sort by price, and at an identical price put the sell row before the buy row:
+    # the fills below each need to see the opposite side at that very same price,
+    # and a buy and a sell bid at the same price is the normal case at the clearing
+    # price. The order is set with an explicit flag rather than by relying on the
+    # NaN placement of a cumsum sort key or on the category order of cat_buy_sell.
+    curva_pbc_C_extended_rdc["aux_is_buy"] = (
+        curva_pbc_C_extended_rdc[cols.CAT_BUY_SELL] == "C"
+    ).astype(int)
+    curva_pbc_C_extended_rdc = curva_pbc_C_extended_rdc.sort_values(
+        by=[cols.FLOAT_BID_PRICE, "aux_is_buy"]
+    )
+
     # note that we use ffill for sell_cumsum and bfill for buy_cumsum
     # beaause the sell_cumsum is compared to the buy_cumsum from higher prices,
     # and the buy_cumsum is compared to the sell_cumsum from lower prices
@@ -108,10 +136,24 @@ def calculate_residual_demand(curva_pbc_C_extended: pd.DataFrame) -> pd.DataFram
         cols.INT_PERIOD
     )["buy_cumsum"].bfill()
 
+    # the fills leave the extremes of each period empty: below the cheapest sell bid
+    # no power is sold and above the priciest buy bid no power is bought, and both of
+    # those are a volume of 0 rather than an unknown value
+    curva_pbc_C_extended_rdc[["sell_cumsum", "buy_cumsum"]] = (
+        curva_pbc_C_extended_rdc[["sell_cumsum", "buy_cumsum"]].fillna(0)
+    )
+
     # calculate the residual demand as the difference between the cumulative buy and sell power
     curva_pbc_C_extended_rdc["residual_demand"] = (
         curva_pbc_C_extended_rdc["buy_cumsum"] - curva_pbc_C_extended_rdc["sell_cumsum"]
     )
+
+    # the buy and the sell row of a tied price now carry the same residual demand, so
+    # collapsing them keeps one point per price and spares np.interp a duplicated
+    # sample point, for which its behaviour is not defined
+    curva_pbc_C_extended_rdc = curva_pbc_C_extended_rdc.drop_duplicates(
+        subset=[cols.INT_PERIOD, cols.FLOAT_BID_PRICE], keep="last"
+    ).drop(columns=["aux_is_buy"])
 
     return curva_pbc_C_extended_rdc
 
@@ -126,6 +168,9 @@ def calculated_curva_pbc_cleared_extended(curva_pbc: pd.DataFrame) -> pd.DataFra
     Returns:
         pd.DataFrame:
     """
+    # operate on a copy: the cumsum column below must not appear in the caller's
+    # dataframe, which is typically the whole parsed curva_pbc file
+    curva_pbc = curva_pbc.copy()
 
     curva_pbc[cols.FLOAT_BID_POWER_CUMSUM] = get_float_bid_power_cumsum(curva_pbc)
 
@@ -205,7 +250,7 @@ def calculate_residual_demand_curves_from_bid_curves(
         curva_pbc = parse_curva_pbc_file(curva_pbc)
 
     if price_points is None:
-        price_points = np.arange(-500, 1000, 0.5)
+        price_points = np.arange(MIN_BID_PRICE, MAX_BID_PRICE + 0.5, 0.5)
 
     curva_pbc_C_extended = calculated_curva_pbc_cleared_extended(curva_pbc)
 

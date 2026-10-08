@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pandas as pd
 
@@ -36,6 +38,8 @@ from iberian_day_ahead_market_simulator.tools import (
 )
 import iberian_day_ahead_market_simulator.columns as cols
 
+logger = logging.getLogger(__name__)
+
 
 def format_price_curves(
     price_curves: np.ndarray,
@@ -64,9 +68,41 @@ def format_price_curves(
     return price_curves
 
 
+def reindex_over_market_periods(
+    residual_demand_per_period: pd.Series, market_periods_count: int | None = None
+) -> pd.Series:
+    """
+    Reindex a per period residual demand over the full range of market periods.
+
+    A market period in which no order at all was placed is simply absent from the
+    groupby result. Left as is, it would shift every later period onto the wrong
+    power_<i> column; such a period has a residual demand of 0, not a missing one.
+
+    Args:
+        residual_demand_per_period (pd.Series): Residual demand indexed by period.
+        market_periods_count (int | None): Number of periods of the session. When
+            None, the highest period present is used, which only closes the gaps
+            between periods and not a gap at the end of the session.
+
+    Returns:
+        pd.Series: Residual demand indexed by 1..market_periods_count, with the
+            periods that hold no order set to 0.
+    """
+    if residual_demand_per_period.empty:
+        return residual_demand_per_period
+
+    if market_periods_count is None:
+        market_periods_count = int(residual_demand_per_period.index.max())
+
+    return residual_demand_per_period.reindex(
+        range(1, market_periods_count + 1), fill_value=0
+    )
+
+
 def calculate_complex_residual_demand_II_with_market_split(
     det_cab,
     capacidad_inter_PBC_pt,
+    market_periods_count: int | None = None,
 ):
 
     capacidad_imp_PT = -capacidad_inter_PBC_pt.set_index(cols.INT_PERIOD)[
@@ -100,24 +136,27 @@ def calculate_complex_residual_demand_II_with_market_split(
         power_per_period_cleared_portugal_V, fill_value=0
     )
 
-    residual_demand_per_period_from_portugal_with_saturation = pd.Series(
-        np.where(
-            residual_demand_per_period_portugal.lt(capacidad_imp_PT),
-            capacidad_imp_PT,
-            np.where(
-                residual_demand_per_period_portugal.gt(capacidad_exp_PT),
-                capacidad_exp_PT,
-                residual_demand_per_period_portugal,
-            ),
-        ),
-        index=residual_demand_per_period_portugal.index,
+    # saturate the flow Portugal asks for at the interconnection limits of its own
+    # period. Series.clip aligns the bounds on the period index, so the row order of
+    # capacidad_inter_PBC_pt cannot leak another period's limit into the comparison.
+    # A period without capacity data keeps an unbounded limit, as it did before.
+    capacidad_imp_PT = capacidad_imp_PT.reindex(
+        residual_demand_per_period_portugal.index, fill_value=-np.inf
+    )
+    capacidad_exp_PT = capacidad_exp_PT.reindex(
+        residual_demand_per_period_portugal.index, fill_value=np.inf
+    )
+    residual_demand_per_period_from_portugal_with_saturation = (
+        residual_demand_per_period_portugal.clip(
+            lower=capacidad_imp_PT, upper=capacidad_exp_PT
+        )
     )
 
     residual_demand_with_saturation_per_period = power_per_period_cleared_spain_C.sub(
         power_per_period_cleared_spain_V, fill_value=0
     ).add(residual_demand_per_period_from_portugal_with_saturation, fill_value=0)
-    residual_demand_with_saturation_per_period.index = (
-        residual_demand_per_period_portugal.index
+    residual_demand_with_saturation_per_period = reindex_over_market_periods(
+        residual_demand_with_saturation_per_period, market_periods_count
     )
     residual_demand_with_saturation_per_period.name = (
         "complex_residual_demand_II_with_market_split_curves"
@@ -129,7 +168,9 @@ def sum_cleared_power_by_period(det_cab, cleared_power_column=cols.FLOAT_CLEARED
     return det_cab.groupby(cols.INT_PERIOD)[cleared_power_column].sum().sort_index()
 
 
-def calculate_complex_residual_demand_I_without_market_split(det_cab):
+def calculate_complex_residual_demand_I_without_market_split(
+    det_cab, market_periods_count: int | None = None
+):
     power_per_period_cleared_C = sum_cleared_power_by_period(
         det_cab.query(f'{cols.CAT_BUY_SELL} == "C"'),
     )
@@ -137,10 +178,15 @@ def calculate_complex_residual_demand_I_without_market_split(det_cab):
         det_cab.query(f'{cols.CAT_BUY_SELL} == "V"'),
     )
 
-    return power_per_period_cleared_C.sub(power_per_period_cleared_V, fill_value=0)
+    return reindex_over_market_periods(
+        power_per_period_cleared_C.sub(power_per_period_cleared_V, fill_value=0),
+        market_periods_count,
+    )
 
 
-def calculate_only_simple_submitted_relaxed_residual_demand(det_cab):
+def calculate_only_simple_submitted_relaxed_residual_demand(
+    det_cab, market_periods_count: int | None = None
+):
 
     power_per_period_cleared_C = sum_cleared_power_by_period(
         det_cab.query(f'{cols.CAT_BUY_SELL} == "C"'),
@@ -151,10 +197,15 @@ def calculate_only_simple_submitted_relaxed_residual_demand(det_cab):
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
 
-    return power_per_period_cleared_C.sub(power_per_period_cleared_V_S, fill_value=0)
+    return reindex_over_market_periods(
+        power_per_period_cleared_C.sub(power_per_period_cleared_V_S, fill_value=0),
+        market_periods_count,
+    )
 
 
-def calculate_submitted_relaxed_residual_demand(det_cab):
+def calculate_submitted_relaxed_residual_demand(
+    det_cab, market_periods_count: int | None = None
+):
 
     power_per_period_cleared_C = sum_cleared_power_by_period(
         det_cab.query(f'{cols.CAT_BUY_SELL} == "C"'),
@@ -165,7 +216,10 @@ def calculate_submitted_relaxed_residual_demand(det_cab):
         cleared_power_column="float_cleared_power_as_simple_bid",
     )
 
-    return power_per_period_cleared_C.sub(power_per_period_cleared_V, fill_value=0)
+    return reindex_over_market_periods(
+        power_per_period_cleared_C.sub(power_per_period_cleared_V, fill_value=0),
+        market_periods_count,
+    )
 
 
 def substract_reference_curve_from_all_curves(
@@ -196,7 +250,7 @@ def calculate_residual_demand_curves_from_bids(
             reference_price_curve_index = np.where(
                 (price_curves == reference_price_curve).all(axis=1)
             )[0][0]
-            print("reference_price_curve_index: ", reference_price_curve_index)
+            logger.info("reference_price_curve_index: %s", reference_price_curve_index)
         except Exception as e:
             raise ValueError(
                 "Error while trying to find the reference price curve in the provided price curves."
@@ -213,6 +267,15 @@ def calculate_residual_demand_curves_from_bids(
     market_periods_count = get_market_periods_count(det)
     is_QH = is_QH_market(market_periods_count)
     det = det.query(f"{cols.INT_PERIOD} <= {market_periods_count}")
+
+    # the price curves are indexed by market period further down, so a length that
+    # disagrees with the DET file has to be reported here rather than as an
+    # IndexError from inside the clearing of an individual order
+    if price_curves.shape[1] != market_periods_count:
+        raise ValueError(
+            f"price_curves cover {price_curves.shape[1]} periods but the DET file is a "
+            f"{market_periods_count} period session. Pass one price per market period."
+        )
 
     if isinstance(capacidad_inter_pbc, str):
         capacidad_inter_pbc = parse_capacidad_inter_file(
@@ -265,7 +328,9 @@ def calculate_residual_demand_curves_from_bids(
 
         # Calculate residual demand
         only_simple_submitted_relaxed_residual_demand = (
-            calculate_only_simple_submitted_relaxed_residual_demand(det_cab_aux)
+            calculate_only_simple_submitted_relaxed_residual_demand(
+                det_cab_aux, market_periods_count
+            )
         )
         only_simple_submitted_relaxed_residual_demand.index = rdc_power_columns
         only_simple_submitted_relaxed_residual_demand = pd.concat(
@@ -273,7 +338,7 @@ def calculate_residual_demand_curves_from_bids(
         )
 
         submitted_relaxed_residual_demand = calculate_submitted_relaxed_residual_demand(
-            det_cab_aux
+            det_cab_aux, market_periods_count
         )
         submitted_relaxed_residual_demand.index = rdc_power_columns
         submitted_relaxed_residual_demand = pd.concat(
@@ -281,7 +346,9 @@ def calculate_residual_demand_curves_from_bids(
         )
 
         complex_residual_demand_I_without_market_split = (
-            calculate_complex_residual_demand_I_without_market_split(det_cab_aux)
+            calculate_complex_residual_demand_I_without_market_split(
+                det_cab_aux, market_periods_count
+            )
         )
         complex_residual_demand_I_without_market_split.index = rdc_power_columns
         complex_residual_demand_I_without_market_split = pd.concat(
@@ -290,7 +357,7 @@ def calculate_residual_demand_curves_from_bids(
 
         complex_residual_demand_II_with_market_split = (
             calculate_complex_residual_demand_II_with_market_split(
-                det_cab_aux, capacidad_inter_PBC_pt
+                det_cab_aux, capacidad_inter_PBC_pt, market_periods_count
             )
         )
         complex_residual_demand_II_with_market_split.index = rdc_power_columns
