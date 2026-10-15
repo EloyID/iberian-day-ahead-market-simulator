@@ -26,7 +26,9 @@ def get_float_bid_power_cumsum(
     """
     Calculates the cumulative sum of bid power for each period, buy/sell type, and price within the DET/CAB DataFrame.
 
-    Buy ('V') and sell ('C') bids are sorted and grouped separately, and their cumulative power is calculated.
+    Buy ('C', *compra*) and sell ('V', *venta*) bids are cumulated separately: buys from the
+    highest price downwards and sells from the lowest price upwards, so a row's cumulative
+    power is the volume on its own side that is at least as willing to trade as that row.
 
     Args:
         curva_pbc_df (pd.DataFrame): DataFrame containing bids.

@@ -240,14 +240,38 @@ def calculate_residual_demand_curves_from_bid_curves(
     ----------
     curva_pbc : pd.DataFrame | str
         The bid curves as a pandas DataFrame or a path to a CSV file.
+    market_periods_count : int
+        Number of periods the session has, i.e. how many power_<i>/price_<i> columns the
+        result carries. It must cover every period the curve holds.
+    price_points : list[float] | None
+        Prices the residual demand is sampled at. Defaults to a 0.5 EUR/MWh grid spanning
+        MIN_BID_PRICE to MAX_BID_PRICE.
 
     Returns
     -------
     dict[str, pd.DataFrame]
         A dictionary with the residual demand curves for each market.
+
+    Raises
+    ------
+    ValueError
+        If the curve holds periods beyond `market_periods_count`, which would silently
+        return a curve for only the first part of the session, e.g. asking a 96 period
+        quarter-hourly day for 24 periods.
     """
     if isinstance(curva_pbc, str):
         curva_pbc = parse_curva_pbc_file(curva_pbc)
+
+    # the period count decides the result's columns but is passed in rather than read from
+    # the data, so check it against the curve before any of it is used
+    highest_period_in_curve = int(curva_pbc[cols.INT_PERIOD].max())
+    if highest_period_in_curve > market_periods_count:
+        raise ValueError(
+            f"the bid curve holds periods up to {highest_period_in_curve} but "
+            f"market_periods_count says the session is {market_periods_count} periods long. "
+            f"Pass the session's own period count, otherwise the curves returned cover only "
+            f"its first {market_periods_count} periods."
+        )
 
     if price_points is None:
         price_points = np.arange(MIN_BID_PRICE, MAX_BID_PRICE + 0.5, 0.5)
