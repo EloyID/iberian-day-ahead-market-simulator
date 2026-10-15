@@ -17,6 +17,7 @@ from iberian_day_ahead_market_simulator.const import (
 )
 from iberian_day_ahead_market_simulator.data_preprocessor import (
     get_det_cab_for_simulation,
+    get_france_det_cab_from_curva_pbc_uof,
 )
 from iberian_day_ahead_market_simulator.file_paths import (
     PARTICIPANTS_BIDDING_ZONES_FILEPATH,
@@ -239,10 +240,46 @@ def calculate_residual_demand_curves_from_bids(
     det: pd.DataFrame | str,
     cab: pd.DataFrame | str,
     capacidad_inter_pbc: pd.DataFrame | str,
+    curva_pbc_uof: pd.DataFrame | None,
     participants_bidding_zones: pd.DataFrame | None = None,
     spain_as_default_bidding_zone: bool = False,
     reference_price_curve: np.ndarray | None = None,
 ) -> dict:
+    """Residual demand curves built from the individual orders, one per price curve given.
+
+    Parameters
+    ----------
+    price_curves : np.ndarray
+        One price per market period, or a 2D array of such curves (one row each).
+    det, cab : pd.DataFrame | str
+        The day's order detail and headers, or paths to the raw OMIE files.
+    capacidad_inter_pbc : pd.DataFrame | str
+        The day's interconnection capacities, or a path to the raw OMIE file.
+    curva_pbc_uof : pd.DataFrame | None
+        The day's unit-level curve, from which the France interconnection's orders are read
+        (OMIE publishes it as the FRANCE_ID_UNIDAD unit, already priced at the extremes of
+        the bid range). **DET/CAB do not carry those orders**. Because the
+        published prices are extreme, the interconnection is a price taker: it contributes
+        the same power at every price swept.
+    participants_bidding_zones : pd.DataFrame | None
+        Unit to bidding zone mapping; None reads the package's bundled list.
+    spain_as_default_bidding_zone : bool
+        Put units missing from that mapping in Spain instead of raising.
+    reference_price_curve : np.ndarray | None
+        When given, every curve is reported relative to this one.
+
+    Returns
+    -------
+    dict
+        One dataframe per residual demand variant, each with a `price_<i>`/`power_<i>`
+        column per market period and one row per price curve swept.
+
+    Raises
+    ------
+    ValueError
+        If `price_curves` does not cover exactly the DET file's market periods, or if
+        `curva_pbc_uof` holds no cleared rows for the interconnection.
+    """
 
     price_curves = format_price_curves(price_curves)
     if reference_price_curve is not None:
@@ -299,10 +336,16 @@ def calculate_residual_demand_curves_from_bids(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"
     )
 
+    # Read France's orders off the unit-level curve, so that imports from and exports to
+    # France take part in the residual demand. DET/CAB never carry them, so without this the
+    # whole cross-border volume is simply absent.
+    det_cab_fr = get_france_det_cab_from_curva_pbc_uof(curva_pbc_uof)
+
     det_cab = get_det_cab_for_simulation(
         det=det,
         cab=cab,
         participants_bidding_zones=participants_bidding_zones,
+        det_cab_fr=det_cab_fr,
         spain_as_default_bidding_zone=spain_as_default_bidding_zone,
     )
 

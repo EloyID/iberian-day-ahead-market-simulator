@@ -124,6 +124,89 @@ def get_france_det_cab_from_price(
     return det_cab
 
 
+def get_france_det_cab_from_curva_pbc_uof(
+    curva_pbc_uof: pd.DataFrame,
+    date: pd.Timestamp | str = "",
+) -> pd.DataFrame:
+    """
+    Build the France interconnection's DET/CAB rows from OMIE's unit-level curve file.
+
+    OMIE publishes the interconnection as an ordinary unit, FRANCE_ID_UNIDAD, in
+    curva_pbc_uof: one row per market period and direction, already priced at the extremes of
+    the bid range (a sell near the floor for an import, a buy near the cap for an export), so
+    the volume it carries is the flow that actually cleared.
+
+    Taking those rows is therefore different in kind from
+    `get_france_det_cab_from_price`, which infers the flow by comparing the French day-ahead
+    price against the Iberian one and clears the whole border capacity in one direction or
+    the other. Here the published extreme prices are kept as they are, which makes the
+    interconnection a price taker: it contributes the same power whatever price the rest of
+    the market is cleared at. That pins the border to what really happened at the cost of
+    giving it no price elasticity.
+
+    Args:
+        curva_pbc_uof (pd.DataFrame): The day's unit-level curve, or just its
+            FRANCE_ID_UNIDAD rows. Must carry cols.ID_UNIDAD, cols.INT_PERIOD,
+            cols.CAT_BUY_SELL, cols.FLOAT_BID_POWER and cols.FLOAT_BID_PRICE. Offered rows
+            are ignored when cols.CAT_OFERTADA_CASADA is present.
+        date (pd.Timestamp | str, optional): Specific date to filter the data and stamp on
+            the rows. Defaults to "" (no filtering).
+
+    Returns:
+        pd.DataFrame: DataFrame in DET/CAB format, ready for use in the simulator.
+
+    Raises:
+        ValueError: If the curve holds no rows for FRANCE_ID_UNIDAD, which would silently
+            leave the interconnection out of the simulation.
+    """
+    france_curve = curva_pbc_uof[curva_pbc_uof[cols.ID_UNIDAD] == FRANCE_ID_UNIDAD].copy()
+
+    # keep only what cleared: an offered row is not a flow
+    if cols.CAT_OFERTADA_CASADA in france_curve.columns:
+        france_curve = france_curve[france_curve[cols.CAT_OFERTADA_CASADA] == "C"]
+
+    if cols.DATE_SESION in france_curve.columns and date:
+        date_sesion = pd.Timestamp(date)
+        france_curve = france_curve[
+            france_curve[cols.DATE_SESION].dt.date == date_sesion.date()
+        ]
+
+    if france_curve.empty:
+        raise ValueError(
+            f"curva_pbc_uof holds no cleared rows for {FRANCE_ID_UNIDAD}, so the France "
+            f"interconnection would be left out of the simulation entirely."
+        )
+
+    det_cab_values = {
+        cols.ID_ORDER: FRANCE_ID_ORDER,
+        cols.ID_UNIDAD: FRANCE_ID_UNIDAD,
+        cols.FLOAT_MIC: 0,
+        cols.FLOAT_MAX_POWER: 99999999,  # High value to avoid issues
+        cols.INT_NUM_BLOCK: 0,
+        cols.INT_NUM_SUBORDER: 1,
+        cols.INT_NUM_EXCL_GROUP: 0,
+        cols.FLOAT_MAV: 0,
+        cols.FLOAT_MAR: 0,
+        cols.CAT_BIDDING_ZONE: CAT_BIDDING_ZONE_SPAIN,  # the Iberian side of the border
+    }
+    if date:
+        det_cab_values[cols.DATE_SESION] = pd.Timestamp(date)
+
+    carried_columns = [
+        cols.INT_PERIOD,
+        cols.CAT_BUY_SELL,
+        cols.FLOAT_BID_POWER,
+        cols.FLOAT_BID_PRICE,
+    ]
+    return (
+        france_curve[carried_columns]
+        .assign(**det_cab_values)
+        .dropna()
+        .query(f"{cols.FLOAT_BID_POWER} > 0")
+        .reset_index(drop=True)
+    )
+
+
 def get_det_cab_id_individual_bid(det_cab: pd.DataFrame) -> pd.Series:
     """
     Generates a unique identifier for each individual bid in the DET/CAB DataFrame by concatenating key columns.

@@ -10,6 +10,10 @@ from iberian_day_ahead_market_simulator.data_preprocessor import (
     get_france_det_cab_from_price,
 )
 from iberian_day_ahead_market_simulator.tools import get_cat_order_type_column
+from iberian_day_ahead_market_simulator.const import FRANCE_ID_UNIDAD
+from iberian_day_ahead_market_simulator.data_preprocessor import (
+    get_france_det_cab_from_curva_pbc_uof,
+)
 
 
 @pytest.fixture
@@ -246,3 +250,51 @@ class TestGetDetCabDateIdSco:
             full_simplified_det_cab_dataframe[cols.ID_SCO].astype(object),
             check_names=False,
         )
+
+
+class TestFranceFromCurvaPbcUof:
+    """The France interconnection is read off the unit-level curve, not inferred from prices."""
+
+    @pytest.fixture
+    def france_curve(self):
+        # OMIE publishes the interconnection as an ordinary unit, at the extremes of the bid
+        # range: a sell near the floor is an import, a buy near the cap an export.
+        return pd.DataFrame(
+            {
+                cols.ID_UNIDAD: [FRANCE_ID_UNIDAD, FRANCE_ID_UNIDAD, "SOMEUNIT"],
+                cols.INT_PERIOD: [1, 2, 1],
+                cols.CAT_BUY_SELL: ["V", "C", "V"],
+                cols.FLOAT_BID_POWER: [2300.0, 62.0, 500.0],
+                cols.FLOAT_BID_PRICE: [-500.0, 1500.0, 30.0],
+            }
+        )
+
+    def test_keeps_only_the_interconnection_and_its_published_extreme_prices(self, france_curve):
+        det_cab_fr = get_france_det_cab_from_curva_pbc_uof(france_curve)
+
+        assert det_cab_fr[cols.ID_UNIDAD].unique().tolist() == [FRANCE_ID_UNIDAD]
+        # the published prices are kept as they are, which makes the border a price taker
+        assert det_cab_fr[cols.FLOAT_BID_PRICE].tolist() == [-500.0, 1500.0]
+        assert det_cab_fr[cols.FLOAT_BID_POWER].tolist() == [2300.0, 62.0]
+        assert det_cab_fr[cols.CAT_BUY_SELL].tolist() == ["V", "C"]
+
+    def test_offered_rows_are_ignored_since_only_a_cleared_row_is_a_flow(self, france_curve):
+        france_curve[cols.CAT_OFERTADA_CASADA] = ["C", "O", "C"]
+
+        det_cab_fr = get_france_det_cab_from_curva_pbc_uof(france_curve)
+
+        assert det_cab_fr[cols.INT_PERIOD].tolist() == [1]
+
+    def test_zero_power_rows_are_dropped(self, france_curve):
+        france_curve.loc[1, cols.FLOAT_BID_POWER] = 0.0
+
+        det_cab_fr = get_france_det_cab_from_curva_pbc_uof(france_curve)
+
+        assert det_cab_fr[cols.INT_PERIOD].tolist() == [1]
+
+    def test_a_curve_without_the_interconnection_is_refused(self, france_curve):
+        # Silently returning nothing would leave the border out of the whole simulation.
+        without_france = france_curve[france_curve[cols.ID_UNIDAD] != FRANCE_ID_UNIDAD]
+
+        with pytest.raises(ValueError, match="holds no cleared rows"):
+            get_france_det_cab_from_curva_pbc_uof(without_france)
