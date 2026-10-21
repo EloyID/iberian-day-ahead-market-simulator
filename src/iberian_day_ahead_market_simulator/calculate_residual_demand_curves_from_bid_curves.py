@@ -1,4 +1,5 @@
 import logging
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -139,9 +140,9 @@ def calculate_residual_demand(curva_pbc_C_extended: pd.DataFrame) -> pd.DataFram
     # the fills leave the extremes of each period empty: below the cheapest sell bid
     # no power is sold and above the priciest buy bid no power is bought, and both of
     # those are a volume of 0 rather than an unknown value
-    curva_pbc_C_extended_rdc[["sell_cumsum", "buy_cumsum"]] = (
-        curva_pbc_C_extended_rdc[["sell_cumsum", "buy_cumsum"]].fillna(0)
-    )
+    curva_pbc_C_extended_rdc[["sell_cumsum", "buy_cumsum"]] = curva_pbc_C_extended_rdc[
+        ["sell_cumsum", "buy_cumsum"]
+    ].fillna(0)
 
     # calculate the residual demand as the difference between the cumulative buy and sell power
     curva_pbc_C_extended_rdc["residual_demand"] = (
@@ -231,6 +232,7 @@ def calculated_curva_pbc_cleared_extended(curva_pbc: pd.DataFrame) -> pd.DataFra
 def calculate_residual_demand_curves_from_bid_curves(
     curva_pbc: pd.DataFrame | str,
     market_periods_count: int,
+    cat_bidding_zone: Literal["ES", "PT"] = "ES",
     price_points: list[float] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """
@@ -243,6 +245,10 @@ def calculate_residual_demand_curves_from_bid_curves(
     market_periods_count : int
         Number of periods the session has, i.e. how many power_<i>/price_<i> columns the
         result carries. It must cover every period the curve holds.
+    cat_bidding_zone : Literal["ES", "PT"]
+        Bidding zone whose residual demand is wanted. The rows of the other zone are
+        dropped, while the "MI" rows of the periods the market stayed coupled are read
+        for either zone. Defaults to "ES".
     price_points : list[float] | None
         Prices the residual demand is sampled at. Defaults to a 0.5 EUR/MWh grid spanning
         MIN_BID_PRICE to MAX_BID_PRICE.
@@ -261,6 +267,14 @@ def calculate_residual_demand_curves_from_bid_curves(
     """
     if isinstance(curva_pbc, str):
         curva_pbc = parse_curva_pbc_file(curva_pbc)
+
+    # cat_bidding_zone will be "MI" when the market is not split, and "ES" or "PT" when it is.
+    # The bid curves will keep either the "MI" or the "ES"/"PT" rows, so filter the dataframe
+    # to keep only the relevant ones.
+    cod_pais_filtered_analyzed = ["MI", cat_bidding_zone]
+    curva_pbc = curva_pbc.query(
+        f"{cols.CAT_BIDDING_ZONE} in {cod_pais_filtered_analyzed}"
+    )
 
     # the period count decides the result's columns but is passed in rather than read from
     # the data, so check it against the curve before any of it is used

@@ -22,7 +22,13 @@ import pandas as pd
 import pytest
 
 from iberian_day_ahead_market_simulator import columns as cols
-from iberian_day_ahead_market_simulator.const import MAX_BID_PRICE, MIN_BID_PRICE
+from iberian_day_ahead_market_simulator.const import (
+    CAT_BIDDING_ZONE_MIBEL,
+    MAX_BID_PRICE,
+    MIN_BID_PRICE,
+    PORTUGAL_ZONE,
+    SPAIN_ZONE,
+)
 from iberian_day_ahead_market_simulator.calculate_residual_demand_curves_from_bid_curves import (
     calculate_residual_demand,
     calculate_residual_demand_curves_from_bid_curves,
@@ -42,11 +48,22 @@ CURVA_PBC_COLUMNS = [
 ]
 
 
-def _curva_pbc(rows: list[tuple]) -> pd.DataFrame:
-    """Build a curva_pbc DataFrame from (period, buy_sell, O/C, price, power) tuples."""
-    return pd.DataFrame(
+def _curva_pbc(rows: list[tuple], cat_bidding_zone: str = "ES") -> pd.DataFrame:
+    """Build a curva_pbc DataFrame from (period, buy_sell, O/C, price, power) tuples.
+
+    A parsed curva_pbc labels every row with a bidding zone: "MI" for the periods
+    the market stayed coupled, and "ES"/"PT" for the periods it split. All the rows
+    built here carry the one zone given, so a split session is assembled by
+    concatenating two calls. The column is categorical, as the parsed file's is.
+    """
+    curva_pbc = pd.DataFrame(
         [(DATE_SESION, *row) for row in rows], columns=CURVA_PBC_COLUMNS
     )
+    curva_pbc[cols.CAT_BIDDING_ZONE] = pd.Categorical(
+        [cat_bidding_zone] * len(curva_pbc),
+        categories=[SPAIN_ZONE, PORTUGAL_ZONE, CAT_BIDDING_ZONE_MIBEL],
+    )
+    return curva_pbc
 
 
 def _residual_demand_by_price(rdc: pd.DataFrame, period: int) -> dict[float, float]:
@@ -364,3 +381,132 @@ class TestCalculateResidualDemandCurvesFromBidCurves:
 
         assert result["price_1"].min() == pytest.approx(MIN_BID_PRICE)
         assert result["price_1"].max() == pytest.approx(MAX_BID_PRICE)
+
+
+class TestCalculateResidualDemandCurvesFromBidCurvesBiddingZone:
+    """Test suite for the cat_bidding_zone filtering of the bid curves.
+
+    A session is either coupled, and then its rows are labelled "MI", or split,
+    and then the same period carries a separate Spanish and Portuguese curve.
+    Only the rows of the zone being analysed may be cumulated, otherwise the two
+    zones' volumes are added into one curve that belongs to neither.
+    """
+
+    @pytest.fixture
+    def split_session(self):
+        """One period, priced alike in both zones but with different volumes.
+
+        Spain alone gives 100 - 80 = 20 and Portugal alone 10 - 4 = 6, while
+        cumulating both zones together would give 110 - 84 = 26.
+        """
+        return pd.concat(
+            [
+                _curva_pbc(
+                    [(1, "C", "C", 50.0, 100.0), (1, "V", "C", 50.0, 80.0)],
+                    cat_bidding_zone=SPAIN_ZONE,
+                ),
+                _curva_pbc(
+                    [(1, "C", "C", 50.0, 10.0), (1, "V", "C", 50.0, 4.0)],
+                    cat_bidding_zone=PORTUGAL_ZONE,
+                ),
+            ],
+            ignore_index=True,
+        )
+
+    def _power_1(self, curva_pbc, market_periods_count=1, **kwargs):
+        return calculate_residual_demand_curves_from_bid_curves(
+            curva_pbc, market_periods_count, price_points=[50.0], **kwargs
+        )["cleared_bids_continued_with_submitted_residual_demand"]["power_1"].tolist()
+
+    def test_defaults_to_the_spain_bidding_zone(self, split_session):
+        assert self._power_1(split_session) == pytest.approx([20.0])
+
+    def test_spain_bidding_zone_excludes_the_portuguese_rows(self, split_session):
+        assert self._power_1(
+            split_session, cat_bidding_zone=SPAIN_ZONE
+        ) == pytest.approx([20.0])
+
+    def test_portugal_bidding_zone_excludes_the_spanish_rows(self, split_session):
+        assert self._power_1(
+            split_session, cat_bidding_zone=PORTUGAL_ZONE
+        ) == pytest.approx([6.0])
+
+    def test_the_two_zones_are_not_cumulated_into_one_curve(self, split_session):
+        """26 would be the telltale of both zones' volumes landing in one curve."""
+        for bidding_zone in (SPAIN_ZONE, PORTUGAL_ZONE):
+            assert self._power_1(
+                split_session, cat_bidding_zone=bidding_zone
+            ) != pytest.approx([26.0])
+
+    @pytest.mark.parametrize("bidding_zone", [SPAIN_ZONE, PORTUGAL_ZONE])
+    def test_coupled_mi_rows_are_kept_for_either_zone(self, bidding_zone):
+        """A coupled period has one curve for the whole of MIBEL, so it has to be
+        read whichever of the two zones is being analysed."""
+        coupled_session = _curva_pbc(
+            [(1, "C", "C", 50.0, 100.0), (1, "V", "C", 50.0, 80.0)],
+            cat_bidding_zone=CAT_BIDDING_ZONE_MIBEL,
+        )
+
+        assert self._power_1(
+            coupled_session, cat_bidding_zone=bidding_zone
+        ) == pytest.approx([20.0])
+
+    # this should never happen in reality
+    def test_session_mixing_a_coupled_and_a_split_period(self):
+        """Period 1 stayed coupled and period 2 split, which is the shape a real
+        session takes when the interconnection saturates for part of the day."""
+        mixed_session = pd.concat(
+            [
+                _curva_pbc(
+                    [(1, "C", "C", 50.0, 100.0), (1, "V", "C", 50.0, 80.0)],
+                    cat_bidding_zone=CAT_BIDDING_ZONE_MIBEL,
+                ),
+                _curva_pbc(
+                    [(2, "C", "C", 40.0, 60.0), (2, "V", "C", 40.0, 50.0)],
+                    cat_bidding_zone=SPAIN_ZONE,
+                ),
+                _curva_pbc(
+                    [(2, "C", "C", 40.0, 30.0), (2, "V", "C", 40.0, 5.0)],
+                    cat_bidding_zone=PORTUGAL_ZONE,
+                ),
+            ],
+            ignore_index=True,
+        )
+
+        spain = calculate_residual_demand_curves_from_bid_curves(
+            mixed_session, 2, cat_bidding_zone=SPAIN_ZONE, price_points=[40.0]
+        )["cleared_bids_continued_with_submitted_residual_demand"]
+        portugal = calculate_residual_demand_curves_from_bid_curves(
+            mixed_session, 2, cat_bidding_zone=PORTUGAL_ZONE, price_points=[40.0]
+        )["cleared_bids_continued_with_submitted_residual_demand"]
+
+        # the coupled period reads the same for both zones
+        assert spain["power_1"].tolist() == pytest.approx([20.0])
+        assert portugal["power_1"].tolist() == pytest.approx([20.0])
+        # the split period reads each zone's own curve
+        assert spain["power_2"].tolist() == pytest.approx([10.0])
+        assert portugal["power_2"].tolist() == pytest.approx([25.0])
+
+    def test_bidding_zone_column_stays_categorical_as_the_parsed_file_is(
+        self, split_session
+    ):
+        """The filter runs on the dtype the parser produces, not on plain strings."""
+        assert isinstance(
+            split_session[cols.CAT_BIDDING_ZONE].dtype, pd.CategoricalDtype
+        )
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="filtering to a zone the curve does not hold empties the dataframe, and "
+        "the period count check then reports 'cannot convert float NaN to integer' "
+        "instead of naming the zone that matched no row",
+    )
+    def test_zone_absent_from_the_curve_is_reported_clearly(self):
+        """Asking a Spain-only curve for Portugal is an easy mistake to make."""
+        spain_only_session = _curva_pbc(
+            [(1, "C", "C", 50.0, 100.0), (1, "V", "C", 50.0, 80.0)],
+            cat_bidding_zone=SPAIN_ZONE,
+        )
+
+        with pytest.raises(ValueError, match=PORTUGAL_ZONE):
+            self._power_1(spain_only_session, cat_bidding_zone=PORTUGAL_ZONE)
