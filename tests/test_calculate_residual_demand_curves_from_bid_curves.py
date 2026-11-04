@@ -13,6 +13,10 @@ The residual demand at price ``p`` for a period is defined as
 because a buyer bidding at or above ``p`` is willing to buy at ``p``, and a
 seller bidding at or below ``p`` is willing to sell at ``p``.
 
+The curve it is read off is the cleared one, continued beyond each zone's clearing
+price (from marginalpdbc) with the offered bids: the offered sells priced above it
+and the offered buys priced below it.
+
 Tests marked ``xfail(strict=True)`` encode confirmed defects: they assert the
 value the definition above requires, and will start failing (as XPASS) the
 moment the defect is fixed, which is the signal to drop the marker.
@@ -34,6 +38,7 @@ from iberian_day_ahead_market_simulator.calculate_residual_demand_curves_from_bi
     calculate_residual_demand_curves_from_bid_curves,
     calculated_curva_pbc_cleared_extended,
     format_curva_pbc_rdc,
+    get_clearing_price_of_rows,
 )
 
 DATE_SESION = pd.Timestamp("2026-02-18")
@@ -47,14 +52,41 @@ CURVA_PBC_COLUMNS = [
     cols.FLOAT_BID_POWER,
 ]
 
+# the order types of a parsed curva_pbc: simple bids, complex orders, and the exchanges
+# with France and, in the periods the market split, between Spain and Portugal
+ORDER_TYPE_CATEGORIES = [
+    "S",
+    "C01",
+    "C02",
+    "C04",
+    "Imp FR",
+    "Exp FR",
+    "Exp PT",
+    "Imp PT",
+    "Exp ES",
+    "Imp ES",
+]
 
-def _curva_pbc(rows: list[tuple], cat_bidding_zone: str = "ES") -> pd.DataFrame:
+MARGINALPDBC_COLUMNS = [
+    cols.INT_PERIOD,
+    cols.CAT_BIDDING_ZONE,
+    cols.FLOAT_CLEARED_PRICE,
+]
+
+RESIDUAL_DEMAND_KEY = "cleared_bids_continued_with_submitted_residual_demand"
+
+
+def _curva_pbc(
+    rows: list[tuple], cat_bidding_zone: str = "ES", cat_order_type: str = "S"
+) -> pd.DataFrame:
     """Build a curva_pbc DataFrame from (period, buy_sell, O/C, price, power) tuples.
 
     A parsed curva_pbc labels every row with a bidding zone: "MI" for the periods
     the market stayed coupled, and "ES"/"PT" for the periods it split. All the rows
     built here carry the one zone given, so a split session is assembled by
-    concatenating two calls. The column is categorical, as the parsed file's is.
+    concatenating two calls. Likewise every row carries the one order type given:
+    "S" for a simple bid, "C01" for a block order, or the "Exp"/"Imp" label of an
+    exchange. Both columns are categorical, as the parsed file's are.
     """
     curva_pbc = pd.DataFrame(
         [(DATE_SESION, *row) for row in rows], columns=CURVA_PBC_COLUMNS
@@ -63,7 +95,27 @@ def _curva_pbc(rows: list[tuple], cat_bidding_zone: str = "ES") -> pd.DataFrame:
         [cat_bidding_zone] * len(curva_pbc),
         categories=[SPAIN_ZONE, PORTUGAL_ZONE, CAT_BIDDING_ZONE_MIBEL],
     )
+    curva_pbc[cols.CAT_ORDER_TYPE] = pd.Categorical(
+        [cat_order_type] * len(curva_pbc), categories=ORDER_TYPE_CATEGORIES
+    )
     return curva_pbc
+
+
+def _marginalpdbc(
+    spain_prices: dict[int, float], portugal_prices: dict[int, float] | None = None
+) -> pd.DataFrame:
+    """Build a marginalpdbc DataFrame, as parse_marginalpdbc_file returns it.
+
+    ``spain_prices`` maps each period to Spain's clearing price. Portugal's defaults
+    to the same prices, as in the periods the market stayed coupled.
+    """
+    if portugal_prices is None:
+        portugal_prices = spain_prices
+    return pd.DataFrame(
+        [(period, PORTUGAL_ZONE, price) for period, price in portugal_prices.items()]
+        + [(period, SPAIN_ZONE, price) for period, price in spain_prices.items()],
+        columns=MARGINALPDBC_COLUMNS,
+    )
 
 
 def _residual_demand_by_price(rdc: pd.DataFrame, period: int) -> dict[float, float]:
@@ -72,36 +124,107 @@ def _residual_demand_by_price(rdc: pd.DataFrame, period: int) -> dict[float, flo
     return dict(zip(period_rdc[cols.FLOAT_BID_PRICE], period_rdc["residual_demand"]))
 
 
+class TestGetClearingPriceOfRows:
+    """Test suite for get_clearing_price_of_rows function."""
+
+    def test_coupled_mi_rows_take_the_spanish_price(self):
+        """A coupled period has one price for both zones; they differ here only to
+        tell which of the two an "MI" row is given."""
+        curva_pbc = _curva_pbc(
+            [(1, "V", "C", 20.0, 30.0)], cat_bidding_zone=CAT_BIDDING_ZONE_MIBEL
+        )
+
+        clearing_prices = get_clearing_price_of_rows(
+            curva_pbc, _marginalpdbc({1: 40.0}, portugal_prices={1: 70.0})
+        )
+
+        assert clearing_prices.tolist() == [40.0]
+
+    def test_split_rows_take_their_own_zone_price(self):
+        curva_pbc = pd.concat(
+            [
+                _curva_pbc([(1, "V", "C", 20.0, 30.0)], cat_bidding_zone=SPAIN_ZONE),
+                _curva_pbc([(1, "V", "C", 20.0, 30.0)], cat_bidding_zone=PORTUGAL_ZONE),
+            ],
+            ignore_index=True,
+        )
+
+        clearing_prices = get_clearing_price_of_rows(
+            curva_pbc, _marginalpdbc({1: 40.0}, portugal_prices={1: 70.0})
+        )
+
+        assert clearing_prices.tolist() == [40.0, 70.0]
+
+    def test_each_period_takes_its_own_price(self):
+        curva_pbc = _curva_pbc(
+            [(2, "V", "C", 20.0, 30.0), (1, "C", "C", 60.0, 10.0)],
+            cat_bidding_zone=CAT_BIDDING_ZONE_MIBEL,
+        )
+
+        clearing_prices = get_clearing_price_of_rows(
+            curva_pbc, _marginalpdbc({1: 40.0, 2: 55.0})
+        )
+
+        assert clearing_prices.tolist() == [55.0, 40.0]
+
+    def test_keeps_the_index_of_the_curve(self):
+        """The curve reaching it is a filtered one, whose index has gaps."""
+        curva_pbc = _curva_pbc(
+            [(1, "V", "C", 20.0, 30.0), (1, "C", "C", 60.0, 10.0)],
+            cat_bidding_zone=CAT_BIDDING_ZONE_MIBEL,
+        ).set_axis([7, 3])
+
+        clearing_prices = get_clearing_price_of_rows(
+            curva_pbc, _marginalpdbc({1: 40.0})
+        )
+
+        assert clearing_prices.index.tolist() == [7, 3]
+
+    def test_period_without_a_clearing_price_is_reported(self):
+        curva_pbc = _curva_pbc(
+            [(2, "V", "C", 20.0, 30.0)], cat_bidding_zone=CAT_BIDDING_ZONE_MIBEL
+        )
+
+        with pytest.raises(ValueError, match="no clearing price"):
+            get_clearing_price_of_rows(curva_pbc, _marginalpdbc({1: 40.0}))
+
+
 class TestCalculatedCurvaPbcClearedExtended:
     """Test suite for calculated_curva_pbc_cleared_extended function."""
 
     @pytest.fixture
     def curva_pbc(self):
-        """Cleared bids plus offered bids both inside and outside the cleared range.
+        """Cleared bids plus offered bids on both sides of the clearing price.
 
-        Cleared sells reach 20 EUR/MWh, so only the offered sell at 90 extends
-        the curve; the offered sell at 10 is already inside the cleared range.
-        Cleared buys bottom out at 20, so only the offered buy at 5 extends it.
+        The clearing price is 20 EUR/MWh, so only the offered sell at 90 extends
+        the sells; the offered sell at 10 lies below the clearing price. Only the
+        offered buy at 5 extends the buys; the one at 200 lies above it.
         """
         return _curva_pbc(
             [
                 (1, "V", "C", -500.0, 50.0),
                 (1, "V", "C", 20.0, 30.0),
                 (1, "V", "O", -500.0, 50.0),  # cleared
-                (1, "V", "O", 10.0, 99.0),  # inside cleared range -> dropped
+                (1, "V", "O", 10.0, 99.0),  # below the clearing price -> dropped
                 (1, "V", "O", 20.0, 30.0),  # cleared
-                (1, "V", "O", 90.0, 70.0),  # above clearing -> kept
+                (1, "V", "O", 90.0, 70.0),  # above the clearing price -> kept
                 (1, "C", "C", 180.0, 60.0),
                 (1, "C", "C", 20.0, 25.0),
-                (1, "C", "O", 200.0, 99.0),  # inside cleared range -> dropped
+                (1, "C", "O", 200.0, 99.0),  # above the clearing price -> dropped
                 (1, "C", "O", 180.0, 60.0),  # cleared
                 (1, "C", "O", 20.0, 25.0),  # cleared
-                (1, "C", "O", 5.0, 40.0),  # below clearing -> kept
+                (1, "C", "O", 5.0, 40.0),  # below the clearing price -> kept
             ]
         )
 
-    def test_keeps_offered_bids_outside_the_cleared_price_range(self, curva_pbc):
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc.copy())
+    @pytest.fixture
+    def marginalpdbc(self):
+        return _marginalpdbc({1: 20.0})
+
+    def test_keeps_offered_bids_beyond_the_clearing_price(
+        self, curva_pbc, marginalpdbc
+    ):
+        extended = calculated_curva_pbc_cleared_extended(curva_pbc.copy(), marginalpdbc)
 
         sell_prices = sorted(
             extended.query(f'{cols.CAT_BUY_SELL} == "V"')[cols.FLOAT_BID_PRICE]
@@ -113,14 +236,91 @@ class TestCalculatedCurvaPbcClearedExtended:
         assert sell_prices == [-500.0, 20.0, 90.0]
         assert buy_prices == [5.0, 20.0, 180.0]
 
-    def test_drops_the_ofertada_casada_column(self, curva_pbc):
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc.copy())
+    def test_drops_offered_sells_between_the_highest_cleared_sell_and_the_clearing_price(
+        self,
+    ):
+        """When a buy or a complex order sets the price, the highest cleared sell
+        sits below the clearing price, and the offered sells in between are complex
+        orders the market rejected although in the money: no supply at those prices.
+        Here a buy at 30 sets the price and a block order at 25 was rejected."""
+        curva_pbc = pd.concat(
+            [
+                _curva_pbc(
+                    [
+                        (1, "V", "C", 20.0, 30.0),
+                        (1, "V", "O", 20.0, 30.0),  # cleared
+                        (1, "V", "O", 90.0, 70.0),  # above the clearing price -> kept
+                        (1, "C", "C", 30.0, 30.0),
+                        (1, "C", "O", 30.0, 30.0),  # cleared
+                    ]
+                ),
+                _curva_pbc([(1, "V", "O", 25.0, 40.0)], cat_order_type="C01"),
+            ],
+            ignore_index=True,
+        )
+
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 30.0})
+        )
+
+        sell_prices = sorted(
+            extended.query(f'{cols.CAT_BUY_SELL} == "V"')[cols.FLOAT_BID_PRICE]
+        )
+        assert sell_prices == [20.0, 90.0]
+
+    def test_drops_offered_buys_between_the_lowest_cleared_buy_and_the_clearing_price(
+        self,
+    ):
+        """The mirror case: a sell at 30 sets the price, the lowest cleared buy is at
+        40, and an offered buy at 35 was not cleared."""
+        curva_pbc = _curva_pbc(
+            [
+                (1, "V", "C", 30.0, 30.0),
+                (1, "V", "O", 30.0, 30.0),  # cleared
+                (1, "C", "C", 40.0, 30.0),
+                (1, "C", "O", 40.0, 30.0),  # cleared
+                (1, "C", "O", 35.0, 20.0),  # above the clearing price -> dropped
+                (1, "C", "O", 10.0, 50.0),  # below the clearing price -> kept
+            ]
+        )
+
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 30.0})
+        )
+
+        buy_prices = sorted(
+            extended.query(f'{cols.CAT_BUY_SELL} == "C"')[cols.FLOAT_BID_PRICE]
+        )
+        assert buy_prices == [10.0, 40.0]
+
+    def test_each_zone_is_extended_beyond_its_own_clearing_price(self):
+        """In a split period the zones clear at different prices, Spain at 30 and
+        Portugal at 60 here, so an offered sell at 45 continues Spain's curve but lies
+        below Portugal's clearing price."""
+        curva_pbc = pd.concat(
+            [
+                _curva_pbc([(1, "V", "O", 45.0, 10.0)], cat_bidding_zone=SPAIN_ZONE),
+                _curva_pbc([(1, "V", "O", 45.0, 20.0)], cat_bidding_zone=PORTUGAL_ZONE),
+            ],
+            ignore_index=True,
+        )
+
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 30.0}, portugal_prices={1: 60.0})
+        )
+
+        assert extended[cols.CAT_BIDDING_ZONE].astype(str).tolist() == [SPAIN_ZONE]
+
+    def test_drops_the_ofertada_casada_column(self, curva_pbc, marginalpdbc):
+        extended = calculated_curva_pbc_cleared_extended(curva_pbc.copy(), marginalpdbc)
         assert cols.CAT_OFERTADA_CASADA not in extended.columns
 
-    def test_cumsum_is_recomputed_over_the_whole_extended_curve(self, curva_pbc):
+    def test_cumsum_is_recomputed_over_the_whole_extended_curve(
+        self, curva_pbc, marginalpdbc
+    ):
         """The extended curve must be cumulated as one curve per period, not
         separately for the cleared ('C') and offered ('O') halves."""
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc.copy())
+        extended = calculated_curva_pbc_cleared_extended(curva_pbc.copy(), marginalpdbc)
 
         sells = extended.query(f'{cols.CAT_BUY_SELL} == "V"').sort_values(
             cols.FLOAT_BID_PRICE
@@ -134,14 +334,18 @@ class TestCalculatedCurvaPbcClearedExtended:
         # buys cumulate from the most expensive down: 60, 60+25, 60+25+40
         assert buys[cols.FLOAT_BID_POWER_CUMSUM].tolist() == [60.0, 85.0, 125.0]
 
-    def test_does_not_mutate_the_caller_dataframe(self, curva_pbc):
+    def test_does_not_mutate_the_caller_dataframe(self, curva_pbc, marginalpdbc):
         columns_before = list(curva_pbc.columns)
-        calculated_curva_pbc_cleared_extended(curva_pbc)
+        calculated_curva_pbc_cleared_extended(curva_pbc, marginalpdbc)
         assert list(curva_pbc.columns) == columns_before
 
 
 class TestCalculateResidualDemand:
-    """Test suite for calculate_residual_demand function."""
+    """Test suite for calculate_residual_demand function.
+
+    The curves here hold only cleared rows, so the clearing price, which filters
+    only offered rows, leaves them unchanged when they are extended.
+    """
 
     def test_buy_above_minus_sell_below_at_every_bid_price(self):
         """Buy and sell prices strictly interleave, so every row can see the
@@ -154,7 +358,9 @@ class TestCalculateResidualDemand:
                 (1, "C", "C", 60.0, 100.0),
             ]
         )
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc)
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 55.0})
+        )
 
         residual_demand = _residual_demand_by_price(
             calculate_residual_demand(extended), period=1
@@ -180,7 +386,9 @@ class TestCalculateResidualDemand:
                 (1, "C", "C", 5.0, 40.0),
             ]
         )
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc)
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 25.0})
+        )
 
         rdc = calculate_residual_demand(extended).sort_values(cols.FLOAT_BID_PRICE)
 
@@ -196,7 +404,9 @@ class TestCalculateResidualDemand:
                 (2, "C", "C", 60.0, 500.0),
             ]
         )
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc)
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 30.0, 2: 60.0})
+        )
 
         rdc = calculate_residual_demand(extended)
 
@@ -212,7 +422,9 @@ class TestCalculateResidualDemand:
                 (1, "V", "C", 50.0, 80.0),
             ]
         )
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc)
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 50.0})
+        )
 
         rdc = calculate_residual_demand(extended)
 
@@ -230,7 +442,9 @@ class TestCalculateResidualDemand:
                 (1, "V", "C", 50.0, 80.0),
             ]
         )
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc)
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 50.0})
+        )
 
         rdc = calculate_residual_demand(extended)
 
@@ -251,7 +465,9 @@ class TestCalculateResidualDemand:
                 (1, "V", "C", 90.0, 15.0),
             ]
         )
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc)
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 50.0})
+        )
 
         rdc = calculate_residual_demand(extended)
 
@@ -266,7 +482,9 @@ class TestCalculateResidualDemand:
                 (2, "C", "C", 5.0, 70.0),
             ]
         )
-        extended = calculated_curva_pbc_cleared_extended(curva_pbc)
+        extended = calculated_curva_pbc_cleared_extended(
+            curva_pbc, _marginalpdbc({1: 50.0, 2: 5.0})
+        )
 
         rdc = calculate_residual_demand(extended)
 
@@ -287,7 +505,7 @@ class TestFormatCurvaPbcRdc:
             ]
         )
         return calculate_residual_demand(
-            calculated_curva_pbc_cleared_extended(curva_pbc)
+            calculated_curva_pbc_cleared_extended(curva_pbc, _marginalpdbc({1: 55.0}))
         )
 
     def test_returns_one_row_per_price_point(self, rdc):
@@ -346,41 +564,98 @@ class TestCalculateResidualDemandCurvesFromBidCurves:
             ]
         )
 
-    def test_returns_the_documented_key(self, curva_pbc):
+    @pytest.fixture
+    def marginalpdbc(self):
+        """Each period clears between its highest cleared sell and lowest cleared buy."""
+        return _marginalpdbc({1: 20.0, 2: 35.0})
+
+    def test_returns_the_documented_keys(self, curva_pbc, marginalpdbc):
         result = calculate_residual_demand_curves_from_bid_curves(
-            curva_pbc, 2, price_points=[0.0, 50.0]
+            curva_pbc, marginalpdbc, 2, price_points=[0.0, 50.0]
         )
 
-        assert list(result) == ["cleared_bids_continued_with_submitted_residual_demand"]
+        assert list(result) == [RESIDUAL_DEMAND_KEY, "curva_pbc_cleared_extended"]
 
-    def test_produces_price_and_power_columns_for_every_period(self, curva_pbc):
+    def test_returns_the_extended_curve_the_residual_demand_is_read_off(
+        self, curva_pbc, marginalpdbc
+    ):
         result = calculate_residual_demand_curves_from_bid_curves(
-            curva_pbc, 2, price_points=[0.0, 50.0]
-        )["cleared_bids_continued_with_submitted_residual_demand"]
+            curva_pbc, marginalpdbc, 2, price_points=[0.0, 50.0]
+        )
+
+        pd.testing.assert_frame_equal(
+            result["curva_pbc_cleared_extended"],
+            calculated_curva_pbc_cleared_extended(curva_pbc, marginalpdbc),
+        )
+
+    def test_produces_price_and_power_columns_for_every_period(
+        self, curva_pbc, marginalpdbc
+    ):
+        result = calculate_residual_demand_curves_from_bid_curves(
+            curva_pbc, marginalpdbc, 2, price_points=[0.0, 50.0]
+        )[RESIDUAL_DEMAND_KEY]
 
         assert set(result.columns) == {"price_1", "price_2", "power_1", "power_2"}
         assert len(result) == 2
 
-    def test_residual_demand_decreases_as_price_increases(self, curva_pbc):
+    def test_residual_demand_decreases_as_price_increases(
+        self, curva_pbc, marginalpdbc
+    ):
         price_points = [-100.0, 0.0, 50.0, 120.0, 200.0]
 
         result = calculate_residual_demand_curves_from_bid_curves(
-            curva_pbc, 2, price_points=price_points
-        )["cleared_bids_continued_with_submitted_residual_demand"]
+            curva_pbc, marginalpdbc, 2, price_points=price_points
+        )[RESIDUAL_DEMAND_KEY]
 
         for power_column in ("power_1", "power_2"):
             powers = result[power_column].tolist()
             assert powers == sorted(powers, reverse=True), power_column
 
-    def test_default_price_points_span_the_whole_bid_price_range(self, curva_pbc):
+    def test_default_price_points_span_the_whole_bid_price_range(
+        self, curva_pbc, marginalpdbc
+    ):
         """The default grid must not stop short of MAX_BID_PRICE, or the curve is
         silently truncated where expensive orders still sit."""
-        result = calculate_residual_demand_curves_from_bid_curves(curva_pbc, 2)[
-            "cleared_bids_continued_with_submitted_residual_demand"
-        ]
+        result = calculate_residual_demand_curves_from_bid_curves(
+            curva_pbc, marginalpdbc, 2
+        )[RESIDUAL_DEMAND_KEY]
 
         assert result["price_1"].min() == pytest.approx(MIN_BID_PRICE)
         assert result["price_1"].max() == pytest.approx(MAX_BID_PRICE)
+
+    def test_residual_demand_is_zero_at_the_clearing_price_despite_a_rejected_sell(
+        self,
+    ):
+        """A buy at 30 sets the price, 80 MW are bought and sold, and a 40 MW block
+        order offered at 25 was rejected. Counting it as supply, as a threshold at the
+        highest cleared sell (20) would, leaves 80 - 120 = -40 MW at the clearing
+        price instead of 0."""
+        curva_pbc = pd.concat(
+            [
+                _curva_pbc(
+                    [
+                        (1, "V", "C", -500.0, 50.0),
+                        (1, "V", "C", 20.0, 30.0),
+                        (1, "V", "O", -500.0, 50.0),  # cleared
+                        (1, "V", "O", 20.0, 30.0),  # cleared
+                        (1, "V", "O", 90.0, 70.0),
+                        (1, "C", "C", 180.0, 60.0),
+                        (1, "C", "C", 30.0, 20.0),
+                        (1, "C", "O", 180.0, 60.0),  # cleared
+                        (1, "C", "O", 30.0, 20.0),  # cleared
+                        (1, "C", "O", 5.0, 40.0),
+                    ]
+                ),
+                _curva_pbc([(1, "V", "O", 25.0, 40.0)], cat_order_type="C01"),
+            ],
+            ignore_index=True,
+        )
+
+        result = calculate_residual_demand_curves_from_bid_curves(
+            curva_pbc, _marginalpdbc({1: 30.0}), 1, price_points=[30.0]
+        )[RESIDUAL_DEMAND_KEY]
+
+        assert result["power_1"].tolist() == pytest.approx([0.0])
 
 
 class TestCalculateResidualDemandCurvesFromBidCurvesBiddingZone:
@@ -414,9 +689,14 @@ class TestCalculateResidualDemandCurvesFromBidCurvesBiddingZone:
         )
 
     def _power_1(self, curva_pbc, market_periods_count=1, **kwargs):
+        # every session read here is one period whose bids all sit at 50 EUR/MWh
         return calculate_residual_demand_curves_from_bid_curves(
-            curva_pbc, market_periods_count, price_points=[50.0], **kwargs
-        )["cleared_bids_continued_with_submitted_residual_demand"]["power_1"].tolist()
+            curva_pbc,
+            _marginalpdbc({1: 50.0}),
+            market_periods_count,
+            price_points=[50.0],
+            **kwargs,
+        )[RESIDUAL_DEMAND_KEY]["power_1"].tolist()
 
     def test_defaults_to_the_spain_bidding_zone(self, split_session):
         assert self._power_1(split_session) == pytest.approx([20.0])
@@ -472,13 +752,22 @@ class TestCalculateResidualDemandCurvesFromBidCurvesBiddingZone:
             ],
             ignore_index=True,
         )
+        marginalpdbc = _marginalpdbc({1: 50.0, 2: 40.0})
 
         spain = calculate_residual_demand_curves_from_bid_curves(
-            mixed_session, 2, cat_bidding_zone=SPAIN_ZONE, price_points=[40.0]
-        )["cleared_bids_continued_with_submitted_residual_demand"]
+            mixed_session,
+            marginalpdbc,
+            2,
+            cat_bidding_zone=SPAIN_ZONE,
+            price_points=[40.0],
+        )[RESIDUAL_DEMAND_KEY]
         portugal = calculate_residual_demand_curves_from_bid_curves(
-            mixed_session, 2, cat_bidding_zone=PORTUGAL_ZONE, price_points=[40.0]
-        )["cleared_bids_continued_with_submitted_residual_demand"]
+            mixed_session,
+            marginalpdbc,
+            2,
+            cat_bidding_zone=PORTUGAL_ZONE,
+            price_points=[40.0],
+        )[RESIDUAL_DEMAND_KEY]
 
         # the coupled period reads the same for both zones
         assert spain["power_1"].tolist() == pytest.approx([20.0])
@@ -510,3 +799,158 @@ class TestCalculateResidualDemandCurvesFromBidCurvesBiddingZone:
 
         with pytest.raises(ValueError, match=PORTUGAL_ZONE):
             self._power_1(spain_only_session, cat_bidding_zone=PORTUGAL_ZONE)
+
+
+class TestCalculateResidualDemandCurvesFromBidCurvesRespectsSplit:
+    """Test suite for the respects_split option.
+
+    With it, a split period is read as one zone's market, from that zone's own
+    curve, where the exchange with the other zone is one more buy or sell. Without
+    it, every period is read as the whole of MIBEL: both zones' curves together,
+    without the flow between them, which is internal to MIBEL.
+    """
+
+    @pytest.fixture
+    def split_session(self):
+        """One split period: Spain clears at 30 EUR/MWh and exports 10 MW to
+        Portugal, which clears at 60.
+
+        Each zone balances at its own price with the exchange: Spain buys 80 and
+        exports 10 while selling 75 and importing 15 from France; Portugal buys 30
+        while selling 20 and importing the 10 from Spain. Without the exchange, MIBEL
+        buys 80 + 30 = 110 and sells 15 + 75 = 90 at 30 EUR/MWh.
+        """
+        return pd.concat(
+            [
+                _curva_pbc(
+                    [(1, "C", "C", 50.0, 80.0), (1, "V", "C", 30.0, 75.0)],
+                    cat_bidding_zone=SPAIN_ZONE,
+                ),
+                _curva_pbc(
+                    [(1, "V", "C", -500.0, 15.0)],
+                    cat_bidding_zone=SPAIN_ZONE,
+                    cat_order_type="Imp FR",
+                ),
+                _curva_pbc(
+                    [(1, "C", "C", 180.0, 10.0)],
+                    cat_bidding_zone=SPAIN_ZONE,
+                    cat_order_type="Exp PT",
+                ),
+                _curva_pbc(
+                    [(1, "C", "C", 70.0, 30.0), (1, "V", "C", 60.0, 20.0)],
+                    cat_bidding_zone=PORTUGAL_ZONE,
+                ),
+                _curva_pbc(
+                    [(1, "V", "C", -500.0, 10.0)],
+                    cat_bidding_zone=PORTUGAL_ZONE,
+                    cat_order_type="Imp ES",
+                ),
+            ],
+            ignore_index=True,
+        )
+
+    @pytest.fixture
+    def marginalpdbc(self):
+        return _marginalpdbc({1: 30.0}, portugal_prices={1: 60.0})
+
+    def _calculate(self, curva_pbc, marginalpdbc, price_points=(30.0,), **kwargs):
+        return calculate_residual_demand_curves_from_bid_curves(
+            curva_pbc, marginalpdbc, 1, price_points=list(price_points), **kwargs
+        )
+
+    def test_defaults_to_respecting_the_split(self, split_session, marginalpdbc):
+        """Spain's own curve balances at Spain's price."""
+        result = self._calculate(split_session, marginalpdbc)[RESIDUAL_DEMAND_KEY]
+
+        assert result["power_1"].tolist() == pytest.approx([0.0])
+
+    def test_respecting_the_split_keeps_the_zone_exchanges(
+        self, split_session, marginalpdbc
+    ):
+        extended = self._calculate(split_session, marginalpdbc, respects_split=True)[
+            "curva_pbc_cleared_extended"
+        ]
+
+        assert set(extended[cols.CAT_BIDDING_ZONE].astype(str)) == {SPAIN_ZONE}
+        assert set(extended[cols.CAT_ORDER_TYPE].astype(str)) == {
+            "S",
+            "Imp FR",
+            "Exp PT",
+        }
+
+    def test_without_the_split_both_zones_are_read_together(
+        self, split_session, marginalpdbc
+    ):
+        result = self._calculate(split_session, marginalpdbc, respects_split=False)[
+            RESIDUAL_DEMAND_KEY
+        ]
+
+        assert result["power_1"].tolist() == pytest.approx([20.0])
+
+    def test_without_the_split_only_the_spain_portugal_exchange_is_dropped(
+        self, split_session, marginalpdbc
+    ):
+        """The import from France stays: it is supply to MIBEL as a whole."""
+        extended = self._calculate(split_session, marginalpdbc, respects_split=False)[
+            "curva_pbc_cleared_extended"
+        ]
+
+        assert set(extended[cols.CAT_BIDDING_ZONE].astype(str)) == {
+            SPAIN_ZONE,
+            PORTUGAL_ZONE,
+        }
+        assert set(extended[cols.CAT_ORDER_TYPE].astype(str)) == {"S", "Imp FR"}
+
+    def test_without_the_split_cat_bidding_zone_is_not_used(
+        self, split_session, marginalpdbc
+    ):
+        spain, portugal = (
+            self._calculate(
+                split_session,
+                marginalpdbc,
+                price_points=(30.0, 60.0),
+                cat_bidding_zone=bidding_zone,
+                respects_split=False,
+            )[RESIDUAL_DEMAND_KEY]
+            for bidding_zone in (SPAIN_ZONE, PORTUGAL_ZONE)
+        )
+
+        pd.testing.assert_frame_equal(spain, portugal)
+
+    def test_a_coupled_period_reads_the_same_with_or_without_the_split(self):
+        """A coupled period has one curve for the whole of MIBEL and no exchange
+        between Spain and Portugal, so there is nothing for the option to change."""
+        coupled_session = pd.concat(
+            [
+                _curva_pbc(
+                    [
+                        (1, "V", "C", 50.0, 80.0),
+                        (1, "V", "O", 50.0, 80.0),  # cleared
+                        (1, "V", "O", 70.0, 30.0),
+                        (1, "C", "C", 50.0, 100.0),
+                        (1, "C", "O", 50.0, 100.0),  # cleared
+                        (1, "C", "O", 10.0, 40.0),
+                    ],
+                    cat_bidding_zone=CAT_BIDDING_ZONE_MIBEL,
+                ),
+                _curva_pbc(
+                    [(1, "V", "C", -500.0, 20.0)],
+                    cat_bidding_zone=CAT_BIDDING_ZONE_MIBEL,
+                    cat_order_type="Imp FR",
+                ),
+            ],
+            ignore_index=True,
+        )
+        marginalpdbc = _marginalpdbc({1: 50.0})
+
+        respecting, not_respecting = (
+            self._calculate(
+                coupled_session,
+                marginalpdbc,
+                price_points=(0.0, 30.0, 50.0, 60.0, 100.0),
+                respects_split=respects_split,
+            )[RESIDUAL_DEMAND_KEY]
+            for respects_split in (True, False)
+        )
+
+        pd.testing.assert_frame_equal(respecting, not_respecting)
