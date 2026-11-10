@@ -11,7 +11,6 @@ from iberian_day_ahead_market_simulator.const import (
     FRONTIER_MAPPING_REVERSE,
     PORTUGAL_ZONE,
     SPAIN_ZONE,
-    TOTAL_PERIODS_OPTIONS,
     get_rdc_price_columns,
     get_rdc_power_columns,
 )
@@ -19,54 +18,30 @@ from iberian_day_ahead_market_simulator.data_preprocessor import (
     get_det_cab_for_simulation,
     get_france_det_cab_from_curva_pbc_uof,
 )
-from iberian_day_ahead_market_simulator.file_paths import (
-    PARTICIPANTS_BIDDING_ZONES_FILEPATH,
-)
 from iberian_day_ahead_market_simulator.parse_omie_files import (
-    parse_cab_file,
     parse_capacidad_inter_file,
-    parse_det_file,
 )
-from iberian_day_ahead_market_simulator.schemas.cab import CABSchema
 from iberian_day_ahead_market_simulator.schemas.capacidad_inter_pt import (
     CapacidadInterPTSchema,
 )
-from iberian_day_ahead_market_simulator.schemas.det import DETSchema
+
+# format_price_curves and substract_reference_curve_from_all_curves now live in
+# validate_inputs and tools, shared with
+# calculate_cleared_power_curves_by_order_type_from_bids; they stay importable from this
+# module too
 from iberian_day_ahead_market_simulator.tools import (
-    concat_provided_participants_bidding_zones_with_existing_data,
-    get_market_periods_count,
     is_QH_market,
+    substract_reference_curve_from_all_curves,
+)
+from iberian_day_ahead_market_simulator.validate_inputs import (
+    format_price_curves,
+    get_participants_bidding_zones,
+    get_reference_price_curve_index,
+    get_validated_det_and_cab,
 )
 import iberian_day_ahead_market_simulator.columns as cols
 
 logger = logging.getLogger(__name__)
-
-
-def format_price_curves(
-    price_curves: np.ndarray,
-) -> np.ndarray:
-
-    # if 1 dimension check len in TOTAL_PERIODS_OPTIONS
-    if price_curves.ndim == 1:
-        prices_curves_len = len(price_curves)
-        if prices_curves_len not in TOTAL_PERIODS_OPTIONS:
-            raise ValueError(
-                f"If price_curves is 1D, it must have length in {TOTAL_PERIODS_OPTIONS}."
-            )
-        # reshape to (1, prices_curves_len)
-        price_curves = price_curves.reshape(1, prices_curves_len)
-
-    elif price_curves.ndim == 2:
-        prices_curves_shape_1 = price_curves.shape[1]
-        if prices_curves_shape_1 not in TOTAL_PERIODS_OPTIONS:
-            raise ValueError(
-                f"If price_curves is 2D, it must have shape (n_curves, {TOTAL_PERIODS_OPTIONS})."
-            )
-
-    else:
-        raise ValueError("price_curves must be either 1D or 2D numpy array.")
-
-    return price_curves
 
 
 def reindex_over_market_periods(
@@ -223,18 +198,6 @@ def calculate_submitted_relaxed_residual_demand(
     )
 
 
-def substract_reference_curve_from_all_curves(
-    curves_df: pd.DataFrame, reference_curve_index: int, rdc_power_columns: list[str]
-) -> pd.DataFrame:
-    curves_df = curves_df.copy()
-    corresponding_df_index = curves_df.index[reference_curve_index]
-    reference_power_curve = curves_df.loc[corresponding_df_index, rdc_power_columns]
-    curves_df.loc[:, rdc_power_columns] = curves_df.loc[:, rdc_power_columns].sub(
-        reference_power_curve
-    )
-    return curves_df
-
-
 def calculate_residual_demand_curves_from_bids(
     price_curves: np.ndarray,
     det: pd.DataFrame | str,
@@ -283,36 +246,12 @@ def calculate_residual_demand_curves_from_bids(
 
     price_curves = format_price_curves(price_curves)
     if reference_price_curve is not None:
-        try:
-            reference_price_curve_index = np.where(
-                (price_curves == reference_price_curve).all(axis=1)
-            )[0][0]
-            logger.info("reference_price_curve_index: %s", reference_price_curve_index)
-        except Exception as e:
-            raise ValueError(
-                "Error while trying to find the reference price curve in the provided price curves."
-            ) from e
-
-    if isinstance(det, str):
-        det = parse_det_file(det)
-    if isinstance(cab, str):
-        cab = parse_cab_file(cab)
-
-    DETSchema.validate(det)
-    CABSchema.validate(cab)
-
-    market_periods_count = get_market_periods_count(det)
-    is_QH = is_QH_market(market_periods_count)
-    det = det.query(f"{cols.INT_PERIOD} <= {market_periods_count}")
-
-    # the price curves are indexed by market period further down, so a length that
-    # disagrees with the DET file has to be reported here rather than as an
-    # IndexError from inside the clearing of an individual order
-    if price_curves.shape[1] != market_periods_count:
-        raise ValueError(
-            f"price_curves cover {price_curves.shape[1]} periods but the DET file is a "
-            f"{market_periods_count} period session. Pass one price per market period."
+        reference_price_curve_index = get_reference_price_curve_index(
+            price_curves, reference_price_curve
         )
+
+    det, cab, market_periods_count = get_validated_det_and_cab(det, cab, price_curves)
+    is_QH = is_QH_market(market_periods_count)
 
     if isinstance(capacidad_inter_pbc, str):
         capacidad_inter_pbc = parse_capacidad_inter_file(
@@ -323,14 +262,9 @@ def calculate_residual_demand_curves_from_bids(
     rdc_price_columns = get_rdc_price_columns(market_periods_count)
     rdc_power_columns = get_rdc_power_columns(market_periods_count)
 
-    if isinstance(participants_bidding_zones, pd.DataFrame):
-        participants_bidding_zones = (
-            concat_provided_participants_bidding_zones_with_existing_data(
-                participants_bidding_zones
-            )
-        )
-    else:
-        participants_bidding_zones = pd.read_csv(PARTICIPANTS_BIDDING_ZONES_FILEPATH)
+    participants_bidding_zones = get_participants_bidding_zones(
+        participants_bidding_zones
+    )
 
     capacidad_inter_PBC_pt = capacidad_inter_pbc.query(
         f"{cols.CAT_FRONTIER} == {FRONTIER_MAPPING_REVERSE['PT']}"

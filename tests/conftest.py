@@ -270,3 +270,93 @@ def full_simplified_det_cab_dataframe():
 # 27  2025-07-01  12345678901234            1             0              1                   0             50.0            250.0        0.0        0.0             MIEU            V       99999999.0        0.0       ES              S                   730.0  1_V_12345678901234_1_0_0                    <NA>            <NA>                              390.0
 # 28  2025-07-01  12345678901234            2             0              1                   0             55.0            300.0        0.0        0.0             MIEU            V       99999999.0        0.0       ES              S                   850.0  2_V_12345678901234_1_0_0                    <NA>            <NA>                              460.0
 # 29  2025-07-01  12345678901234            3             0              1                   0             60.0            350.0        0.0        0.0             MIEU            V       99999999.0        0.0       ES              S                   970.0  3_V_12345678901234_1_0_0                    <NA>            <NA>                              530.0
+
+
+# ---------------------------------------------------------------------------
+# A whole hourly session: one order of each type over 24 periods
+# ---------------------------------------------------------------------------
+
+HOURLY_SESSION_PERIODS = list(range(1, 25))
+
+
+def _det_order_over_hourly_session(
+    id_order, bid_price, bid_power, int_num_block=0, int_num_excl_group=0
+):
+    """DET rows of one order bidding the same price and power in every period."""
+    periods_count = len(HOURLY_SESSION_PERIODS)
+    return pd.DataFrame(
+        {
+            cols.DATE_SESION: pd.to_datetime([STANDARD_TESTING_DATE] * periods_count),
+            cols.ID_ORDER: [id_order] * periods_count,
+            cols.INT_PERIOD: HOURLY_SESSION_PERIODS,
+            cols.INT_NUM_BLOCK: [int_num_block] * periods_count,
+            cols.INT_NUM_SUBORDER: [1] * periods_count,
+            cols.INT_NUM_EXCL_GROUP: [int_num_excl_group] * periods_count,
+            cols.FLOAT_BID_PRICE: [bid_price] * periods_count,
+            cols.FLOAT_BID_POWER: [bid_power] * periods_count,
+            cols.FLOAT_MAV: [0.0] * periods_count,
+            cols.FLOAT_MAR: [0.0] * periods_count,
+        }
+    )
+
+
+@pytest.fixture
+def hourly_session_det_dataframe():
+    """DET of a 24 period session with one order of each type, alike in every period.
+
+    A simple sell at 30 EUR/MWh (100 MW), a block order of two blocks at 40 (50 MW) and
+    60 (30 MW), a scalable complex order at 20 (80 MW, with the MIC of its CAB), an
+    exclusive group of two blocks at 35 (60 MW) and 45 (70 MW), and a buy at 100
+    (400 MW).
+    """
+    return pd.concat(
+        [
+            _det_order_over_hourly_session("ID_SIMPLE", 30.0, 100.0),
+            _det_order_over_hourly_session("ID_BLOCK", 40.0, 50.0, int_num_block=1),
+            _det_order_over_hourly_session("ID_BLOCK", 60.0, 30.0, int_num_block=2),
+            _det_order_over_hourly_session("ID_SCO", 20.0, 80.0),
+            _det_order_over_hourly_session(
+                "ID_EXCL_BLOCK", 35.0, 60.0, int_num_block=1, int_num_excl_group=1
+            ),
+            _det_order_over_hourly_session(
+                "ID_EXCL_BLOCK", 45.0, 70.0, int_num_block=2, int_num_excl_group=1
+            ),
+            _det_order_over_hourly_session("ID_BUY", 100.0, 400.0),
+        ],
+        ignore_index=True,
+    )
+
+
+@pytest.fixture
+def hourly_session_cab_dataframe():
+    """CAB of the orders of hourly_session_det_dataframe."""
+    return pd.DataFrame(
+        # fmt: off
+        {
+            cols.DATE_SESION:     pd.to_datetime([STANDARD_TESTING_DATE] * 5),
+            cols.ID_ORDER:        ["ID_SIMPLE",   "ID_BLOCK",   "ID_SCO",   "ID_EXCL_BLOCK",   "ID_BUY"],
+            cols.ID_UNIDAD:       ["UNIT_SIMPLE", "UNIT_BLOCK", "UNIT_SCO", "UNIT_EXCL_BLOCK", "UNIT_BUY"],
+            cols.CAT_BUY_SELL:    ["V",           "V",          "V",        "V",               "C"],
+            cols.FLOAT_MAX_POWER: [100.0,         80.0,         80.0,       70.0,              400.0],
+            cols.FLOAT_MIC:       [0.0,           0.0,          1000.0,     0.0,               0.0],
+        }
+        # fmt: on
+    )
+
+
+@pytest.fixture
+def hourly_session_participants_bidding_zones_dataframe():
+    """The zones of the units of hourly_session_cab_dataframe: the block order's in
+    Portugal, every other one in Spain."""
+    return pd.DataFrame(
+        {
+            cols.ID_UNIDAD: [
+                "UNIT_SIMPLE",
+                "UNIT_BLOCK",
+                "UNIT_SCO",
+                "UNIT_EXCL_BLOCK",
+                "UNIT_BUY",
+            ],
+            cols.CAT_BIDDING_ZONE: ["ES", "PT", "ES", "ES", "ES"],
+        }
+    )

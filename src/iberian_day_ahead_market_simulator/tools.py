@@ -494,3 +494,15 @@ def transform_hxqx_period_to_int(period_series: pd.Series) -> pd.Series:
     return period_series.str.extract(r"H(\d+)Q(\d+)").apply(
         lambda x: (int(x[0]) - 1) * 4 + int(x[1]), axis=1
     )
+
+
+def substract_reference_curve_from_all_curves(
+    curves_df: pd.DataFrame, reference_curve_index: int, rdc_power_columns: list[str]
+) -> pd.DataFrame:
+    curves_df = curves_df.copy()
+    corresponding_df_index = curves_df.index[reference_curve_index]
+    reference_power_curve = curves_df.loc[corresponding_df_index, rdc_power_columns]
+    curves_df.loc[:, rdc_power_columns] = curves_df.loc[:, rdc_power_columns].sub(
+        reference_power_curve
+    )
+    return curves_df
