@@ -191,6 +191,7 @@ def calculate_residual_demand_curves(
     participants_bidding_zones: pd.DataFrame | None = None,
     sell_country: str = "ES",
     iterations_count: int = 100,
+    france_fixed_exchange: pd.Series | None = None,
     spain_as_default_bidding_zone: bool = True,
     n_jobs: int = 1,
 ) -> pd.DataFrame:
@@ -288,6 +289,7 @@ def calculate_residual_demand_curves(
             cab=cab_modified,
             capacidad_inter_pbc=capacidad_inter_pbc,
             participants_bidding_zones=participants_bidding_zones_modified,
+            france_fixed_exchange=france_fixed_exchange,
             france_day_ahead_prices=france_day_ahead_prices,
             iterations_count=iterations_count,
             spain_as_default_bidding_zone=spain_as_default_bidding_zone,
