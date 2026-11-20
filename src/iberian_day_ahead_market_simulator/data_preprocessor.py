@@ -13,6 +13,8 @@ from iberian_day_ahead_market_simulator.const import (
     FRANCE_ID_ORDER,
     FRANCE_ID_UNIDAD,
     FRONTIER_MAPPING_REVERSE,
+    MAX_BID_PRICE,
+    MIN_BID_PRICE,
     PORTUGAL_ZONE,
     SPAIN_ZONE,
 )
@@ -159,7 +161,9 @@ def get_france_det_cab_from_curva_pbc_uof(
         ValueError: If the curve holds no rows for FRANCE_ID_UNIDAD, which would silently
             leave the interconnection out of the simulation.
     """
-    france_curve = curva_pbc_uof[curva_pbc_uof[cols.ID_UNIDAD] == FRANCE_ID_UNIDAD].copy()
+    france_curve = curva_pbc_uof[
+        curva_pbc_uof[cols.ID_UNIDAD] == FRANCE_ID_UNIDAD
+    ].copy()
 
     # keep only what cleared: an offered row is not a flow
     if cols.CAT_OFERTADA_CASADA in france_curve.columns:
@@ -200,6 +204,99 @@ def get_france_det_cab_from_curva_pbc_uof(
     ]
     return (
         france_curve[carried_columns]
+        .assign(**det_cab_values)
+        .dropna()
+        .query(f"{cols.FLOAT_BID_POWER} > 0")
+        .reset_index(drop=True)
+    )
+
+
+def get_france_det_cab_from_capacidad_inter_pbc(
+    capacidad_inter_pbc: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Build the France interconnection's DET/CAB rows from OMIE's capacidad_inter_pbc file.
+
+    Same result as `get_france_det_cab_from_curva_pbc_uof`, but read from the interconnection
+    capacity file instead of the unit-level curve. The occupied capacity of the France border
+    is the flow that actually cleared: occupied import capacity becomes a sell and occupied
+    export capacity becomes a buy. That file publishes no prices, so the rows are priced at
+    the extremes of the bid range (MIN_BID_PRICE for the sell, MAX_BID_PRICE for the buy),
+    which makes the interconnection a price taker: it contributes the same power whatever
+    price the rest of the market is cleared at.
+
+    Args:
+        capacidad_inter_pbc (pd.DataFrame): The capacity file in its complete form. Must
+            carry cols.INT_PERIOD, cols.FLOAT_IMPORT_CACACITY_OCCUPATION and
+            cols.FLOAT_EXPORT_CAPACITY_OCCUPATION. Rows are restricted to the France
+            frontier when cols.CAT_FRONTIER is present, and filtered by `date` when
+            cols.DATE_SESION is present.
+
+    Returns:
+        pd.DataFrame: DataFrame in DET/CAB format, ready for use in the simulator.
+
+    Raises:
+        ValueError: If the file holds no rows for the France frontier, or several dates
+            without `date` to choose one.
+    """
+    france_capacity = capacidad_inter_pbc
+    if cols.CAT_FRONTIER in france_capacity.columns:
+        france_capacity = france_capacity[
+            france_capacity[cols.CAT_FRONTIER]
+            == FRONTIER_MAPPING_REVERSE[CAT_BIDDING_ZONE_FRANCE]
+        ]
+
+    if france_capacity.empty:
+        raise ValueError(
+            "capacidad_inter_pbc holds no rows for the France frontier, so the France "
+            "interconnection would be left out of the simulation entirely."
+        )
+
+    # occupied import capacity is France selling to Spain, at the floor so it always clears
+    sell_det_cab = pd.DataFrame(
+        {
+            cols.INT_PERIOD: france_capacity[cols.INT_PERIOD],
+            cols.CAT_BUY_SELL: CAT_SELL,
+            cols.FLOAT_BID_POWER: france_capacity[
+                cols.FLOAT_IMPORT_CACACITY_OCCUPATION
+            ].abs(),
+            cols.FLOAT_BID_PRICE: MIN_BID_PRICE,
+        }
+    )
+    # occupied export capacity is Spain selling to France, a buy at the cap so it always clears
+    buy_det_cab = pd.DataFrame(
+        {
+            cols.INT_PERIOD: france_capacity[cols.INT_PERIOD],
+            cols.CAT_BUY_SELL: CAT_BUY,
+            cols.FLOAT_BID_POWER: france_capacity[
+                cols.FLOAT_EXPORT_CAPACITY_OCCUPATION
+            ].abs(),
+            cols.FLOAT_BID_PRICE: MAX_BID_PRICE,
+        }
+    )
+
+    date = (
+        capacidad_inter_pbc[cols.DATE_SESION].iloc[0]
+        if cols.DATE_SESION in capacidad_inter_pbc.columns
+        else None
+    )
+
+    det_cab_values = {
+        cols.ID_ORDER: FRANCE_ID_ORDER,
+        cols.ID_UNIDAD: FRANCE_ID_UNIDAD,
+        cols.FLOAT_MIC: 0,
+        cols.FLOAT_MAX_POWER: 99999999,  # High value to avoid issues
+        cols.INT_NUM_BLOCK: 0,
+        cols.INT_NUM_SUBORDER: 1,
+        cols.INT_NUM_EXCL_GROUP: 0,
+        cols.FLOAT_MAV: 0,
+        cols.FLOAT_MAR: 0,
+        cols.CAT_BIDDING_ZONE: CAT_BIDDING_ZONE_SPAIN,  # the Iberian side of the border
+        cols.DATE_SESION: pd.Timestamp(date) if date is not None else None,
+    }
+
+    return (
+        pd.concat([sell_det_cab, buy_det_cab], ignore_index=True)
         .assign(**det_cab_values)
         .dropna()
         .query(f"{cols.FLOAT_BID_POWER} > 0")

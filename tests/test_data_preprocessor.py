@@ -10,8 +10,13 @@ from iberian_day_ahead_market_simulator.data_preprocessor import (
     get_france_det_cab_from_price,
 )
 from iberian_day_ahead_market_simulator.tools import get_cat_order_type_column
-from iberian_day_ahead_market_simulator.const import FRANCE_ID_UNIDAD
+from iberian_day_ahead_market_simulator.const import (
+    FRANCE_ID_UNIDAD,
+    MAX_BID_PRICE,
+    MIN_BID_PRICE,
+)
 from iberian_day_ahead_market_simulator.data_preprocessor import (
+    get_france_det_cab_from_capacidad_inter_pbc,
     get_france_det_cab_from_curva_pbc_uof,
 )
 
@@ -298,3 +303,74 @@ class TestFranceFromCurvaPbcUof:
 
         with pytest.raises(ValueError, match="holds no cleared rows"):
             get_france_det_cab_from_curva_pbc_uof(without_france)
+
+
+class TestFranceFromCapacidadInterPbc:
+    """The France interconnection is read off the occupied capacity of the border."""
+
+    @pytest.fixture
+    def capacidad_inter_pbc(self):
+        # Occupied capacity is the flow that cleared: import is France selling, export a buy.
+        return pd.DataFrame(
+            {
+                cols.INT_PERIOD: [1, 2, 1],
+                cols.DATE_SESION: pd.to_datetime(["2025-01-01"] * 3),
+                cols.CAT_FRONTIER: [3, 3, 2],
+                cols.FLOAT_IMPORT_CACACITY_OCCUPATION: [2300.0, 0.0, 999.0],
+                cols.FLOAT_EXPORT_CAPACITY_OCCUPATION: [0.0, 62.0, 999.0],
+            }
+        )
+
+    def test_occupied_capacity_becomes_price_taker_rows(self, capacidad_inter_pbc):
+        det_cab_fr = get_france_det_cab_from_capacidad_inter_pbc(capacidad_inter_pbc)
+
+        assert det_cab_fr[cols.ID_UNIDAD].unique().tolist() == [FRANCE_ID_UNIDAD]
+        assert det_cab_fr[cols.INT_PERIOD].tolist() == [1, 2]
+        assert det_cab_fr[cols.CAT_BUY_SELL].tolist() == ["V", "C"]
+        assert det_cab_fr[cols.FLOAT_BID_POWER].tolist() == [2300.0, 62.0]
+        assert det_cab_fr[cols.FLOAT_BID_PRICE].tolist() == [
+            MIN_BID_PRICE,
+            MAX_BID_PRICE,
+        ]
+
+    def test_other_frontiers_are_ignored(self, capacidad_inter_pbc):
+        det_cab_fr = get_france_det_cab_from_capacidad_inter_pbc(capacidad_inter_pbc)
+
+        assert 999.0 not in det_cab_fr[cols.FLOAT_BID_POWER].tolist()
+
+    def test_same_columns_as_the_curva_pbc_uof_version(self, capacidad_inter_pbc):
+        curve = pd.DataFrame(
+            {
+                cols.ID_UNIDAD: [FRANCE_ID_UNIDAD, FRANCE_ID_UNIDAD],
+                cols.INT_PERIOD: [1, 2],
+                cols.CAT_BUY_SELL: ["V", "C"],
+                cols.FLOAT_BID_POWER: [2300.0, 62.0],
+                cols.FLOAT_BID_PRICE: [MIN_BID_PRICE, MAX_BID_PRICE],
+            }
+        )
+
+        # The capacity file carries its own date, which ends up on the rows; the curve here
+        # has none, so the same day is given to it to stamp.
+        from_capacity = get_france_det_cab_from_capacidad_inter_pbc(capacidad_inter_pbc)
+        from_curve = get_france_det_cab_from_curva_pbc_uof(curve, date="2025-01-01")
+
+        assert set(from_capacity.columns) == set(from_curve.columns)
+        pd.testing.assert_frame_equal(
+            from_capacity[from_curve.columns].astype(object),
+            from_curve.astype(object),
+            check_dtype=False,
+        )
+
+    def test_the_date_of_the_file_is_stamped_on_the_rows(self, capacidad_inter_pbc):
+        det_cab_fr = get_france_det_cab_from_capacidad_inter_pbc(capacidad_inter_pbc)
+
+        assert det_cab_fr[cols.DATE_SESION].unique().tolist() == [
+            pd.Timestamp("2025-01-01")
+        ]
+        assert len(det_cab_fr) == 2
+
+    def test_a_file_without_the_france_frontier_is_refused(self, capacidad_inter_pbc):
+        only_portugal = capacidad_inter_pbc[capacidad_inter_pbc[cols.CAT_FRONTIER] == 2]
+
+        with pytest.raises(ValueError, match="no rows for the France frontier"):
+            get_france_det_cab_from_capacidad_inter_pbc(only_portugal)

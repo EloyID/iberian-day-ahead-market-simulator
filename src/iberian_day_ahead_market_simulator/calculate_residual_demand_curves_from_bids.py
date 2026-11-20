@@ -16,6 +16,7 @@ from iberian_day_ahead_market_simulator.const import (
 )
 from iberian_day_ahead_market_simulator.data_preprocessor import (
     get_det_cab_for_simulation,
+    get_france_det_cab_from_capacidad_inter_pbc,
     get_france_det_cab_from_curva_pbc_uof,
 )
 from iberian_day_ahead_market_simulator.parse_omie_files import (
@@ -203,7 +204,6 @@ def calculate_residual_demand_curves_from_bids(
     det: pd.DataFrame | str,
     cab: pd.DataFrame | str,
     capacidad_inter_pbc: pd.DataFrame | str,
-    curva_pbc_uof: pd.DataFrame | None,
     participants_bidding_zones: pd.DataFrame | None = None,
     spain_as_default_bidding_zone: bool = False,
     reference_price_curve: np.ndarray | None = None,
@@ -255,7 +255,7 @@ def calculate_residual_demand_curves_from_bids(
 
     if isinstance(capacidad_inter_pbc, str):
         capacidad_inter_pbc = parse_capacidad_inter_file(
-            capacidad_inter_pbc, only_capacity_columns=True, is_QH=is_QH
+            capacidad_inter_pbc, only_capacity_columns=False, is_QH=is_QH
         )
     CapacidadInterPTSchema.validate(capacidad_inter_pbc)
 
@@ -273,7 +273,7 @@ def calculate_residual_demand_curves_from_bids(
     # Read France's orders off the unit-level curve, so that imports from and exports to
     # France take part in the residual demand. DET/CAB never carry them, so without this the
     # whole cross-border volume is simply absent.
-    det_cab_fr = get_france_det_cab_from_curva_pbc_uof(curva_pbc_uof)
+    det_cab_fr = get_france_det_cab_from_capacidad_inter_pbc(capacidad_inter_pbc)
 
     det_cab = get_det_cab_for_simulation(
         det=det,
